@@ -24,7 +24,7 @@ export function parseEnv(): AppEnv {
   if (!result.success) {
     console.error('Invalid environment variables:');
     console.error(result.error.flatten().fieldErrors);
-    process.exit(1);
+    throw new Error('Invalid environment variables');
   }
   return result.data;
 }
