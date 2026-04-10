@@ -1,9 +1,13 @@
 import { parseEnv } from '@tamada/config';
 import { createApp } from './app';
+import { createDb } from './db';
+import { createWhatsAppProvider } from './auth/whatsapp';
 
 async function main() {
   const env = parseEnv();
-  const app = createApp(env);
+  const db = createDb(env);
+  const wa = createWhatsAppProvider(env);
+  const app = createApp(env, db, wa);
 
   try {
     await app.listen({ port: env.APP_PORT, host: '0.0.0.0' });

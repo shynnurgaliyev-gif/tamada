@@ -15,6 +15,15 @@ const envSchema = z.object({
   SUPABASE_URL: z.string().url(),
   SUPABASE_ANON_KEY: z.string(),
   SUPABASE_SERVICE_ROLE_KEY: z.string(),
+
+  // Auth
+  SESSION_SECRET: z.string().min(32).optional(),
+  SESSION_EXPIRES_DAYS: z.coerce.number().default(30),
+
+  // WhatsApp
+  WHATSAPP_PROVIDER: z.enum(['stub', 'real']).default('stub'),
+  WHATSAPP_API_URL: z.string().url().optional(),
+  WHATSAPP_API_KEY: z.string().optional(),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

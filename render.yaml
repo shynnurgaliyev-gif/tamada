@@ -13,6 +13,10 @@ services:
         value: 3000
       - key: LOG_LEVEL
         value: info
+      - key: WHATSAPP_PROVIDER
+        value: stub
+      - key: SESSION_EXPIRES_DAYS
+        value: 30
       - key: APP_BASE_URL
         sync: false
       - key: DATABASE_URL
@@ -25,6 +29,8 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      - key: SESSION_SECRET
+        sync: false
 
   - type: web
     name: tamada-web
@@ -36,3 +42,5 @@ services:
         value: production
       - key: PORT
         value: 3001
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
