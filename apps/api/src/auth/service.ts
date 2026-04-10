@@ -9,7 +9,7 @@ const SESSION_EXPIRES_DAYS = 30;
 
 type Err = { code: string; message: string };
 type Fail = { ok: false; error: Err };
-type Ok<T = Record<string, never>> = { ok: true } & T;
+type Ok<T extends object = object> = { ok: true } & T;
 
 function fail(code: string, message: string): Fail {
   return { ok: false, error: { code, message } };
