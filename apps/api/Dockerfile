@@ -29,8 +29,7 @@ RUN pnpm --filter @tamada/api build
 
 # Create lightweight production bundle
 RUN pnpm --filter @tamada/api deploy --legacy /deploy
-
-COPY apps/api/dist/ /deploy/dist/
+RUN cp -r apps/api/dist /deploy/dist
 
 # ---- Runner ----
 FROM node:22-alpine AS runner
