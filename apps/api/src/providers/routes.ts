@@ -262,9 +262,12 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
         repo.findLinksByProviderId(db, provider.id),
       ]);
 
+      // Strip private fields before sending public response
+      const { account_id: _a, ...publicProvider } = provider as typeof provider & { account_id: unknown };
+
       return reply.send({
         ok: true,
-        provider,
+        provider: publicProvider,
         services: services.filter(s => s.is_active),
         photos: withPhotoUrls(env, photos),
         links,

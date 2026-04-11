@@ -17,7 +17,17 @@ services:
         value: stub
       - key: SESSION_EXPIRES_DAYS
         value: 30
+      - key: AI_SEARCH_ENABLED
+        value: "false"
+      - key: AI_SEARCH_MODEL
+        value: gpt-4o-mini
+      - key: CALENDAR_STALE_DAYS
+        value: 7
+      - key: DEFAULT_MORNING_REMINDER_HOUR
+        value: 9
       - key: APP_BASE_URL
+        sync: false
+      - key: CORS_ORIGINS
         sync: false
       - key: DATABASE_URL
         sync: false
@@ -39,16 +49,8 @@ services:
         sync: false
       - key: INTERNAL_JOBS_SECRET
         sync: false
-      - key: CALENDAR_STALE_DAYS
-        value: 7
-      - key: DEFAULT_MORNING_REMINDER_HOUR
-        value: 9
-      - key: AI_SEARCH_ENABLED
-        value: false
       - key: OPENAI_API_KEY
         sync: false
-      - key: AI_SEARCH_MODEL
-        value: gpt-4o-mini
 
   - type: web
     name: tamada-web
@@ -62,5 +64,8 @@ services:
         value: 3001
       - key: NEXT_PUBLIC_API_URL
         sync: false
+      - key: NEXT_PUBLIC_WEB_URL
+        sync: false
     dockerBuildArgs:
       - NEXT_PUBLIC_API_URL
+      - NEXT_PUBLIC_WEB_URL

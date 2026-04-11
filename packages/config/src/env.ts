@@ -32,6 +32,9 @@ const envSchema = z.object({
   // Payments
   KASPI_API_KEY: z.string().optional(),
 
+  // Security
+  CORS_ORIGINS: z.string().optional(), // comma-separated list of allowed origins
+
   // Jobs / Reminders
   INTERNAL_JOBS_SECRET: z.string().optional(),
   CALENDAR_STALE_DAYS: z.coerce.number().default(7),
