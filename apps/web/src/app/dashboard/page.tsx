@@ -56,6 +56,7 @@ export default function DashboardPage() {
         <a href="/dashboard/calendar" style={navStyle}>Календарь</a>
         <a href="/dashboard/integrations" style={navStyle}>Интеграции (Telegram)</a>
         <a href="/dashboard/subscription" style={navStyle}>Подписка</a>
+        <a href="/dashboard/notifications" style={navStyle}>Напоминания</a>
       </div>
       <button onClick={logout} style={{ marginTop: 24, background: 'none', border: '1px solid #ccc', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: 14 }}>Выйти</button>
     </main>

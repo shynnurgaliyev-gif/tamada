@@ -28,6 +28,11 @@ const envSchema = z.object({
   // Telegram
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_BOT_USERNAME: z.string().optional(),
+
+  // Jobs / Reminders
+  INTERNAL_JOBS_SECRET: z.string().optional(),
+  CALENDAR_STALE_DAYS: z.coerce.number().default(7),
+  DEFAULT_MORNING_REMINDER_HOUR: z.coerce.number().default(9),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

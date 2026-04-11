@@ -37,6 +37,12 @@ services:
         sync: false
       - key: KASPI_API_KEY
         sync: false
+      - key: INTERNAL_JOBS_SECRET
+        sync: false
+      - key: CALENDAR_STALE_DAYS
+        value: 7
+      - key: DEFAULT_MORNING_REMINDER_HOUR
+        value: 9
 
   - type: web
     name: tamada-web
