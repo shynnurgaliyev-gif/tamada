@@ -18,6 +18,45 @@ type RefLinkType   = { id: string; code: string; name_ru: string; };
 function getToken() { return localStorage.getItem('session_token') ?? ''; }
 function authHeaders() { return { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' }; }
 
+// ── Hardcoded fallbacks (used when reference API is unavailable) ───────────
+const FALLBACK_CATEGORIES: RefCategory[] = [
+  { id: 'tamada',       code: 'tamada',       name_ru: 'Тамада',    icon: '🎤' },
+  { id: 'photographer', code: 'photographer', name_ru: 'Фотограф',  icon: '📸' },
+  { id: 'videographer', code: 'videographer', name_ru: 'Видеограф', icon: '🎬' },
+  { id: 'dj',           code: 'dj',           name_ru: 'Диджей',    icon: '🎧' },
+  { id: 'musician',     code: 'musician',     name_ru: 'Музыкант',  icon: '🎵' },
+  { id: 'dancer',       code: 'dancer',       name_ru: 'Танцор',    icon: '💃' },
+  { id: 'makeup_artist',code: 'makeup_artist',name_ru: 'Визажист',  icon: '💄' },
+  { id: 'florist',      code: 'florist',      name_ru: 'Флорист',   icon: '🌸' },
+  { id: 'animator',     code: 'animator',     name_ru: 'Аниматор',  icon: '🎪' },
+  { id: 'show',         code: 'show',         name_ru: 'Шоу',       icon: '✨' },
+  { id: 'host',         code: 'host',         name_ru: 'Ведущий',   icon: '🎙️' },
+  { id: 'decorator',    code: 'decorator',    name_ru: 'Декоратор', icon: '🎨' },
+  { id: 'baker',        code: 'baker',        name_ru: 'Кондитер',  icon: '🎂' },
+  { id: 'stylist',      code: 'stylist',      name_ru: 'Стилист',   icon: '💅' },
+  { id: 'catering',     code: 'catering',     name_ru: 'Кейтеринг',icon: '🍽️' },
+  { id: 'other',        code: 'other',        name_ru: 'Другое',    icon: null },
+];
+
+const FALLBACK_CURRENCIES: RefCurrency[] = [
+  { id: 'kzt', code: 'KZT', symbol: '₸' },
+  { id: 'usd', code: 'USD', symbol: '$' },
+  { id: 'eur', code: 'EUR', symbol: '€' },
+  { id: 'rub', code: 'RUB', symbol: '₽' },
+];
+
+const FALLBACK_LINK_TYPES: RefLinkType[] = [
+  { id: 'instagram', code: 'instagram', name_ru: 'Instagram' },
+  { id: 'whatsapp',  code: 'whatsapp',  name_ru: 'WhatsApp'  },
+  { id: 'telegram',  code: 'telegram',  name_ru: 'Telegram'  },
+  { id: 'tiktok',    code: 'tiktok',    name_ru: 'TikTok'    },
+  { id: 'youtube',   code: 'youtube',   name_ru: 'YouTube'   },
+  { id: 'website',   code: 'website',   name_ru: 'Сайт'      },
+  { id: 'two_gis',   code: 'two_gis',   name_ru: '2GIS'      },
+  { id: 'map',       code: 'map',       name_ru: 'Карта'     },
+  { id: 'other',     code: 'other',     name_ru: 'Другое'    },
+];
+
 async function fetchRef<T>(path: string): Promise<T[]> {
   try {
     const res = await fetch(`${API}${path}`);
@@ -89,21 +128,16 @@ export default function EditProviderPage() {
     ]).then(([r, c, cat, sub, cur, lt]) => {
       setRegions(r);
       setCities(c);
-      setCategories(cat);
+      setCategories(cat.length > 0 ? cat : FALLBACK_CATEGORIES);
       setSubcats(sub);
-      setCurrencies(cur);
-      setLinkTypes(lt.length > 0 ? lt : [
-        { id: 'instagram', code: 'instagram', name_ru: 'Instagram' },
-        { id: 'whatsapp',  code: 'whatsapp',  name_ru: 'WhatsApp'  },
-        { id: 'telegram',  code: 'telegram',  name_ru: 'Telegram'  },
-        { id: 'tiktok',    code: 'tiktok',    name_ru: 'TikTok'    },
-        { id: 'youtube',   code: 'youtube',   name_ru: 'YouTube'   },
-        { id: 'website',   code: 'website',   name_ru: 'Сайт'      },
-        { id: 'two_gis',   code: 'two_gis',   name_ru: '2GIS'      },
-        { id: 'map',       code: 'map',       name_ru: 'Карта'     },
-        { id: 'other',     code: 'other',     name_ru: 'Другое'    },
-      ]);
-    }).catch(() => { /* reference data unavailable, selects will be empty */ });
+      setCurrencies(cur.length > 0 ? cur : FALLBACK_CURRENCIES);
+      setLinkTypes(lt.length > 0 ? lt : FALLBACK_LINK_TYPES);
+    }).catch(() => {
+      // Reference API unavailable — use hardcoded fallbacks
+      setCategories(FALLBACK_CATEGORIES);
+      setCurrencies(FALLBACK_CURRENCIES);
+      setLinkTypes(FALLBACK_LINK_TYPES);
+    });
   }, []);
 
   useEffect(() => {
@@ -354,10 +388,7 @@ export default function EditProviderPage() {
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <input style={{ ...s.inputSm, width: 100 }} placeholder="Цена от" value={svcForm.price_from} onChange={e => setSvcForm(f => ({ ...f, price_from: e.target.value }))} />
                 <select style={{ ...s.inputSm, width: 90 }} value={svcForm.currency} onChange={e => setSvcForm(f => ({ ...f, currency: e.target.value }))}>
-                  {currencies.length > 0
-                    ? currencies.map(c => <option key={c.id} value={c.code}>{c.code} {c.symbol}</option>)
-                    : ['KZT', 'USD', 'EUR'].map(c => <option key={c} value={c}>{c}</option>)
-                  }
+                  {currencies.map(c => <option key={c.id} value={c.code}>{c.code} {c.symbol}</option>)}
                 </select>
                 <button type="submit" style={s.btnSm}>+ Добавить</button>
               </div>
