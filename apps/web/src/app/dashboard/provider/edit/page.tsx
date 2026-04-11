@@ -201,10 +201,13 @@ export default function EditProviderPage() {
       })
     : cities;
 
+  const isUUID = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
   const filteredSubcats = svcForm.category
     ? subcategories.filter(s => {
         const cat = categories.find(c => c.name_ru === svcForm.category || c.code === svcForm.category);
-        return cat ? s.category_id === cat.id : true;
+        if (!cat) return true;
+        if (!isUUID(cat.id)) return true; // fallback category — show all subcategories
+        return s.category_id === cat.id;
       })
     : subcategories;
 
