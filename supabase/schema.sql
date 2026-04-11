@@ -208,3 +208,58 @@ CREATE TABLE activity_logs (
 
 CREATE INDEX idx_activity_logs_provider ON activity_logs(provider_id);
 CREATE INDEX idx_activity_logs_created_at ON activity_logs(created_at);
+
+-- ---- Migration 006: Subscription + Payment Core ----
+
+CREATE TYPE subscription_status AS ENUM ('trial', 'active', 'expiring', 'expired', 'blocked', 'cancelled');
+CREATE TYPE payment_provider_type AS ENUM ('kaspi', 'other');
+CREATE TYPE payment_status AS ENUM ('pending', 'paid', 'failed', 'expired', 'cancelled');
+
+CREATE TABLE subscriptions (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  provider_id    UUID NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+  plan_code      TEXT NOT NULL DEFAULT 'basic',
+  status         subscription_status NOT NULL DEFAULT 'trial',
+  starts_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at     TIMESTAMPTZ NOT NULL,
+  trial_ends_at  TIMESTAMPTZ,
+  grace_until    TIMESTAMPTZ,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_subscriptions_provider ON subscriptions(provider_id);
+CREATE INDEX idx_subscriptions_expires ON subscriptions(expires_at);
+
+CREATE TABLE payments (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  provider_id        UUID NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+  subscription_id    UUID REFERENCES subscriptions(id) ON DELETE SET NULL,
+  payment_provider   payment_provider_type NOT NULL DEFAULT 'kaspi',
+  invoice_id         TEXT,
+  external_reference TEXT,
+  amount             NUMERIC(12,2) NOT NULL,
+  currency           TEXT NOT NULL DEFAULT 'KZT',
+  status             payment_status NOT NULL DEFAULT 'pending',
+  phone              TEXT,
+  payload_json       JSONB,
+  paid_at            TIMESTAMPTZ,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_payments_provider ON payments(provider_id);
+CREATE INDEX idx_payments_subscription ON payments(subscription_id);
+CREATE INDEX idx_payments_invoice ON payments(invoice_id);
+
+CREATE TABLE subscription_events (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  provider_id     UUID NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+  subscription_id UUID REFERENCES subscriptions(id) ON DELETE SET NULL,
+  event_type      TEXT NOT NULL,
+  payload_json    JSONB,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_subscription_events_provider ON subscription_events(provider_id);
+CREATE INDEX idx_subscription_events_subscription ON subscription_events(subscription_id);

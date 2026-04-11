@@ -4,6 +4,7 @@ import type { AppEnv } from '@tamada/config';
 import { getAuthAccount } from '../auth/middleware';
 import { findProviderById } from '../providers/repositories';
 import { findEntriesByRange, createEntry, CalendarEntryStatus } from '../calendar/repositories';
+import { getSubscriptionStatus } from '../subscription/routes';
 import * as repo from './repositories';
 import * as bot from './bot';
 
@@ -244,6 +245,28 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
           if (client?.price_amount) lines.push(`  💰 ${client.price_amount} ${client.currency}`);
         }
         await bot.sendMessage(token, chatId, `👤 <b>Клиенты на ${dateStr}:</b>\n\n${lines.join('\n')}` + bot.FOOTER);
+        return reply.send({ ok: true });
+      }
+
+      // подписка / сколько дней осталось
+      if (lower === 'подписка' || lower === 'сколько дней осталось') {
+        const subInfo = await getSubscriptionStatus(db, providerId);
+        if (!subInfo.status) {
+          await bot.sendMessage(token, chatId, '📋 Подписка не найдена. Зайдите в кабинет на сайте.' + bot.FOOTER);
+          return reply.send({ ok: true });
+        }
+        const statusLabel: Record<string, string> = {
+          trial: '🟡 Пробный период', active: '🟢 Активна', expiring: '🟠 Скоро истекает',
+          expired: '🔴 Истекла', blocked: '⛔ Заблокирована', cancelled: '❌ Отменена',
+        };
+        const expires = subInfo.expires_at ? new Date(subInfo.expires_at).toLocaleDateString('ru-RU', { timeZone: tz }) : '—';
+        let text = `📋 <b>Подписка:</b> ${statusLabel[subInfo.status] ?? subInfo.status}\n`;
+        text += `📅 Действует до: ${expires}\n`;
+        text += `⏳ Осталось: ${subInfo.days_left} дн.\n`;
+        if (!subInfo.is_visible) {
+          text += `\n⚠️ Профиль скрыт. Зайдите в кабинет и оплатите подписку.`;
+        }
+        await bot.sendMessage(token, chatId, text + bot.FOOTER);
         return reply.send({ ok: true });
       }
 

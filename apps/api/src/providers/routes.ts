@@ -249,6 +249,13 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
         return reply.code(404).send({ ok: false, error: 'Provider not found' });
       }
 
+      // Check subscription visibility
+      const { getSubscriptionStatus } = await import('../subscription/routes');
+      const subInfo = await getSubscriptionStatus(db, provider.id);
+      if (!subInfo.is_visible && subInfo.status !== null) {
+        return reply.code(404).send({ ok: false, error: 'Provider not found' });
+      }
+
       const [services, photos, links] = await Promise.all([
         repo.findServicesByProviderId(db, provider.id),
         repo.findPhotosByProviderId(db, provider.id),
