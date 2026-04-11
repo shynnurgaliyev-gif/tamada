@@ -40,6 +40,7 @@ export type RefCategory = {
 export type RefSubcategory = {
   id: string;
   category_id: string;
+  category_code: string;
   code: string;
   name_ru: string;
   name_kz: string;
@@ -117,17 +118,19 @@ export async function getCategories(db: Db): Promise<RefCategory[]> {
 export async function getSubcategories(db: Db, categoryId?: string): Promise<RefSubcategory[]> {
   if (categoryId) {
     return db<RefSubcategory[]>`
-      SELECT id, category_id, code, name_ru, name_kz, sort_order
-      FROM ref_subcategories
-      WHERE is_active = true AND category_id = ${categoryId}
-      ORDER BY sort_order, name_ru
+      SELECT s.id, s.category_id, c.code AS category_code, s.code, s.name_ru, s.name_kz, s.sort_order
+      FROM ref_subcategories s
+      JOIN ref_categories c ON c.id = s.category_id
+      WHERE s.is_active = true AND s.category_id = ${categoryId}
+      ORDER BY s.sort_order, s.name_ru
     `;
   }
   return db<RefSubcategory[]>`
-    SELECT id, category_id, code, name_ru, name_kz, sort_order
-    FROM ref_subcategories
-    WHERE is_active = true
-    ORDER BY sort_order, name_ru
+    SELECT s.id, s.category_id, c.code AS category_code, s.code, s.name_ru, s.name_kz, s.sort_order
+    FROM ref_subcategories s
+    JOIN ref_categories c ON c.id = s.category_id
+    WHERE s.is_active = true
+    ORDER BY s.sort_order, s.name_ru
   `;
 }
 
