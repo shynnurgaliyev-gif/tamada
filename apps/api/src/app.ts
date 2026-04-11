@@ -7,6 +7,7 @@ import type { Db } from './db';
 import type { SupabaseClient } from './supabase';
 import { createAuthRoutes } from './auth/routes';
 import { createProviderRoutes } from './providers/routes';
+import { createCalendarRoutes } from './calendar/routes';
 
 export function createApp(env: AppEnv, db: Db, supabase: SupabaseClient, wa: import('./auth/whatsapp').WhatsAppProvider) {
   const app = Fastify({
@@ -28,6 +29,7 @@ export function createApp(env: AppEnv, db: Db, supabase: SupabaseClient, wa: imp
 
   void app.register(createAuthRoutes(db, wa));
   void app.register(createProviderRoutes(db, supabase, env));
+  void app.register(createCalendarRoutes(db));
 
   return app;
 }

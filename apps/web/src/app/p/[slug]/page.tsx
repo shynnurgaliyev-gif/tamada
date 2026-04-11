@@ -12,6 +12,7 @@ type Provider = {
 type Service = { id: string; category: string; title: string; description: string | null; price_from: string | null; price_to: string | null; currency: string; };
 type Photo = { id: string; url: string; is_cover: boolean; };
 type Link = { id: string; link_type: string; url: string; label: string | null; };
+type CalendarSlot = { id: string; starts_at: string; ends_at: string; status: string; title: string | null; };
 
 const linkIcons: Record<string, string> = {
   instagram: '📸', whatsapp: '💬', telegram: '✈️', tiktok: '🎵',
@@ -26,6 +27,8 @@ export default function PublicProfilePage() {
   const [services, setServices] = useState<Service[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [links, setLinks] = useState<Link[]>([]);
+  const [calendar, setCalendar] = useState<CalendarSlot[]>([]);
+  const [calTimezone, setCalTimezone] = useState('Asia/Almaty');
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -39,6 +42,15 @@ export default function PublicProfilePage() {
         setServices(d.services ?? []);
         setPhotos(d.photos ?? []);
         setLinks(d.links ?? []);
+        // load calendar
+        const from = new Date().toISOString();
+        const to = new Date(Date.now() + 90 * 86400000).toISOString();
+        fetch(`${API}/public/providers/${slug}/calendar?from=${from}&to=${to}`)
+          .then(r => r.json())
+          .then((c: { ok: boolean; entries?: CalendarSlot[]; timezone?: string }) => {
+            if (c.ok) { setCalendar(c.entries ?? []); setCalTimezone(c.timezone ?? 'Asia/Almaty'); }
+          })
+          .catch(() => null);
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
@@ -114,6 +126,27 @@ export default function PublicProfilePage() {
           </section>
         )}
 
+        {/* Calendar */}
+        {calendar.length > 0 && (
+          <section style={s.section}>
+            <h2 style={s.sectionTitle}>Занятость</h2>
+            <div style={s.calList}>
+              {calendar.map(slot => {
+                const start = new Date(slot.starts_at).toLocaleString('ru-RU', { timeZone: calTimezone, day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+                const end = new Date(slot.ends_at).toLocaleString('ru-RU', { timeZone: calTimezone, hour: '2-digit', minute: '2-digit' });
+                const color = slot.status === 'busy' || slot.status === 'blocked' ? '#ef4444' : '#f59e0b';
+                return (
+                  <div key={slot.id} style={s.calItem}>
+                    <span style={{ ...s.calDot, background: color }} />
+                    <span style={s.calTime}>{start} — {end}</span>
+                    {slot.title && <span style={s.calTitle}>{slot.title}</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {/* Links */}
         {links.length > 0 && (
           <section style={s.section}>
@@ -160,4 +193,9 @@ const s: Record<string, React.CSSProperties> = {
   linkIcon: { fontSize: 18 },
   linkLabel: { fontWeight: 500 },
   page: { maxWidth: 700, margin: '40px auto', padding: '0 16px' },
+  calList: { display: 'flex', flexDirection: 'column', gap: 8 },
+  calItem: { display: 'flex', alignItems: 'center', gap: 10, fontSize: 14 },
+  calDot: { width: 8, height: 8, borderRadius: '50%', flexShrink: 0 },
+  calTime: { color: '#374151', fontWeight: 500 },
+  calTitle: { color: '#6b7280' },
 };
