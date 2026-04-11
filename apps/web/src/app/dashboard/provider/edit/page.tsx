@@ -21,9 +21,10 @@ function authHeaders() { return { Authorization: `Bearer ${getToken()}`, 'Conten
 async function fetchRef<T>(path: string): Promise<T[]> {
   try {
     const res = await fetch(`${API}${path}`);
-    const data = await res.json() as Record<string, T[]>;
+    const data = await res.json() as Record<string, unknown>;
     const key = Object.keys(data).find(k => k !== 'ok') ?? '';
-    return (data[key] as T[]) ?? [];
+    const value = data[key];
+    return Array.isArray(value) ? (value as T[]) : [];
   } catch { return []; }
 }
 
