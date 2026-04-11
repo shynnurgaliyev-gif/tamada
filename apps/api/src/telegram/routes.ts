@@ -127,6 +127,7 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       const providerId = tgAccount.provider_id;
       const provider = await findProviderById(db, providerId);
       const tz = provider?.timezone ?? 'Asia/Almaty';
+      const actorAccountId = provider?.account_id ?? tgAccount.id;
 
       // помощь
       if (lower === 'помощь' || lower === '/help') {
@@ -173,7 +174,7 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
         if (!date) { await bot.sendMessage(token, chatId, '❌ Неверный формат даты. Пример: свободно 12.04' + bot.FOOTER); return reply.send({ ok: true }); }
         const startsAt = new Date(date); startsAt.setHours(0, 0, 0, 0);
         const endsAt = new Date(date); endsAt.setHours(23, 59, 0, 0);
-        const entry = await createEntry(db, { providerId, startsAt, endsAt, status: 'free', createdByAccountId: tgAccount.id });
+        const entry = await createEntry(db, { providerId, startsAt, endsAt, status: 'free', createdByAccountId: actorAccountId });
         await repo.logActivity(db, { providerId, actorType: 'telegram', telegramAccountId: tgAccount.id, actionType: 'calendar_created', targetType: 'calendar_entry', targetId: entry.id });
         await bot.sendMessage(token, chatId, `🟢 ${dateStr} отмечен как свободный.` + bot.FOOTER);
         await notifyAll(db, token, providerId, tgAccount.id, `🟢 ${msg.from.first_name ?? 'Помощник'} отметил ${dateStr} свободным.`);
@@ -205,7 +206,7 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
           await bot.sendMessage(token, chatId, '❌ Время начала должно быть раньше конца.' + bot.FOOTER);
           return reply.send({ ok: true });
         }
-        const entry = await createEntry(db, { providerId, startsAt, endsAt, status, createdByAccountId: tgAccount.id });
+        const entry = await createEntry(db, { providerId, startsAt, endsAt, status, createdByAccountId: actorAccountId });
         await repo.logActivity(db, { providerId, actorType: 'telegram', telegramAccountId: tgAccount.id, actionType: 'calendar_created', targetType: 'calendar_entry', targetId: entry.id });
         const emoji = status === 'busy' ? '🔴' : '🟡';
         const label = status === 'busy' ? 'занятым' : 'под вопросом';
