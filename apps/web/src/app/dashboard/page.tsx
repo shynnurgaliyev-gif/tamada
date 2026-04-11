@@ -58,7 +58,10 @@ export default function DashboardPage() {
         <a href="/dashboard/subscription" style={navStyle}>Подписка</a>
         <a href="/dashboard/notifications" style={navStyle}>Напоминания</a>
       </div>
-      <button onClick={logout} style={{ marginTop: 24, background: 'none', border: '1px solid #ccc', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: 14 }}>Выйти</button>
+      <div style={{ display: 'flex', gap: 8, marginTop: 24 }}>
+        <a href="/" style={{ background: '#111', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: 14, textDecoration: 'none' }}>На главную</a>
+        <button onClick={logout} style={{ background: 'none', border: '1px solid #ccc', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: 14 }}>Выйти</button>
+      </div>
     </main>
   );
 }
