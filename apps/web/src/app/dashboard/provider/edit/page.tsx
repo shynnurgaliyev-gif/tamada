@@ -8,8 +8,25 @@ type Service = { id: string; category: string; title: string; price_from: string
 type Photo = { id: string; url: string; is_cover: boolean; };
 type Link = { id: string; link_type: string; url: string; label: string | null; };
 
+type RefRegion  = { id: string; name_ru: string; region_type: string; };
+type RefCity    = { id: string; name_ru: string; region_id: string; };
+type RefCategory = { id: string; name_ru: string; code: string; icon: string | null; };
+type RefSubcategory = { id: string; name_ru: string; category_id: string; };
+type RefCurrency = { id: string; code: string; symbol: string; };
+type RefLinkType = { id: string; code: string; name_ru: string; };
+
 function getToken() { return localStorage.getItem('session_token') ?? ''; }
 function authHeaders() { return { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' }; }
+
+async function fetchRef<T>(path: string): Promise<T[]> {
+  try {
+    const res = await fetch(`${API}${path}`);
+    const data = await res.json() as Record<string, T[]>;
+    // key is e.g. "regions", "cities", etc.
+    const key = Object.keys(data).find(k => k !== 'ok') ?? '';
+    return (data[key] as T[]) ?? [];
+  } catch { return []; }
+}
 
 export default function EditProviderPage() {
   const [providerId, setProviderId] = useState<string | null>(null);
@@ -21,14 +38,49 @@ export default function EditProviderPage() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
 
-  // Create form
+  // Reference data
+  const [regions, setRegions]         = useState<RefRegion[]>([]);
+  const [cities, setCities]           = useState<RefCity[]>([]);
+  const [categories, setCategories]   = useState<RefCategory[]>([]);
+  const [subcategories, setSubcats]   = useState<RefSubcategory[]>([]);
+  const [currencies, setCurrencies]   = useState<RefCurrency[]>([]);
+  const [linkTypes, setLinkTypes]     = useState<RefLinkType[]>([]);
+
+  // Forms
   const [form, setForm] = useState({ display_name: '', slug: '', bio: '', city: '', region: '', timezone: 'Asia/Almaty', publication_status: 'draft' });
-  // Service form
-  const [svcForm, setSvcForm] = useState({ category: '', title: '', price_from: '', currency: 'KZT' });
-  // Link form
+  const [svcForm, setSvcForm] = useState({ category: '', subcategory: '', title: '', price_from: '', currency: 'KZT' });
   const [linkForm, setLinkForm] = useState({ link_type: 'instagram', url: '', label: '' });
 
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Load reference data on mount
+  useEffect(() => {
+    void Promise.all([
+      fetchRef<RefRegion>('/reference/regions'),
+      fetchRef<RefCity>('/reference/cities'),
+      fetchRef<RefCategory>('/reference/categories'),
+      fetchRef<RefSubcategory>('/reference/subcategories'),
+      fetchRef<RefCurrency>('/reference/currencies'),
+      fetchRef<RefLinkType>('/reference/link-types'),
+    ]).then(([r, c, cat, sub, cur, lt]) => {
+      setRegions(r);
+      setCities(c);
+      setCategories(cat);
+      setSubcats(sub);
+      setCurrencies(cur);
+      setLinkTypes(lt.length > 0 ? lt : [
+        { id: 'instagram', code: 'instagram', name_ru: 'Instagram' },
+        { id: 'whatsapp', code: 'whatsapp', name_ru: 'WhatsApp' },
+        { id: 'telegram', code: 'telegram', name_ru: 'Telegram' },
+        { id: 'tiktok', code: 'tiktok', name_ru: 'TikTok' },
+        { id: 'youtube', code: 'youtube', name_ru: 'YouTube' },
+        { id: 'website', code: 'website', name_ru: 'Сайт' },
+        { id: 'two_gis', code: 'two_gis', name_ru: '2GIS' },
+        { id: 'map', code: 'map', name_ru: 'Карта' },
+        { id: 'other', code: 'other', name_ru: 'Другое' },
+      ]);
+    });
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('session_token');
@@ -39,21 +91,15 @@ export default function EditProviderPage() {
     setProviderId(id);
 
     if (id) {
-      Promise.all([
-        fetch(`${API}/providers/me`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
-      ]).then(([data]: [{ ok: boolean; providers?: Provider[] }]) => {
-        const p = data.providers?.find(x => x.id === id);
-        if (p) {
-          setProvider(p);
-          setForm({ display_name: p.display_name, slug: p.slug, bio: p.bio ?? '', city: p.city ?? '', region: p.region ?? '', timezone: p.timezone, publication_status: p.publication_status });
-        }
-      }).catch(() => null);
-
-      fetch(`${API}/public/providers/${id}`, {}).then(async r => {
-        // try slug lookup later — for now load services/photos/links via separate calls if needed
-      }).catch(() => null);
-
-      // Load services, photos, links via public endpoint after slug is known
+      fetch(`${API}/providers/me`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then((data: { ok: boolean; providers?: Provider[] }) => {
+          const p = data.providers?.find(x => x.id === id);
+          if (p) {
+            setProvider(p);
+            setForm({ display_name: p.display_name, slug: p.slug, bio: p.bio ?? '', city: p.city ?? '', region: p.region ?? '', timezone: p.timezone, publication_status: p.publication_status });
+          }
+        }).catch(() => null);
     }
     setLoading(false);
   }, []);
@@ -71,6 +117,22 @@ export default function EditProviderPage() {
   useEffect(() => {
     if (provider?.slug) void loadProviderData(provider.slug);
   }, [provider?.slug]);
+
+  // Filter cities by selected region
+  const filteredCities = form.region
+    ? cities.filter(c => {
+        const reg = regions.find(r => r.name_ru === form.region);
+        return reg ? c.region_id === reg.id : true;
+      })
+    : cities;
+
+  // Filter subcategories by selected category
+  const filteredSubcats = svcForm.category
+    ? subcategories.filter(s => {
+        const cat = categories.find(c => c.name_ru === svcForm.category || c.code === svcForm.category);
+        return cat ? s.category_id === cat.id : true;
+      })
+    : subcategories;
 
   async function saveProvider(e: React.FormEvent) {
     e.preventDefault();
@@ -94,7 +156,7 @@ export default function EditProviderPage() {
     e.preventDefault();
     if (!providerId) return;
     await fetch(`${API}/providers/${providerId}/services`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ ...svcForm, price_from: svcForm.price_from ? Number(svcForm.price_from) : undefined }) });
-    setSvcForm({ category: '', title: '', price_from: '', currency: 'KZT' });
+    setSvcForm({ category: '', subcategory: '', title: '', price_from: '', currency: 'KZT' });
     if (provider?.slug) void loadProviderData(provider.slug);
   }
 
@@ -123,7 +185,7 @@ export default function EditProviderPage() {
     e.preventDefault();
     if (!providerId) return;
     await fetch(`${API}/providers/${providerId}/links`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(linkForm) });
-    setLinkForm({ link_type: 'instagram', url: '', label: '' });
+    setLinkForm({ link_type: linkTypes[0]?.code ?? 'instagram', url: '', label: '' });
     if (provider?.slug) void loadProviderData(provider.slug);
   }
 
@@ -151,8 +213,18 @@ export default function EditProviderPage() {
           <div style={s.grid2}>
             <label style={s.label}>Имя<input style={s.input} value={form.display_name} onChange={e => setForm(f => ({ ...f, display_name: e.target.value }))} required /></label>
             <label style={s.label}>Slug (URL)<input style={s.input} value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} placeholder="my-profile" required /></label>
-            <label style={s.label}>Город<input style={s.input} value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} /></label>
-            <label style={s.label}>Регион<input style={s.input} value={form.region} onChange={e => setForm(f => ({ ...f, region: e.target.value }))} /></label>
+            <label style={s.label}>Регион
+              <select style={s.input} value={form.region} onChange={e => setForm(f => ({ ...f, region: e.target.value, city: '' }))}>
+                <option value="">— не выбран —</option>
+                {regions.map(r => <option key={r.id} value={r.name_ru}>{r.name_ru}</option>)}
+              </select>
+            </label>
+            <label style={s.label}>Город
+              <select style={s.input} value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))}>
+                <option value="">— не выбран —</option>
+                {filteredCities.map(c => <option key={c.id} value={c.name_ru}>{c.name_ru}</option>)}
+              </select>
+            </label>
           </div>
           <label style={s.label}>О себе<textarea style={{ ...s.input, height: 80 }} value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} /></label>
           <label style={s.label}>Статус публикации
@@ -179,11 +251,30 @@ export default function EditProviderPage() {
                 <button onClick={() => deleteService(sv.id)} style={s.del}>✕</button>
               </div>
             ))}
-            <form onSubmit={addService} style={s.inlineForm}>
-              <input style={s.inputSm} placeholder="Категория" value={svcForm.category} onChange={e => setSvcForm(f => ({ ...f, category: e.target.value }))} required />
-              <input style={s.inputSm} placeholder="Название" value={svcForm.title} onChange={e => setSvcForm(f => ({ ...f, title: e.target.value }))} required />
-              <input style={{ ...s.inputSm, width: 80 }} placeholder="Цена" value={svcForm.price_from} onChange={e => setSvcForm(f => ({ ...f, price_from: e.target.value }))} />
-              <button type="submit" style={s.btnSm}>+ Добавить</button>
+            <form onSubmit={addService} style={{ ...s.inlineForm, flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <select style={s.inputSm} value={svcForm.category} onChange={e => setSvcForm(f => ({ ...f, category: e.target.value, subcategory: '' }))} required>
+                  <option value="">Категория</option>
+                  {categories.map(c => <option key={c.id} value={c.name_ru}>{c.icon ? `${c.icon} ` : ''}{c.name_ru}</option>)}
+                </select>
+                {filteredSubcats.length > 0 && (
+                  <select style={s.inputSm} value={svcForm.subcategory} onChange={e => setSvcForm(f => ({ ...f, subcategory: e.target.value }))}>
+                    <option value="">Подкатегория</option>
+                    {filteredSubcats.map(sc => <option key={sc.id} value={sc.name_ru}>{sc.name_ru}</option>)}
+                  </select>
+                )}
+                <input style={s.inputSm} placeholder="Название услуги" value={svcForm.title} onChange={e => setSvcForm(f => ({ ...f, title: e.target.value }))} required />
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <input style={{ ...s.inputSm, width: 100 }} placeholder="Цена от" value={svcForm.price_from} onChange={e => setSvcForm(f => ({ ...f, price_from: e.target.value }))} />
+                <select style={{ ...s.inputSm, width: 90 }} value={svcForm.currency} onChange={e => setSvcForm(f => ({ ...f, currency: e.target.value }))}>
+                  {currencies.length > 0
+                    ? currencies.map(c => <option key={c.id} value={c.code}>{c.code} {c.symbol}</option>)
+                    : ['KZT', 'USD', 'EUR'].map(c => <option key={c} value={c}>{c}</option>)
+                  }
+                </select>
+                <button type="submit" style={s.btnSm}>+ Добавить</button>
+              </div>
             </form>
           </section>
 
@@ -219,9 +310,7 @@ export default function EditProviderPage() {
             ))}
             <form onSubmit={addLink} style={s.inlineForm}>
               <select style={s.inputSm} value={linkForm.link_type} onChange={e => setLinkForm(f => ({ ...f, link_type: e.target.value }))}>
-                {['instagram','whatsapp','telegram','tiktok','youtube','website','two_gis','map','other'].map(t => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
+                {linkTypes.map(t => <option key={t.id} value={t.code}>{t.name_ru}</option>)}
               </select>
               <input style={s.inputSm} placeholder="URL" value={linkForm.url} onChange={e => setLinkForm(f => ({ ...f, url: e.target.value }))} required />
               <input style={s.inputSm} placeholder="Подпись" value={linkForm.label} onChange={e => setLinkForm(f => ({ ...f, label: e.target.value }))} />

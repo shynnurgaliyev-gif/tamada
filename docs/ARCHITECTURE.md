@@ -34,6 +34,7 @@ Supabase (PostgreSQL + Auth + Storage)
 | POST /auth/*                  | Public     | 15 req / 15 min |
 | GET /auth/me                  | Bearer     | 15 req / 15 min |
 | GET/POST /search/*            | Public     | 30 req / min    |
+| GET /reference/*              | Public     | 120 req / min   |
 | GET /public/providers/*       | Public     | 120 req / min   |
 | POST/PATCH/DELETE /providers/*| Bearer     | 120 req / min   |
 | GET/POST /providers/*/calendar| Bearer     | 120 req / min   |
@@ -52,10 +53,13 @@ Supabase (PostgreSQL + Auth + Storage)
 ## Database
 
 - Provider: Supabase (PostgreSQL)
-- Migrations: /supabase/migrations/ (versioned SQL files, 001–008)
+- Migrations: /supabase/migrations/ (versioned SQL files, 001–010)
 - Schema reference: /supabase/schema.sql
 - Connection: postgres.js with `prepare: false` (PgBouncer compatible)
 - Key view: `public_providers_search` — only active + subscribed providers
+- Reference tables: `ref_countries`, `ref_regions`, `ref_cities`, `ref_categories`, `ref_subcategories`, `ref_currencies`, `ref_link_types`
+- Reference data: Kazakhstan (ISO 3166-2:KZ), 20 regions, ~55 cities, 16 categories, 4 currencies
+- Providers have nullable `country_id`, `region_id`, `city_id` FKs (migration 010, safe transition)
 
 ## Notifications / Jobs
 

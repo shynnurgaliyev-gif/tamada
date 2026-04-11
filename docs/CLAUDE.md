@@ -60,3 +60,10 @@ pnpm lint         # lint all
 - Web → Render web service via apps/web/Dockerfile
 - DB  → Supabase (run migrations manually via Supabase SQL editor or CLI)
 - New env vars after Task 10: CORS_ORIGINS (API), NEXT_PUBLIC_WEB_URL (Web)
+
+## Reference Data (Task 11)
+- GET /reference/countries, /regions?country_id=, /cities?region_id=
+- GET /reference/categories, /subcategories?category_id=, /currencies, /link-types
+- All public, no auth required, cached by CDN
+- Migrations 009 (tables + seed) + 010 (FK columns on providers, provider_services, provider_links)
+- Dashboard edit page uses reference selects for region, city, category, subcategory, currency, link_type

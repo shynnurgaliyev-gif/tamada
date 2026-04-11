@@ -13,6 +13,7 @@ import { createTelegramRoutes } from './telegram/routes';
 import { createSubscriptionRoutes } from './subscription/routes';
 import { createJobsRoutes } from './jobs/routes';
 import { createSearchRoutes } from './search/routes';
+import { createReferenceRoutes } from './reference/routes';
 
 const startTime = Date.now();
 
@@ -88,6 +89,9 @@ export function createApp(env: AppEnv, db: Db, supabase: SupabaseClient, wa: imp
     });
     void searchScope.register(createSearchRoutes(db, env));
   });
+
+  // ── Reference data (public, cached) ───────────────────────────────────
+  void app.register(createReferenceRoutes(db));
 
   // ── Other routes ───────────────────────────────────────────────────────
   void app.register(createProviderRoutes(db, supabase, env));
