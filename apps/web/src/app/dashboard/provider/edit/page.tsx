@@ -98,6 +98,7 @@ export default function EditProviderPage() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgColor, setMsgColor] = useState('#22c55e');
+  const [linkMsg, setLinkMsg] = useState('');
   // true while user hasn't manually edited the slug field
   const [slugAuto, setSlugAuto] = useState(true);
 
@@ -163,9 +164,9 @@ export default function EditProviderPage() {
     setLoading(false);
   }, []);
 
-  async function loadProviderData(slug: string) {
+  async function loadProviderData(id: string) {
     try {
-      const res = await fetch(`${API}/public/providers/${slug}`);
+      const res = await fetch(`${API}/providers/${id}/data`, { headers: { Authorization: `Bearer ${getToken()}` } });
       const data = await res.json() as { ok: boolean; services?: Service[]; photos?: Photo[]; links?: Link[] };
       if (data.ok) {
         setServices(data.services ?? []);
@@ -176,8 +177,8 @@ export default function EditProviderPage() {
   }
 
   useEffect(() => {
-    if (provider?.slug) void loadProviderData(provider.slug);
-  }, [provider?.slug]);
+    if (providerId) void loadProviderData(providerId);
+  }, [providerId]);
 
   // Auto-update slug from display_name while user hasn't touched slug field
   function handleNameChange(name: string) {
@@ -253,7 +254,7 @@ export default function EditProviderPage() {
     try {
       await fetch(`${API}/providers/${providerId}/services`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ ...svcForm, price_from: svcForm.price_from ? Number(svcForm.price_from) : undefined }) });
       setSvcForm({ category: '', subcategory: '', title: '', price_from: '', currency: 'KZT' });
-      if (provider?.slug) void loadProviderData(provider.slug);
+      void loadProviderData(providerId);
     } catch { /* ignore */ }
   }
 
@@ -261,7 +262,7 @@ export default function EditProviderPage() {
     if (!providerId) return;
     try {
       await fetch(`${API}/providers/${providerId}/services/${id}`, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ is_active: false }) });
-      if (provider?.slug) void loadProviderData(provider.slug);
+      void loadProviderData(providerId);
     } catch { /* ignore */ }
   }
 
@@ -271,7 +272,7 @@ export default function EditProviderPage() {
     formData.append('file', e.target.files[0]);
     try {
       await fetch(`${API}/providers/${providerId}/photos`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` }, body: formData });
-      if (provider?.slug) void loadProviderData(provider.slug);
+      void loadProviderData(providerId);
     } catch { /* ignore */ }
     if (fileRef.current) fileRef.current.value = '';
   }
@@ -280,7 +281,7 @@ export default function EditProviderPage() {
     if (!providerId) return;
     try {
       await fetch(`${API}/providers/${providerId}/photos/${id}`, { method: 'DELETE', headers: authHeaders() });
-      if (provider?.slug) void loadProviderData(provider.slug);
+      void loadProviderData(providerId);
     } catch { /* ignore */ }
   }
 
@@ -288,9 +289,14 @@ export default function EditProviderPage() {
     e.preventDefault();
     if (!providerId) return;
     try {
-      await fetch(`${API}/providers/${providerId}/links`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(linkForm) });
-      setLinkForm({ link_type: linkTypes[0]?.code ?? 'instagram', url: '', label: '' });
-      if (provider?.slug) void loadProviderData(provider.slug);
+      const res = await fetch(`${API}/providers/${providerId}/links`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(linkForm) });
+      const data = await res.json() as { ok: boolean };
+      if (data.ok) {
+        setLinkForm({ link_type: linkTypes[0]?.code ?? 'instagram', url: '', label: '' });
+        setLinkMsg('✓ Ссылка добавлена');
+        setTimeout(() => setLinkMsg(''), 3000);
+        void loadProviderData(providerId);
+      }
     } catch { /* ignore */ }
   }
 
@@ -298,7 +304,7 @@ export default function EditProviderPage() {
     if (!providerId) return;
     try {
       await fetch(`${API}/providers/${providerId}/links/${id}`, { method: 'DELETE', headers: authHeaders() });
-      if (provider?.slug) void loadProviderData(provider.slug);
+      void loadProviderData(providerId);
     } catch { /* ignore */ }
   }
 
@@ -363,7 +369,8 @@ export default function EditProviderPage() {
         <>
           {/* Services */}
           <section style={s.section}>
-            <h2 style={s.sectionTitle}>Услуги</h2>
+            <h2 style={s.sectionTitle}>Услуги и мероприятия</h2>
+            <p style={{ margin: '0 0 12px', fontSize: 13, color: '#6b7280' }}>Добавьте отдельную строку на каждый тип мероприятия — свадьба, юбилей, корпоратив и т.д.</p>
             {services.map(sv => (
               <div key={sv.id} style={s.row}>
                 <span>{sv.title} <small style={{ color: '#9ca3af' }}>{sv.category}</small></span>
@@ -383,7 +390,7 @@ export default function EditProviderPage() {
                     {filteredSubcats.map(sc => <option key={sc.id} value={sc.name_ru}>{sc.name_ru}</option>)}
                   </select>
                 )}
-                <input style={s.inputSm} placeholder="Название услуги" value={svcForm.title} onChange={e => setSvcForm(f => ({ ...f, title: e.target.value }))} required />
+                <input style={s.inputSm} placeholder="Название (необязательно)" value={svcForm.title} onChange={e => setSvcForm(f => ({ ...f, title: e.target.value }))} />
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <input style={{ ...s.inputSm, width: 100 }} placeholder="Цена от" value={svcForm.price_from} onChange={e => setSvcForm(f => ({ ...f, price_from: e.target.value }))} />
@@ -433,6 +440,7 @@ export default function EditProviderPage() {
               <input style={s.inputSm} placeholder="Подпись" value={linkForm.label} onChange={e => setLinkForm(f => ({ ...f, label: e.target.value }))} />
               <button type="submit" style={s.btnSm}>+ Добавить</button>
             </form>
+            {linkMsg && <p style={{ fontSize: 13, color: '#16a34a', marginTop: 8 }}>{linkMsg}</p>}
           </section>
         </>
       )}

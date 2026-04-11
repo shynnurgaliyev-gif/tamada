@@ -103,6 +103,29 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
       return reply.send({ ok: true });
     });
 
+    // GET /providers/:id/data  (authenticated — works for drafts too)
+    app.get('/providers/:id/data', async (req, reply) => {
+      const account = await getAuthAccount(db, req);
+      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+
+      const { id } = req.params as { id: string };
+      const provider = await repo.findProviderById(db, id);
+      if (!provider || provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+
+      const [services, photos, links] = await Promise.all([
+        repo.findServicesByProviderId(db, id),
+        repo.findPhotosByProviderId(db, id),
+        repo.findLinksByProviderId(db, id),
+      ]);
+
+      return reply.send({
+        ok: true,
+        services: services.filter(s => s.is_active),
+        photos: withPhotoUrls(env, photos),
+        links,
+      });
+    });
+
     // POST /providers/:id/services
     app.post('/providers/:id/services', async (req, reply) => {
       const account = await getAuthAccount(db, req);
@@ -115,10 +138,13 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
 
       const body = req.body as Record<string, unknown>;
       const category = typeof body['category'] === 'string' ? body['category'] : null;
-      const title = typeof body['title'] === 'string' ? body['title'] : null;
-      if (!category || !title) {
-        return reply.code(400).send({ ok: false, error: 'category and title required' });
+      if (!category) {
+        return reply.code(400).send({ ok: false, error: 'category required' });
       }
+      // title defaults to subcategory or category name if not provided
+      const rawTitle = typeof body['title'] === 'string' ? body['title'].trim() : '';
+      const subcategory = typeof body['subcategory'] === 'string' ? body['subcategory'] : undefined;
+      const title = rawTitle || subcategory || category;
 
       const service = await repo.createService(db, {
         providerId: id, category, title,
