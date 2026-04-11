@@ -279,9 +279,12 @@ export default function EditProviderPage() {
 
   async function deletePhoto(id: string) {
     if (!providerId) return;
+    setPhotos(prev => prev.filter(p => p.id !== id)); // optimistic
     try {
-      await fetch(`${API}/providers/${providerId}/photos/${id}`, { method: 'DELETE', headers: authHeaders() });
-      void loadProviderData(providerId);
+      await fetch(`${API}/providers/${providerId}/photos/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
     } catch { /* ignore */ }
   }
 
@@ -309,12 +312,11 @@ export default function EditProviderPage() {
     if (!providerId) return;
     setLinks(prev => prev.filter(l => l.id !== id)); // optimistic
     try {
-      const res = await fetch(`${API}/providers/${providerId}/links/${id}`, { method: 'DELETE', headers: authHeaders() });
-      const data = await res.json() as { ok: boolean };
-      if (!data.ok) void loadProviderData(providerId); // restore on failure
-    } catch {
-      void loadProviderData(providerId); // restore on error
-    }
+      await fetch(`${API}/providers/${providerId}/links/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+    } catch { /* ignore */ }
   }
 
   if (loading) return <div style={s.page}><p>Загрузка...</p></div>;
