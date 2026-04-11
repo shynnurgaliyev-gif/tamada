@@ -288,24 +288,33 @@ export default function EditProviderPage() {
   async function addLink(e: React.FormEvent) {
     e.preventDefault();
     if (!providerId) return;
+    if (links.some(l => l.link_type === linkForm.link_type)) {
+      setLinkMsg('❌ Такой тип ссылки уже добавлен');
+      setTimeout(() => setLinkMsg(''), 3000);
+      return;
+    }
     try {
       const res = await fetch(`${API}/providers/${providerId}/links`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(linkForm) });
-      const data = await res.json() as { ok: boolean };
-      if (data.ok) {
+      const data = await res.json() as { ok: boolean; link?: Link };
+      if (data.ok && data.link) {
+        setLinks(prev => [...prev, data.link!]);
         setLinkForm({ link_type: linkTypes[0]?.code ?? 'instagram', url: '', label: '' });
         setLinkMsg('✓ Ссылка добавлена');
         setTimeout(() => setLinkMsg(''), 3000);
-        void loadProviderData(providerId);
       }
     } catch { /* ignore */ }
   }
 
   async function deleteLink(id: string) {
     if (!providerId) return;
+    setLinks(prev => prev.filter(l => l.id !== id)); // optimistic
     try {
-      await fetch(`${API}/providers/${providerId}/links/${id}`, { method: 'DELETE', headers: authHeaders() });
-      void loadProviderData(providerId);
-    } catch { /* ignore */ }
+      const res = await fetch(`${API}/providers/${providerId}/links/${id}`, { method: 'DELETE', headers: authHeaders() });
+      const data = await res.json() as { ok: boolean };
+      if (!data.ok) void loadProviderData(providerId); // restore on failure
+    } catch {
+      void loadProviderData(providerId); // restore on error
+    }
   }
 
   if (loading) return <div style={s.page}><p>Загрузка...</p></div>;
@@ -425,11 +434,12 @@ export default function EditProviderPage() {
           {/* Links */}
           <section style={s.section}>
             <h2 style={s.sectionTitle}>Ссылки</h2>
+            {links.length === 0 && <p style={{ fontSize: 13, color: '#9ca3af', marginBottom: 12 }}>Ссылки не добавлены</p>}
             {links.map(lk => (
               <div key={lk.id} style={s.row}>
-                <span style={s.linkType}>{lk.link_type}</span>
-                <a href={lk.url} target="_blank" style={s.linkUrl}>{lk.label ?? lk.url}</a>
-                <button onClick={() => deleteLink(lk.id)} style={s.del}>✕</button>
+                <span style={s.linkType}>{linkTypes.find(t => t.code === lk.link_type)?.name_ru ?? lk.link_type}</span>
+                <a href={lk.url} target="_blank" style={s.linkUrl}>{lk.url}</a>
+                <button onClick={() => void deleteLink(lk.id)} style={s.del}>✕</button>
               </div>
             ))}
             <form onSubmit={addLink} style={s.inlineForm}>
