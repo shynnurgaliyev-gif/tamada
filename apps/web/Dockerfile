@@ -15,6 +15,9 @@ COPY tsconfig.base.json ./
 COPY packages/types/ ./packages/types/
 COPY apps/web/ ./apps/web/
 
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 RUN pnpm --filter @tamada/types build
 RUN pnpm --filter @tamada/web build
 

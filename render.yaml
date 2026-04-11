@@ -44,3 +44,5 @@ services:
         value: 3001
       - key: NEXT_PUBLIC_API_URL
         sync: false
+    dockerBuildArgs:
+      - NEXT_PUBLIC_API_URL
