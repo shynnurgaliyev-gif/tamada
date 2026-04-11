@@ -24,6 +24,10 @@ const envSchema = z.object({
   WHATSAPP_PROVIDER: z.enum(['stub', 'real']).default('stub'),
   WHATSAPP_API_URL: z.string().url().optional(),
   WHATSAPP_API_KEY: z.string().optional(),
+
+  // Telegram
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
+  TELEGRAM_BOT_USERNAME: z.string().optional(),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

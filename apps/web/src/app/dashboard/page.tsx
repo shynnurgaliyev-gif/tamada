@@ -51,7 +51,18 @@ export default function DashboardPage() {
           <p><strong>Статус:</strong> {account.status}</p>
         </div>
       )}
-      <button onClick={logout}>Выйти</button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 24 }}>
+        <a href="/dashboard/provider" style={navStyle}>Мои профили</a>
+        <a href="/dashboard/calendar" style={navStyle}>Календарь</a>
+        <a href="/dashboard/integrations" style={navStyle}>Интеграции (Telegram)</a>
+      </div>
+      <button onClick={logout} style={{ marginTop: 24, background: 'none', border: '1px solid #ccc', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: 14 }}>Выйти</button>
     </main>
   );
 }
+
+const navStyle: React.CSSProperties = {
+  display: 'block', padding: '10px 16px', background: '#f9fafb',
+  border: '1px solid #e5e7eb', borderRadius: 8, textDecoration: 'none',
+  color: '#111', fontSize: 14, fontWeight: 500,
+};
