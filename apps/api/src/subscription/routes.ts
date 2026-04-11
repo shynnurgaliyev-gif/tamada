@@ -8,7 +8,7 @@ import { createPaymentProvider } from './payment-provider';
 
 export function createSubscriptionRoutes(db: Db, env: AppEnv) {
   const plugin: FastifyPluginAsync = async (app) => {
-    const kaspiKey = (env as unknown as Record<string, string | undefined>)['KASPI_API_KEY'];
+    const kaspiKey = env.KASPI_API_KEY;
     const paymentProvider = createPaymentProvider(kaspiKey);
 
     // GET /providers/:id/subscription

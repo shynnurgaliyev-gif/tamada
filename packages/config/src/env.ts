@@ -29,6 +29,9 @@ const envSchema = z.object({
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_BOT_USERNAME: z.string().optional(),
 
+  // Payments
+  KASPI_API_KEY: z.string().optional(),
+
   // Jobs / Reminders
   INTERNAL_JOBS_SECRET: z.string().optional(),
   CALENDAR_STALE_DAYS: z.coerce.number().default(7),
