@@ -1,5 +1,6 @@
 import type { AppEnv } from '@tamada/config';
 import { type ParsedFilters, type ParseResult, parseQueryRuleBased } from './parser';
+import { CITIES, CATEGORIES } from './aliases';
 
 const SYSTEM_PROMPT = `You are a search query parser for a talent/performer marketplace in Kazakhstan.
 Parse the user's request and extract search filters. Return ONLY a valid JSON object, no explanations.
@@ -86,6 +87,20 @@ async function callOpenAI(apiKey: string, model: string, userText: string): Prom
   return parsed;
 }
 
+// Normalize AI-returned city to canonical form from CITIES dict (e.g. "алматы" → "Алматы")
+function normalizeCity(city: string | null): string | undefined {
+  if (!city) return undefined;
+  const key = city.toLowerCase().trim();
+  return CITIES[key] ?? city;
+}
+
+// Normalize AI-returned category to canonical form (e.g. "Тамада" → "тамада")
+function normalizeCategory(cat: string | null): string | undefined {
+  if (!cat) return undefined;
+  const key = cat.toLowerCase().trim();
+  return CATEGORIES[key] ?? key;
+}
+
 function buildUnderstood(raw: OpenAIResponse): string[] {
   const out: string[] = [];
   if (raw.city)      out.push(`Город: ${raw.city}`);
@@ -110,10 +125,10 @@ export async function parseSearchQuery(text: string, env: AppEnv): Promise<Parse
       const raw = await callOpenAI(apiKey, env.AI_SEARCH_MODEL, text);
       if (raw) {
         const filters: ParsedFilters = {
-          city:       raw.city       ?? undefined,
+          city:       normalizeCity(raw.city),
           region:     raw.region     ?? undefined,
-          category:   raw.category   ?? undefined,
-          subcategory:raw.subcategory ?? undefined,
+          category:   normalizeCategory(raw.category),
+          subcategory:raw.subcategory ? raw.subcategory.toLowerCase().trim() : undefined,
           date:       raw.date       ?? undefined,
           time_from:  raw.time_from  ?? undefined,
           time_to:    raw.time_to    ?? undefined,

@@ -78,11 +78,11 @@ export async function searchProviders(
     ? db`AND EXISTS (
           SELECT 1 FROM provider_services ps
           WHERE ps.provider_id = v.id AND ps.is_active = true
-            AND ps.category    = ${filters.category}
-            AND ps.subcategory = ${filters.subcategory}
+            AND lower(ps.category)    = lower(${filters.category})
+            AND lower(ps.subcategory) = lower(${filters.subcategory})
         )`
     : filters.category
-      ? db`AND ${filters.category} = ANY(v.categories)`
+      ? db`AND EXISTS (SELECT 1 FROM unnest(v.categories) c WHERE lower(c) = lower(${filters.category}))`
       : db``;
 
   // Price filter against services table
@@ -102,7 +102,7 @@ export async function searchProviders(
     WHERE  1 = 1
       ${filters.country   ? db`AND v.country_code = ${filters.country}`  : db``}
       ${filters.region    ? db`AND v.region        = ${filters.region}`   : db``}
-      ${filters.city      ? db`AND v.city          = ${filters.city}`     : db``}
+      ${filters.city      ? db`AND v.city          ILIKE ${filters.city}` : db``}
       ${filters.featured  ? db`AND v.is_featured   = true`               : db``}
       ${filters.hasInstagram ? db`AND v.has_instagram = true`             : db``}
       ${filters.hasWhatsapp  ? db`AND v.has_whatsapp  = true`             : db``}
@@ -121,7 +121,7 @@ export async function searchProviders(
     WHERE  1 = 1
       ${filters.country   ? db`AND v.country_code = ${filters.country}`  : db``}
       ${filters.region    ? db`AND v.region        = ${filters.region}`   : db``}
-      ${filters.city      ? db`AND v.city          = ${filters.city}`     : db``}
+      ${filters.city      ? db`AND v.city          ILIKE ${filters.city}` : db``}
       ${filters.featured  ? db`AND v.is_featured   = true`               : db``}
       ${filters.hasInstagram ? db`AND v.has_instagram = true`             : db``}
       ${filters.hasWhatsapp  ? db`AND v.has_whatsapp  = true`             : db``}
