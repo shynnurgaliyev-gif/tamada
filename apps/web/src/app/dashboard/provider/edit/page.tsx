@@ -78,7 +78,7 @@ export default function EditProviderPage() {
 
   // Load reference data
   useEffect(() => {
-    void Promise.all([
+    Promise.all([
       fetchRef<RefRegion>('/reference/regions'),
       fetchRef<RefCity>('/reference/cities'),
       fetchRef<RefCategory>('/reference/categories'),
@@ -102,7 +102,7 @@ export default function EditProviderPage() {
         { id: 'map',       code: 'map',       name_ru: 'Карта'     },
         { id: 'other',     code: 'other',     name_ru: 'Другое'    },
       ]);
-    });
+    }).catch(() => { /* reference data unavailable, selects will be empty */ });
   }, []);
 
   useEffect(() => {

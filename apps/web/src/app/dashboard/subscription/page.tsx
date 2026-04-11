@@ -54,6 +54,7 @@ export default function SubscriptionPage() {
           setPayments(d.payments ?? []);
         }
       })
+      .catch(() => { /* ignore network errors */ })
       .finally(() => setLoading(false));
   }
 
