@@ -43,6 +43,12 @@ services:
         value: 7
       - key: DEFAULT_MORNING_REMINDER_HOUR
         value: 9
+      - key: AI_SEARCH_ENABLED
+        value: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: AI_SEARCH_MODEL
+        value: gpt-4o-mini
 
   - type: web
     name: tamada-web

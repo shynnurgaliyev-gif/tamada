@@ -33,6 +33,11 @@ const envSchema = z.object({
   INTERNAL_JOBS_SECRET: z.string().optional(),
   CALENDAR_STALE_DAYS: z.coerce.number().default(7),
   DEFAULT_MORNING_REMINDER_HOUR: z.coerce.number().default(9),
+
+  // AI Search
+  AI_SEARCH_ENABLED: z.string().default('false'),
+  OPENAI_API_KEY: z.string().optional(),
+  AI_SEARCH_MODEL: z.string().default('gpt-4o-mini'),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;
