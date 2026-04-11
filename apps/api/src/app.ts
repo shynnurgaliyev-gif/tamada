@@ -11,6 +11,7 @@ import { createCalendarRoutes } from './calendar/routes';
 import { createTelegramRoutes } from './telegram/routes';
 import { createSubscriptionRoutes } from './subscription/routes';
 import { createJobsRoutes } from './jobs/routes';
+import { createSearchRoutes } from './search/routes';
 
 export function createApp(env: AppEnv, db: Db, supabase: SupabaseClient, wa: import('./auth/whatsapp').WhatsAppProvider) {
   const app = Fastify({
@@ -36,6 +37,7 @@ export function createApp(env: AppEnv, db: Db, supabase: SupabaseClient, wa: imp
   void app.register(createTelegramRoutes(db, env));
   void app.register(createSubscriptionRoutes(db, env));
   void app.register(createJobsRoutes(db, env));
+  void app.register(createSearchRoutes(db, env));
 
   return app;
 }
