@@ -98,6 +98,10 @@ export async function updateProvider(db: Db, id: string, data: Record<string, un
   return rows[0] ?? null;
 }
 
+export async function deleteProvider(db: Db, id: string): Promise<void> {
+  await db`DELETE FROM providers WHERE id = ${id}`;
+}
+
 // ---- Services ----
 
 export async function findServicesByProviderId(db: Db, providerId: string): Promise<ProviderService[]> {

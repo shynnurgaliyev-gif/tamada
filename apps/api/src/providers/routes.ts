@@ -89,6 +89,20 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
       return reply.send({ ok: true, provider: updated });
     });
 
+    // DELETE /providers/:id
+    app.delete('/providers/:id', async (req, reply) => {
+      const account = await getAuthAccount(db, req);
+      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+
+      const { id } = req.params as { id: string };
+      const provider = await repo.findProviderById(db, id);
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+
+      await repo.deleteProvider(db, id);
+      return reply.send({ ok: true });
+    });
+
     // POST /providers/:id/services
     app.post('/providers/:id/services', async (req, reply) => {
       const account = await getAuthAccount(db, req);

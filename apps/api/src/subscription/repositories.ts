@@ -19,7 +19,8 @@ export type Subscription = {
 
 export type Payment = {
   id: string;
-  provider_id: string;
+  account_id: string | null;
+  provider_id: string | null;
   subscription_id: string | null;
   payment_provider: PaymentProviderType;
   invoice_id: string | null;
@@ -41,10 +42,11 @@ export const SUBSCRIPTION_PRICE = 9900; // KZT per month
 
 // ---- Subscriptions ----
 
-export async function findActiveSubscription(db: Db, providerId: string): Promise<Subscription | null> {
+/** Find active subscription by account_id (covers all profiles of the account). */
+export async function findActiveSubscriptionByAccount(db: Db, accountId: string): Promise<Subscription | null> {
   const rows = await db<Subscription[]>`
     SELECT * FROM subscriptions
-    WHERE provider_id = ${providerId}
+    WHERE account_id = ${accountId}
       AND status NOT IN ('cancelled')
     ORDER BY created_at DESC
     LIMIT 1
@@ -52,11 +54,23 @@ export async function findActiveSubscription(db: Db, providerId: string): Promis
   return rows[0] ?? null;
 }
 
-export async function startTrial(db: Db, providerId: string): Promise<Subscription> {
+/** Legacy lookup by provider_id — routes through account for backwards compat. */
+export async function findActiveSubscription(db: Db, providerId: string): Promise<Subscription | null> {
+  const rows = await db<Subscription[]>`
+    SELECT s.* FROM subscriptions s
+    WHERE s.account_id = (SELECT account_id FROM providers WHERE id = ${providerId})
+      AND s.status NOT IN ('cancelled')
+    ORDER BY s.created_at DESC
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+export async function startTrial(db: Db, accountId: string): Promise<Subscription> {
   const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 86400000);
   const rows = await db<Subscription[]>`
-    INSERT INTO subscriptions (provider_id, plan_code, status, starts_at, expires_at, trial_ends_at)
-    VALUES (${providerId}, 'basic', 'trial', NOW(), ${trialEndsAt}, ${trialEndsAt})
+    INSERT INTO subscriptions (account_id, plan_code, status, starts_at, expires_at, trial_ends_at)
+    VALUES (${accountId}, 'basic', 'trial', NOW(), ${trialEndsAt}, ${trialEndsAt})
     RETURNING *
   `;
   if (!rows[0]) throw new Error('Failed to start trial');
@@ -79,14 +93,15 @@ export async function extendSubscription(db: Db, id: string, days: number): Prom
 }
 
 export async function logEvent(db: Db, data: {
-  providerId: string;
+  accountId?: string | undefined;
+  providerId?: string | undefined;
   subscriptionId?: string | undefined;
   eventType: string;
   payloadJson?: object | undefined;
 }): Promise<void> {
   await db`
-    INSERT INTO subscription_events (provider_id, subscription_id, event_type, payload_json)
-    VALUES (${data.providerId}, ${data.subscriptionId ?? null}, ${data.eventType},
+    INSERT INTO subscription_events (account_id, provider_id, subscription_id, event_type, payload_json)
+    VALUES (${data.accountId ?? null}, ${data.providerId ?? null}, ${data.subscriptionId ?? null}, ${data.eventType},
             ${data.payloadJson ? JSON.stringify(data.payloadJson) : null})
   `;
 }
@@ -108,7 +123,8 @@ export function computeStatus(sub: Subscription): SubscriptionStatus {
 // ---- Payments ----
 
 export async function createPayment(db: Db, data: {
-  providerId: string;
+  accountId: string;
+  providerId?: string | undefined;
   subscriptionId?: string | undefined;
   paymentProvider: PaymentProviderType;
   amount: number;
@@ -118,9 +134,9 @@ export async function createPayment(db: Db, data: {
 }): Promise<Payment> {
   const rows = await db<Payment[]>`
     INSERT INTO payments
-      (provider_id, subscription_id, payment_provider, amount, currency, phone, invoice_id)
+      (account_id, provider_id, subscription_id, payment_provider, amount, currency, phone, invoice_id)
     VALUES
-      (${data.providerId}, ${data.subscriptionId ?? null}, ${data.paymentProvider},
+      (${data.accountId}, ${data.providerId ?? null}, ${data.subscriptionId ?? null}, ${data.paymentProvider},
        ${data.amount}, ${data.currency}, ${data.phone ?? null}, ${data.invoiceId ?? null})
     RETURNING *
   `;
@@ -142,6 +158,13 @@ export async function updatePayment(db: Db, id: string, data: Record<string, unk
 export async function findPaymentsByProvider(db: Db, providerId: string, limit = 10): Promise<Payment[]> {
   return db<Payment[]>`
     SELECT * FROM payments WHERE provider_id = ${providerId}
+    ORDER BY created_at DESC LIMIT ${limit}
+  `;
+}
+
+export async function findPaymentsByAccount(db: Db, accountId: string, limit = 10): Promise<Payment[]> {
+  return db<Payment[]>`
+    SELECT * FROM payments WHERE account_id = ${accountId}
     ORDER BY created_at DESC LIMIT ${limit}
   `;
 }

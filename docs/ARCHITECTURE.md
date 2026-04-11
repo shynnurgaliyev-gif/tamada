@@ -35,6 +35,9 @@ Supabase (PostgreSQL + Auth + Storage)
 | GET /auth/me                  | Bearer     | 15 req / 15 min |
 | GET/POST /search/*            | Public     | 30 req / min    |
 | GET /reference/*              | Public     | 120 req / min   |
+| GET /account/subscription     | Bearer     | 120 req / min   |
+| POST /account/subscription/*  | Bearer     | 120 req / min   |
+| POST /account/payments/*      | Bearer     | 120 req / min   |
 | GET /public/providers/*       | Public     | 120 req / min   |
 | POST/PATCH/DELETE /providers/*| Bearer     | 120 req / min   |
 | GET/POST /providers/*/calendar| Bearer     | 120 req / min   |
@@ -53,10 +56,11 @@ Supabase (PostgreSQL + Auth + Storage)
 ## Database
 
 - Provider: Supabase (PostgreSQL)
-- Migrations: /supabase/migrations/ (versioned SQL files, 001–010)
+- Migrations: /supabase/migrations/ (versioned SQL files, 001–011)
 - Schema reference: /supabase/schema.sql
 - Connection: postgres.js with `prepare: false` (PgBouncer compatible)
 - Key view: `public_providers_search` — only active + subscribed providers
+- **Subscription model**: account-level — one subscription covers ALL profiles of the account. `subscriptions.account_id` FK, `provider_id` nullable. Migration 011.
 - Reference tables: `ref_countries`, `ref_regions`, `ref_cities`, `ref_categories`, `ref_subcategories`, `ref_currencies`, `ref_link_types`
 - Reference data: Kazakhstan (ISO 3166-2:KZ), 20 regions, ~55 cities, 16 categories, 4 currencies
 - Providers have nullable `country_id`, `region_id`, `city_id` FKs (migration 010, safe transition)

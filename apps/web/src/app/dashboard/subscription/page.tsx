@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
-type Provider = { id: string; display_name: string; };
 type Subscription = {
   id: string; status: string; plan_code: string;
   starts_at: string; expires_at: string; trial_ends_at: string | null;
@@ -28,8 +27,6 @@ const paymentStatusLabel: Record<string, string> = {
 function getToken() { return localStorage.getItem('session_token') ?? ''; }
 
 export default function SubscriptionPage() {
-  const [providers, setProviders] = useState<Provider[]>([]);
-  const [selectedId, setSelectedId] = useState('');
   const [sub, setSub] = useState<Subscription | null>(null);
   const [daysLeft, setDaysLeft] = useState(0);
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -42,25 +39,11 @@ export default function SubscriptionPage() {
   useEffect(() => {
     const token = getToken();
     if (!token) { window.location.href = '/login'; return; }
-    fetch(`${API}/providers/me`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
-      .then((d: { ok: boolean; providers?: Provider[] }) => {
-        if (!d.ok) { window.location.href = '/login'; return; }
-        const list = d.providers ?? [];
-        setProviders(list);
-        if (list[0]) setSelectedId(list[0].id);
-      })
-      .finally(() => setLoading(false));
+    loadSubscription();
   }, []);
 
-  useEffect(() => {
-    if (!selectedId) return;
-    setMsg(''); setInvoiceResult('');
-    loadSubscription();
-  }, [selectedId]);
-
   function loadSubscription() {
-    fetch(`${API}/providers/${selectedId}/subscription`, {
+    fetch(`${API}/account/subscription`, {
       headers: { Authorization: `Bearer ${getToken()}` },
     })
       .then(r => r.json())
@@ -70,12 +53,14 @@ export default function SubscriptionPage() {
           setDaysLeft(d.days_left ?? 0);
           setPayments(d.payments ?? []);
         }
-      });
+      })
+      .finally(() => setLoading(false));
   }
 
   async function startTrial() {
-    const res = await fetch(`${API}/providers/${selectedId}/subscription/start-trial`, {
-      method: 'POST', headers: { Authorization: `Bearer ${getToken()}` },
+    const res = await fetch(`${API}/account/subscription/start-trial`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${getToken()}` },
     });
     const data = await res.json() as { ok: boolean; error?: string };
     if (data.ok) { loadSubscription(); }
@@ -86,7 +71,7 @@ export default function SubscriptionPage() {
     e.preventDefault();
     setInvoicing(true);
     setInvoiceResult('');
-    const res = await fetch(`${API}/providers/${selectedId}/payments/create-invoice`, {
+    const res = await fetch(`${API}/account/payments/create-invoice`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone }),
@@ -109,12 +94,7 @@ export default function SubscriptionPage() {
     <div style={s.page}>
       <a href="/dashboard" style={s.back}>← Кабинет</a>
       <h1 style={s.title}>Подписка</h1>
-
-      {providers.length > 1 && (
-        <select style={s.select} value={selectedId} onChange={e => setSelectedId(e.target.value)}>
-          {providers.map(p => <option key={p.id} value={p.id}>{p.display_name}</option>)}
-        </select>
-      )}
+      <p style={s.subtitle}>Одна подписка — все ваши профили активны.</p>
 
       {!sub ? (
         <section style={s.section}>
@@ -135,10 +115,12 @@ export default function SubscriptionPage() {
               <div style={s.infoItem}><span style={s.infoLabel}>Тариф</span><span>{sub.plan_code}</span></div>
               <div style={s.infoItem}><span style={s.infoLabel}>Начало</span><span>{new Date(sub.starts_at).toLocaleDateString('ru-RU')}</span></div>
               <div style={s.infoItem}><span style={s.infoLabel}>До</span><span>{new Date(sub.expires_at).toLocaleDateString('ru-RU')}</span></div>
-              {sub.trial_ends_at && <div style={s.infoItem}><span style={s.infoLabel}>Пробный до</span><span>{new Date(sub.trial_ends_at).toLocaleDateString('ru-RU')}</span></div>}
+              {sub.trial_ends_at && (
+                <div style={s.infoItem}><span style={s.infoLabel}>Пробный до</span><span>{new Date(sub.trial_ends_at).toLocaleDateString('ru-RU')}</span></div>
+              )}
             </div>
             {isBlocked && (
-              <div style={s.warning}>⚠️ Профиль скрыт. Оплатите подписку для восстановления видимости.</div>
+              <div style={s.warning}>⚠️ Все профили скрыты. Оплатите подписку для восстановления видимости.</div>
             )}
           </section>
 
@@ -187,8 +169,8 @@ export default function SubscriptionPage() {
 const s: Record<string, React.CSSProperties> = {
   page: { maxWidth: 600, margin: '0 auto', padding: '24px 16px', fontFamily: 'system-ui, sans-serif' },
   back: { color: '#9ca3af', textDecoration: 'none', fontSize: 14 },
-  title: { margin: '16px 0 24px', fontSize: 22, fontWeight: 700 },
-  select: { width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, marginBottom: 20 },
+  title: { margin: '16px 0 4px', fontSize: 22, fontWeight: 700 },
+  subtitle: { margin: '0 0 24px', fontSize: 14, color: '#6b7280' },
   section: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, marginBottom: 16 },
   sectionTitle: { margin: '0 0 14px', fontSize: 15, fontWeight: 600 },
   noSub: { color: '#6b7280', fontSize: 14, marginBottom: 12 },

@@ -8,12 +8,12 @@ type Service = { id: string; category: string; title: string; price_from: string
 type Photo = { id: string; url: string; is_cover: boolean; };
 type Link = { id: string; link_type: string; url: string; label: string | null; };
 
-type RefRegion  = { id: string; name_ru: string; region_type: string; };
-type RefCity    = { id: string; name_ru: string; region_id: string; };
-type RefCategory = { id: string; name_ru: string; code: string; icon: string | null; };
+type RefRegion     = { id: string; name_ru: string; region_type: string; };
+type RefCity       = { id: string; name_ru: string; region_id: string; };
+type RefCategory   = { id: string; name_ru: string; code: string; icon: string | null; };
 type RefSubcategory = { id: string; name_ru: string; category_id: string; };
-type RefCurrency = { id: string; code: string; symbol: string; };
-type RefLinkType = { id: string; code: string; name_ru: string; };
+type RefCurrency   = { id: string; code: string; symbol: string; };
+type RefLinkType   = { id: string; code: string; name_ru: string; };
 
 function getToken() { return localStorage.getItem('session_token') ?? ''; }
 function authHeaders() { return { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' }; }
@@ -22,10 +22,30 @@ async function fetchRef<T>(path: string): Promise<T[]> {
   try {
     const res = await fetch(`${API}${path}`);
     const data = await res.json() as Record<string, T[]>;
-    // key is e.g. "regions", "cities", etc.
     const key = Object.keys(data).find(k => k !== 'ok') ?? '';
     return (data[key] as T[]) ?? [];
   } catch { return []; }
+}
+
+// Transliterate Cyrillic → Latin for slug generation
+const TRANSLIT: Record<string, string> = {
+  'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh','з':'z',
+  'и':'i','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r',
+  'с':'s','т':'t','у':'u','ф':'f','х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'sch',
+  'ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya',
+  // Kazakh extra letters
+  'ә':'a','ғ':'g','қ':'k','ң':'n','ө':'o','ұ':'u','ү':'u','һ':'h','і':'i',
+};
+
+function toSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .split('')
+    .map(c => TRANSLIT[c] ?? c)
+    .join('')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 50);
 }
 
 export default function EditProviderPage() {
@@ -37,14 +57,17 @@ export default function EditProviderPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const [msgColor, setMsgColor] = useState('#22c55e');
+  // true while user hasn't manually edited the slug field
+  const [slugAuto, setSlugAuto] = useState(true);
 
   // Reference data
-  const [regions, setRegions]         = useState<RefRegion[]>([]);
-  const [cities, setCities]           = useState<RefCity[]>([]);
-  const [categories, setCategories]   = useState<RefCategory[]>([]);
-  const [subcategories, setSubcats]   = useState<RefSubcategory[]>([]);
-  const [currencies, setCurrencies]   = useState<RefCurrency[]>([]);
-  const [linkTypes, setLinkTypes]     = useState<RefLinkType[]>([]);
+  const [regions, setRegions]       = useState<RefRegion[]>([]);
+  const [cities, setCities]         = useState<RefCity[]>([]);
+  const [categories, setCategories] = useState<RefCategory[]>([]);
+  const [subcategories, setSubcats] = useState<RefSubcategory[]>([]);
+  const [currencies, setCurrencies] = useState<RefCurrency[]>([]);
+  const [linkTypes, setLinkTypes]   = useState<RefLinkType[]>([]);
 
   // Forms
   const [form, setForm] = useState({ display_name: '', slug: '', bio: '', city: '', region: '', timezone: 'Asia/Almaty', publication_status: 'draft' });
@@ -53,7 +76,7 @@ export default function EditProviderPage() {
 
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Load reference data on mount
+  // Load reference data
   useEffect(() => {
     void Promise.all([
       fetchRef<RefRegion>('/reference/regions'),
@@ -70,14 +93,14 @@ export default function EditProviderPage() {
       setCurrencies(cur);
       setLinkTypes(lt.length > 0 ? lt : [
         { id: 'instagram', code: 'instagram', name_ru: 'Instagram' },
-        { id: 'whatsapp', code: 'whatsapp', name_ru: 'WhatsApp' },
-        { id: 'telegram', code: 'telegram', name_ru: 'Telegram' },
-        { id: 'tiktok', code: 'tiktok', name_ru: 'TikTok' },
-        { id: 'youtube', code: 'youtube', name_ru: 'YouTube' },
-        { id: 'website', code: 'website', name_ru: 'Сайт' },
-        { id: 'two_gis', code: 'two_gis', name_ru: '2GIS' },
-        { id: 'map', code: 'map', name_ru: 'Карта' },
-        { id: 'other', code: 'other', name_ru: 'Другое' },
+        { id: 'whatsapp',  code: 'whatsapp',  name_ru: 'WhatsApp'  },
+        { id: 'telegram',  code: 'telegram',  name_ru: 'Telegram'  },
+        { id: 'tiktok',    code: 'tiktok',    name_ru: 'TikTok'    },
+        { id: 'youtube',   code: 'youtube',   name_ru: 'YouTube'   },
+        { id: 'website',   code: 'website',   name_ru: 'Сайт'      },
+        { id: 'two_gis',   code: 'two_gis',   name_ru: '2GIS'      },
+        { id: 'map',       code: 'map',       name_ru: 'Карта'     },
+        { id: 'other',     code: 'other',     name_ru: 'Другое'    },
       ]);
     });
   }, []);
@@ -97,6 +120,7 @@ export default function EditProviderPage() {
           const p = data.providers?.find(x => x.id === id);
           if (p) {
             setProvider(p);
+            setSlugAuto(false); // editing existing — keep slug as-is
             setForm({ display_name: p.display_name, slug: p.slug, bio: p.bio ?? '', city: p.city ?? '', region: p.region ?? '', timezone: p.timezone, publication_status: p.publication_status });
           }
         }).catch(() => null);
@@ -105,20 +129,36 @@ export default function EditProviderPage() {
   }, []);
 
   async function loadProviderData(slug: string) {
-    const res = await fetch(`${API}/public/providers/${slug}`);
-    const data = await res.json() as { ok: boolean; services?: Service[]; photos?: Photo[]; links?: Link[] };
-    if (data.ok) {
-      setServices(data.services ?? []);
-      setPhotos(data.photos ?? []);
-      setLinks(data.links ?? []);
-    }
+    try {
+      const res = await fetch(`${API}/public/providers/${slug}`);
+      const data = await res.json() as { ok: boolean; services?: Service[]; photos?: Photo[]; links?: Link[] };
+      if (data.ok) {
+        setServices(data.services ?? []);
+        setPhotos(data.photos ?? []);
+        setLinks(data.links ?? []);
+      }
+    } catch { /* ignore */ }
   }
 
   useEffect(() => {
     if (provider?.slug) void loadProviderData(provider.slug);
   }, [provider?.slug]);
 
-  // Filter cities by selected region
+  // Auto-update slug from display_name while user hasn't touched slug field
+  function handleNameChange(name: string) {
+    setForm(f => ({
+      ...f,
+      display_name: name,
+      slug: slugAuto ? toSlug(name) : f.slug,
+    }));
+  }
+
+  function handleSlugChange(slug: string) {
+    setSlugAuto(false);
+    setForm(f => ({ ...f, slug: slug.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 50) }));
+  }
+
+  // Cascading filters
   const filteredCities = form.region
     ? cities.filter(c => {
         const reg = regions.find(r => r.name_ru === form.region);
@@ -126,7 +166,6 @@ export default function EditProviderPage() {
       })
     : cities;
 
-  // Filter subcategories by selected category
   const filteredSubcats = svcForm.category
     ? subcategories.filter(s => {
         const cat = categories.find(c => c.name_ru === svcForm.category || c.code === svcForm.category);
@@ -140,59 +179,92 @@ export default function EditProviderPage() {
     setMsg('');
     try {
       if (providerId) {
-        await fetch(`${API}/providers/${providerId}`, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(form) });
-        setMsg('Сохранено');
+        const res = await fetch(`${API}/providers/${providerId}`, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(form) });
+        const data = await res.json() as { ok: boolean; error?: string };
+        if (data.ok) {
+          setMsgColor('#22c55e');
+          setMsg('Сохранено');
+        } else {
+          setMsgColor('#ef4444');
+          setMsg(data.error ?? 'Ошибка при сохранении');
+        }
       } else {
         const res = await fetch(`${API}/providers`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(form) });
-        const data = await res.json() as { ok: boolean; provider?: Provider };
+        const data = await res.json() as { ok: boolean; provider?: Provider; error?: string };
         if (data.ok && data.provider) {
           window.location.href = `/dashboard/provider/edit?id=${data.provider.id}`;
+          return;
+        }
+        // Show error (e.g. duplicate slug)
+        setMsgColor('#ef4444');
+        if (data.error?.toLowerCase().includes('slug') || data.error?.toLowerCase().includes('unique') || data.error?.toLowerCase().includes('уже занят')) {
+          setMsg('Этот URL уже занят — попробуйте изменить');
+        } else {
+          setMsg(data.error ?? 'Ошибка при создании профиля');
         }
       }
-    } finally { setSaving(false); }
+    } catch (err) {
+      setMsgColor('#ef4444');
+      setMsg('Ошибка соединения с сервером');
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function addService(e: React.FormEvent) {
     e.preventDefault();
     if (!providerId) return;
-    await fetch(`${API}/providers/${providerId}/services`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ ...svcForm, price_from: svcForm.price_from ? Number(svcForm.price_from) : undefined }) });
-    setSvcForm({ category: '', subcategory: '', title: '', price_from: '', currency: 'KZT' });
-    if (provider?.slug) void loadProviderData(provider.slug);
+    try {
+      await fetch(`${API}/providers/${providerId}/services`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ ...svcForm, price_from: svcForm.price_from ? Number(svcForm.price_from) : undefined }) });
+      setSvcForm({ category: '', subcategory: '', title: '', price_from: '', currency: 'KZT' });
+      if (provider?.slug) void loadProviderData(provider.slug);
+    } catch { /* ignore */ }
   }
 
   async function deleteService(id: string) {
     if (!providerId) return;
-    await fetch(`${API}/providers/${providerId}/services/${id}`, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ is_active: false }) });
-    if (provider?.slug) void loadProviderData(provider.slug);
+    try {
+      await fetch(`${API}/providers/${providerId}/services/${id}`, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ is_active: false }) });
+      if (provider?.slug) void loadProviderData(provider.slug);
+    } catch { /* ignore */ }
   }
 
   async function uploadPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     if (!providerId || !e.target.files?.[0]) return;
     const formData = new FormData();
     formData.append('file', e.target.files[0]);
-    await fetch(`${API}/providers/${providerId}/photos`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` }, body: formData });
-    if (provider?.slug) void loadProviderData(provider.slug);
+    try {
+      await fetch(`${API}/providers/${providerId}/photos`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` }, body: formData });
+      if (provider?.slug) void loadProviderData(provider.slug);
+    } catch { /* ignore */ }
     if (fileRef.current) fileRef.current.value = '';
   }
 
   async function deletePhoto(id: string) {
     if (!providerId) return;
-    await fetch(`${API}/providers/${providerId}/photos/${id}`, { method: 'DELETE', headers: authHeaders() });
-    if (provider?.slug) void loadProviderData(provider.slug);
+    try {
+      await fetch(`${API}/providers/${providerId}/photos/${id}`, { method: 'DELETE', headers: authHeaders() });
+      if (provider?.slug) void loadProviderData(provider.slug);
+    } catch { /* ignore */ }
   }
 
   async function addLink(e: React.FormEvent) {
     e.preventDefault();
     if (!providerId) return;
-    await fetch(`${API}/providers/${providerId}/links`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(linkForm) });
-    setLinkForm({ link_type: linkTypes[0]?.code ?? 'instagram', url: '', label: '' });
-    if (provider?.slug) void loadProviderData(provider.slug);
+    try {
+      await fetch(`${API}/providers/${providerId}/links`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(linkForm) });
+      setLinkForm({ link_type: linkTypes[0]?.code ?? 'instagram', url: '', label: '' });
+      if (provider?.slug) void loadProviderData(provider.slug);
+    } catch { /* ignore */ }
   }
 
   async function deleteLink(id: string) {
     if (!providerId) return;
-    await fetch(`${API}/providers/${providerId}/links/${id}`, { method: 'DELETE', headers: authHeaders() });
-    if (provider?.slug) void loadProviderData(provider.slug);
+    try {
+      await fetch(`${API}/providers/${providerId}/links/${id}`, { method: 'DELETE', headers: authHeaders() });
+      if (provider?.slug) void loadProviderData(provider.slug);
+    } catch { /* ignore */ }
   }
 
   if (loading) return <div style={s.page}><p>Загрузка...</p></div>;
@@ -211,8 +283,21 @@ export default function EditProviderPage() {
         <h2 style={s.sectionTitle}>Основное</h2>
         <form onSubmit={saveProvider}>
           <div style={s.grid2}>
-            <label style={s.label}>Имя<input style={s.input} value={form.display_name} onChange={e => setForm(f => ({ ...f, display_name: e.target.value }))} required /></label>
-            <label style={s.label}>Slug (URL)<input style={s.input} value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} placeholder="my-profile" required /></label>
+            <label style={s.label}>
+              Имя
+              <input style={s.input} value={form.display_name} onChange={e => handleNameChange(e.target.value)} required />
+            </label>
+            <label style={s.label}>
+              URL профиля
+              <input
+                style={{ ...s.input, color: slugAuto ? '#9ca3af' : '#111' }}
+                value={form.slug}
+                onChange={e => handleSlugChange(e.target.value)}
+                placeholder="my-profile"
+                required
+              />
+              <span style={s.hint}>tamada.kz/p/{form.slug || '...'}</span>
+            </label>
             <label style={s.label}>Регион
               <select style={s.input} value={form.region} onChange={e => setForm(f => ({ ...f, region: e.target.value, city: '' }))}>
                 <option value="">— не выбран —</option>
@@ -234,8 +319,8 @@ export default function EditProviderPage() {
               <option value="hidden">Скрыт</option>
             </select>
           </label>
-          {msg && <p style={{ color: '#22c55e' }}>{msg}</p>}
-          <button type="submit" style={s.btn} disabled={saving}>{saving ? '...' : 'Сохранить'}</button>
+          {msg && <p style={{ color: msgColor, margin: '8px 0' }}>{msg}</p>}
+          <button type="submit" style={s.btn} disabled={saving}>{saving ? 'Сохранение...' : 'Сохранить'}</button>
         </form>
       </section>
 
@@ -334,6 +419,7 @@ const s: Record<string, React.CSSProperties> = {
   grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 },
   label: { display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14, color: '#374151', marginBottom: 12 },
   input: { padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, outline: 'none', transition: 'border-color .2s', width: '100%', boxSizing: 'border-box' },
+  hint: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
   inputSm: { padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, flex: 1 },
   btn: { background: '#111', color: '#fff', padding: '9px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 14 },
   btnSm: { background: '#111', color: '#fff', padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap' },
