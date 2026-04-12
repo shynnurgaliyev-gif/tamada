@@ -62,48 +62,49 @@ export default function SignupPage() {
   }
 
   return (
-    <main style={{ maxWidth: 400, margin: '80px auto', padding: '0 16px' }}>
-      <h1>Регистрация</h1>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div className="card" style={{ width: '100%', maxWidth: 400, padding: 32 }}>
+        <a href="/" style={{ display: 'block', textAlign: 'center', fontSize: 22, fontWeight: 700, textDecoration: 'none', color: 'var(--ink)', marginBottom: 24 }}>🎤 Тамада</a>
+        <h1 style={{ margin: '0 0 6px', fontSize: 22, fontWeight: 700, textAlign: 'center' }}>Регистрация</h1>
+        <p style={{ margin: '0 0 24px', fontSize: 14, color: 'var(--ink-3)', textAlign: 'center' }}>
+          {step === 'phone' ? 'Введите номер телефона для входа' : 'Введите код из WhatsApp'}
+        </p>
 
-      {step === 'phone' && (
-        <form onSubmit={requestCode}>
-          <p>
-            <label>
-              Телефон<br />
-              <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+7..." required />
+        {step === 'phone' && (
+          <form onSubmit={requestCode} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 14, color: 'var(--ink-2)', fontWeight: 500 }}>
+              Телефон
+              <input className="input" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+7..." required type="tel" />
             </label>
-          </p>
-          {error && <p style={{ color: 'red' }}>{error}</p>}
-          <button type="submit" disabled={loading}>{loading ? '...' : 'Получить код'}</button>
-        </form>
-      )}
+            {error && <p style={{ margin: 0, color: 'var(--red)', fontSize: 14, background: '#fef2f2', padding: '8px 12px', borderRadius: 8 }}>{error}</p>}
+            <button type="submit" className="btn btn-primary btn-full" disabled={loading}>{loading ? '...' : 'Получить код'}</button>
+          </form>
+        )}
 
-      {step === 'confirm' && (
-        <form onSubmit={confirm}>
-          <p>
-            <label>
-              Код из WhatsApp<br />
-              <input value={code} onChange={e => setCode(e.target.value)} placeholder="123456" required />
+        {step === 'confirm' && (
+          <form onSubmit={confirm} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 14, color: 'var(--ink-2)', fontWeight: 500 }}>
+              Код из WhatsApp
+              <input className="input" value={code} onChange={e => setCode(e.target.value)} placeholder="123456" required />
             </label>
-          </p>
-          <p>
-            <label>
-              Имя пользователя<br />
-              <input value={username} onChange={e => setUsername(e.target.value)} required />
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 14, color: 'var(--ink-2)', fontWeight: 500 }}>
+              Имя пользователя
+              <input className="input" value={username} onChange={e => setUsername(e.target.value)} required autoComplete="username" />
             </label>
-          </p>
-          <p>
-            <label>
-              Пароль<br />
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 14, color: 'var(--ink-2)', fontWeight: 500 }}>
+              Пароль
+              <input className="input" type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="new-password" />
             </label>
-          </p>
-          {error && <p style={{ color: 'red' }}>{error}</p>}
-          <button type="submit" disabled={loading}>{loading ? '...' : 'Создать аккаунт'}</button>
-        </form>
-      )}
+            {error && <p style={{ margin: 0, color: 'var(--red)', fontSize: 14, background: '#fef2f2', padding: '8px 12px', borderRadius: 8 }}>{error}</p>}
+            <button type="submit" className="btn btn-primary btn-full" disabled={loading}>{loading ? '...' : 'Создать аккаунт'}</button>
+            <button type="button" className="btn btn-ghost btn-full" onClick={() => setStep('phone')}>← Изменить телефон</button>
+          </form>
+        )}
 
-      <p><a href="/login">Уже есть аккаунт? Войти</a></p>
-    </main>
+        <p style={{ marginTop: 20, textAlign: 'center', fontSize: 14, color: 'var(--ink-3)' }}>
+          Уже есть аккаунт? <a href="/login" style={{ color: 'var(--brand)', fontWeight: 600, textDecoration: 'none' }}>Войти</a>
+        </p>
+      </div>
+    </div>
   );
 }

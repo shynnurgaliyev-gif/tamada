@@ -23,9 +23,13 @@ const CAL_ST: Record<string, { bg: string; color: string; label: string }> = {
   past:     { bg: '#f3f4f6', color: '#d1d5db', label: 'Прошлое' },
 };
 
-const linkIcons: Record<string, string> = {
+const LINK_ICONS: Record<string, string> = {
   instagram: '📸', whatsapp: '💬', telegram: '✈️', tiktok: '🎵',
   youtube: '▶️', website: '🌐', two_gis: '📍', map: '🗺️', other: '🔗',
+};
+const LINK_NAMES: Record<string, string> = {
+  instagram: 'Instagram', whatsapp: 'WhatsApp', telegram: 'Telegram', tiktok: 'TikTok',
+  youtube: 'YouTube', website: 'Сайт', two_gis: '2GIS', map: 'Карта', other: 'Ссылка',
 };
 
 export default function ProfileClient({ slug }: { slug: string }) {
@@ -47,7 +51,6 @@ export default function ProfileClient({ slug }: { slug: string }) {
     if (!slug) return;
 
     async function load() {
-      // Try public endpoint first
       const res = await fetch(`${API}/public/providers/${slug}`).catch(() => null);
       const d = res ? await res.json() as { ok: boolean; provider?: Provider; services?: Service[]; photos?: Photo[]; links?: Link[] } : null;
 
@@ -56,7 +59,6 @@ export default function ProfileClient({ slug }: { slug: string }) {
         setServices(d.services ?? []);
         setPhotos(d.photos ?? []);
         setLinks(d.links ?? []);
-        // load calendar
         const yr = new Date().getFullYear();
         const mo = new Date().getMonth() + 1;
         fetch(`${API}/public/providers/${slug}/calendar/month?year=${yr}&month=${mo}`)
@@ -66,7 +68,6 @@ export default function ProfileClient({ slug }: { slug: string }) {
           })
           .catch(() => null);
       } else {
-        // Profile not public — check if owner is viewing
         const token = localStorage.getItem('session_token');
         if (token) {
           try {
@@ -99,7 +100,6 @@ export default function ProfileClient({ slug }: { slug: string }) {
     void load();
   }, [slug]);
 
-  // Load calendar month when calYear/calMonth changes (after initial load)
   useEffect(() => {
     if (!provider || !slug) return;
     fetch(`${API}/public/providers/${slug}/calendar/month?year=${calYear}&month=${calMonth}`)
@@ -107,6 +107,8 @@ export default function ProfileClient({ slug }: { slug: string }) {
       .then((c: { ok: boolean; days?: DayInfo[] }) => { if (c.ok) setCalDays(c.days ?? []); })
       .catch(() => null);
   }, [calYear, calMonth, slug, provider]);
+
+  void calTimezone; // used for future locale formatting
 
   function calPrev() {
     setSelectedCalDate(null);
@@ -119,7 +121,6 @@ export default function ProfileClient({ slug }: { slug: string }) {
     else setCalMonth(m => m + 1);
   }
 
-  // Build calendar grid
   const calFirstDow = new Date(calYear, calMonth - 1, 1).getDay();
   const calPad = (calFirstDow + 6) % 7;
   const calCells: (DayInfo | null)[] = [...Array(calPad).fill(null), ...calDays];
@@ -127,88 +128,104 @@ export default function ProfileClient({ slug }: { slug: string }) {
   const calTodayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   const selectedDayInfo = calDays.find(d => d.date === selectedCalDate);
 
-  if (loading) return <div style={s.page}><p>Загрузка...</p></div>;
+  if (loading) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <p style={{ color: 'var(--ink-3)' }}>Загрузка...</p>
+    </div>
+  );
+
   if (notFound || !provider) return (
-    <div style={{ ...s.page, textAlign: 'center', paddingTop: 80 }}>
-      <h2>Профиль не найден</h2>
-      <p style={{ color: '#6b7280' }}>Возможно, он скрыт или не существует.</p>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 }}>
+      <div style={{ fontSize: 48 }}>🔍</div>
+      <h2 style={{ margin: 0, fontSize: 22 }}>Профиль не найден</h2>
+      <p style={{ color: 'var(--ink-3)', margin: 0 }}>Возможно, он скрыт или не существует.</p>
+      <a href="/search" className="btn btn-primary" style={{ marginTop: 8 }}>Найти исполнителей</a>
     </div>
   );
 
   const cover = photos.find(p => p.is_cover) ?? photos[0];
 
   return (
-    <div style={s.root}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+      {/* Preview banner */}
       {isPreview && (
-        <div style={s.previewBanner}>
-          👁 Предпросмотр — профиль скрыт от публики. <a href="/dashboard/provider" style={{ color: '#fff', fontWeight: 600 }}>Изменить статус</a>
+        <div style={{ background: 'var(--amber)', color: '#fff', textAlign: 'center', padding: '10px 16px', fontSize: 14, fontWeight: 500 }}>
+          👁 Предпросмотр — профиль скрыт от публики.{' '}
+          <a href="/dashboard/provider" style={{ color: '#fff', fontWeight: 700, textDecoration: 'underline' }}>Изменить статус</a>
         </div>
       )}
-      <div style={{ ...s.hero, backgroundImage: cover ? `url(${cover.url})` : undefined }}>
-        <div style={s.heroOverlay} />
-        <div style={s.heroContent}>
-          <div style={s.nameRow}>
-            <h1 style={s.name}>{provider.display_name}</h1>
-            {provider.is_verified && <span style={s.verified}>✓</span>}
+
+      {/* Back nav */}
+      <nav className="nav">
+        <a href="/search" className="nav-logo" style={{ fontSize: 16 }}>← Поиск</a>
+        <a href="/" style={{ fontSize: 13, color: 'var(--ink-3)' }}>🎤 Тамада</a>
+      </nav>
+
+      {/* Hero cover */}
+      <div style={{ position: 'relative', height: 300, backgroundSize: 'cover', backgroundPosition: 'center', background: 'linear-gradient(135deg,#1e1b4b,#4c1d95)', backgroundImage: cover ? `url(${cover.url})` : undefined }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,.72) 0%, rgba(0,0,0,.15) 60%)' }} />
+        <div style={{ position: 'absolute', bottom: 28, left: 24, right: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, color: '#fff', letterSpacing: '-.02em' }}>{provider.display_name}</h1>
+            {provider.is_verified && <span className="badge badge-verified" style={{ background: 'rgba(255,255,255,.2)', color: '#fff', border: 'none' }}>✓ Верификация</span>}
           </div>
           {(provider.city ?? provider.region) && (
-            <p style={s.location}>📍 {[provider.city, provider.region].filter(Boolean).join(', ')}</p>
-          )}
-          {provider.provider_status !== 'active' && (
-            <span style={s.statusBadge}>{provider.provider_status}</span>
+            <p style={{ margin: '6px 0 0', color: 'rgba(255,255,255,.8)', fontSize: 14 }}>
+              📍 {[provider.city, provider.region].filter(Boolean).join(', ')}
+            </p>
           )}
         </div>
       </div>
 
-      <div style={s.body}>
+      {/* Body */}
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: '20px 16px 48px' }}>
         {provider.bio && (
-          <section style={s.section}>
-            <p style={s.bio}>{provider.bio}</p>
-          </section>
+          <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+            <p style={{ margin: 0, color: 'var(--ink-2)', lineHeight: 1.65, fontSize: 15 }}>{provider.bio}</p>
+          </div>
         )}
 
         {services.length > 0 && (
-          <section style={s.section}>
-            <h2 style={s.sectionTitle}>Услуги</h2>
-            <div style={s.servicesGrid}>
+          <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+            <h2 style={{ margin: '0 0 16px', fontSize: 17, fontWeight: 700 }}>Услуги</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
               {services.map(sv => (
-                <div key={sv.id} style={s.serviceCard}>
-                  <span style={s.serviceCategory}>{sv.category}</span>
-                  <h3 style={s.serviceTitle}>{sv.title}</h3>
-                  {sv.description && <p style={s.serviceDesc}>{sv.description}</p>}
+                <div key={sv.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 14 }}>
+                  <span style={{ fontSize: 11, color: 'var(--brand)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em' }}>{sv.category}</span>
+                  <h3 style={{ margin: '4px 0 6px', fontSize: 14, fontWeight: 700 }}>{sv.title}</h3>
+                  {sv.description && <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.4 }}>{sv.description}</p>}
                   {sv.price_from && (
-                    <p style={s.servicePrice}>
+                    <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
                       от {sv.price_from}{sv.price_to ? ` — ${sv.price_to}` : ''} {sv.currency}
                     </p>
                   )}
                 </div>
               ))}
             </div>
-          </section>
+          </div>
         )}
 
         {photos.length > 0 && (
-          <section style={s.section}>
-            <h2 style={s.sectionTitle}>Фото</h2>
-            <div style={s.photoGrid}>
+          <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+            <h2 style={{ margin: '0 0 14px', fontSize: 17, fontWeight: 700 }}>Фото</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 8 }}>
               {photos.map(ph => (
-                <img key={ph.id} src={ph.url} alt={provider.display_name} style={s.photo} />
+                <img key={ph.id} src={ph.url} alt={provider.display_name} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 8 }} />
               ))}
             </div>
-          </section>
+          </div>
         )}
 
-        <section style={s.section}>
-          <h2 style={s.sectionTitle}>Занятость</h2>
-          {/* Month nav */}
-          <div style={s.calNav}>
-            <button onClick={calPrev} style={s.calNavBtn}>‹</button>
-            <span style={s.calMonthLabel}>{MONTHS_RU[calMonth - 1]} {calYear}</span>
-            <button onClick={calNext} style={s.calNavBtn}>›</button>
+        {/* Calendar */}
+        <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+          <h2 style={{ margin: '0 0 14px', fontSize: 17, fontWeight: 700 }}>Занятость</h2>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 10 }}>
+            <button onClick={calPrev} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: 'var(--ink-2)' }}>‹</button>
+            <span style={{ fontSize: 15, fontWeight: 700, minWidth: 140, textAlign: 'center' }}>{MONTHS_RU[calMonth - 1]} {calYear}</span>
+            <button onClick={calNext} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: 'var(--ink-2)' }}>›</button>
           </div>
-          {/* Grid */}
-          <div style={s.calGrid}>
-            {DAYS_SHORT.map(d => <div key={d} style={s.calDayHeader}>{d}</div>)}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3 }}>
+            {DAYS_SHORT.map(d => <div key={d} style={{ textAlign: 'center', fontSize: 10, color: 'var(--ink-4)', fontWeight: 600, padding: '3px 0', textTransform: 'uppercase' }}>{d}</div>)}
             {calCells.map((cell, i) => {
               if (!cell) return <div key={`ep-${i}`} />;
               const st = CAL_ST[cell.status] ?? CAL_ST.free;
@@ -219,96 +236,55 @@ export default function ProfileClient({ slug }: { slug: string }) {
                   key={cell.date}
                   onClick={() => setSelectedCalDate(isSel ? null : cell.date)}
                   style={{
-                    ...s.calCell,
-                    background: st.bg,
-                    color: st.color,
+                    minHeight: 44, border: 'none', borderRadius: 6, cursor: 'pointer',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3,
+                    background: st.bg, color: st.color,
                     boxShadow: isSel ? 'inset 0 0 0 2px #111' : isToday ? 'inset 0 0 0 2px #3b82f6' : undefined,
                     fontWeight: isToday ? 700 : 400,
                   }}
                 >
                   <span style={{ fontSize: 13 }}>{parseInt(cell.date.slice(8), 10)}</span>
-                  {cell.count > 0 && <span style={{ ...s.calDotPub, background: st.color }} />}
+                  {cell.count > 0 && <span style={{ width: 5, height: 5, borderRadius: '50%', background: st.color, display: 'inline-block' }} />}
                 </button>
               );
             })}
           </div>
-          {/* Selected day info */}
           {selectedCalDate && (
-            <div style={s.calDayInfo}>
+            <div style={{ marginTop: 10, padding: '8px 12px', background: 'var(--bg)', borderRadius: 8, fontSize: 14 }}>
               {selectedDayInfo
-                ? <span style={{ color: CAL_ST[selectedDayInfo.status]?.color ?? '#111', fontWeight: 600 }}>
+                ? <span style={{ color: CAL_ST[selectedDayInfo.status]?.color ?? 'var(--ink)', fontWeight: 600 }}>
                     {new Date(selectedCalDate + 'T12:00:00Z').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
                     {' — '}{CAL_ST[selectedDayInfo.status]?.label ?? selectedDayInfo.status}
                   </span>
-                : <span style={{ color: '#6b7280' }}>Нет данных</span>
+                : <span style={{ color: 'var(--ink-3)' }}>Нет данных</span>
               }
             </div>
           )}
-          {/* Legend */}
-          <div style={s.calLegend}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 12, fontSize: 11, color: 'var(--ink-3)' }}>
             {Object.entries(CAL_ST).filter(([k]) => k !== 'past').map(([key, val]) => (
-              <span key={key} style={s.calLegendItem}>
+              <span key={key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: val.color, display: 'inline-block' }} />
                 {val.label}
               </span>
             ))}
           </div>
-        </section>
+        </div>
 
         {links.length > 0 && (
-          <section style={s.section}>
-            <h2 style={s.sectionTitle}>Контакты и соцсети</h2>
-            <div style={s.linksRow}>
+          <div className="card" style={{ padding: 20 }}>
+            <h2 style={{ margin: '0 0 14px', fontSize: 17, fontWeight: 700 }}>Контакты и соцсети</h2>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
               {links.map(lk => (
-                <a key={lk.id} href={lk.url} target="_blank" rel="noopener noreferrer" style={s.linkItem}>
-                  <span style={s.linkIcon}>{linkIcons[lk.link_type] ?? '🔗'}</span>
-                  <span style={s.linkLabel}>{lk.label ?? lk.link_type}</span>
+                <a key={lk.id} href={lk.url} target="_blank" rel="noopener noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, textDecoration: 'none', color: 'var(--ink)', fontSize: 14, transition: 'box-shadow .15s' }}>
+                  <span style={{ fontSize: 18 }}>{LINK_ICONS[lk.link_type] ?? '🔗'}</span>
+                  <span style={{ fontWeight: 600 }}>{lk.label ?? LINK_NAMES[lk.link_type] ?? lk.link_type}</span>
                 </a>
               ))}
             </div>
-          </section>
+          </div>
         )}
       </div>
     </div>
   );
 }
-
-const s: Record<string, React.CSSProperties> = {
-  root: { fontFamily: 'system-ui, sans-serif', minHeight: '100vh', background: '#f9fafb' },
-  previewBanner: { background: '#f59e0b', color: '#fff', textAlign: 'center' as const, padding: '10px 16px', fontSize: 14 },
-  hero: { position: 'relative', height: 280, backgroundSize: 'cover', backgroundPosition: 'center', background: '#1f2937' },
-  heroOverlay: { position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,.7) 0%, rgba(0,0,0,.2) 100%)' },
-  heroContent: { position: 'absolute', bottom: 28, left: 24, right: 24 },
-  nameRow: { display: 'flex', alignItems: 'center', gap: 10 },
-  name: { margin: 0, fontSize: 28, fontWeight: 700, color: '#fff' },
-  verified: { background: '#3b82f6', color: '#fff', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 },
-  location: { margin: '6px 0 0', color: 'rgba(255,255,255,.8)', fontSize: 14 },
-  statusBadge: { display: 'inline-block', marginTop: 8, background: 'rgba(255,255,255,.15)', color: '#fff', padding: '2px 10px', borderRadius: 20, fontSize: 12 },
-  body: { maxWidth: 700, margin: '0 auto', padding: '24px 16px' },
-  section: { background: '#fff', borderRadius: 12, padding: 20, marginBottom: 16, boxShadow: '0 1px 3px rgba(0,0,0,.06)' },
-  sectionTitle: { margin: '0 0 16px', fontSize: 17, fontWeight: 600, color: '#111' },
-  bio: { margin: 0, color: '#374151', lineHeight: 1.6, fontSize: 15 },
-  servicesGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 },
-  serviceCard: { border: '1px solid #e5e7eb', borderRadius: 10, padding: 14 },
-  serviceCategory: { fontSize: 11, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '.05em' },
-  serviceTitle: { margin: '4px 0 6px', fontSize: 15, fontWeight: 600 },
-  serviceDesc: { margin: '0 0 8px', fontSize: 13, color: '#6b7280', lineHeight: 1.4 },
-  servicePrice: { margin: 0, fontSize: 14, fontWeight: 600, color: '#111' },
-  photoGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 },
-  photo: { width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 8 },
-  linksRow: { display: 'flex', flexWrap: 'wrap', gap: 10 },
-  linkItem: { display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: '#f3f4f6', borderRadius: 10, textDecoration: 'none', color: '#111', fontSize: 14 },
-  linkIcon: { fontSize: 18 },
-  linkLabel: { fontWeight: 500 },
-  page: { maxWidth: 700, margin: '40px auto', padding: '0 16px' },
-  calNav:        { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 10 },
-  calNavBtn:     { background: 'none', border: '1px solid #e5e7eb', borderRadius: 6, width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: '#374151' },
-  calMonthLabel: { fontSize: 15, fontWeight: 600, minWidth: 140, textAlign: 'center' },
-  calGrid:       { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3 },
-  calDayHeader:  { textAlign: 'center', fontSize: 10, color: '#9ca3af', fontWeight: 600, padding: '3px 0', textTransform: 'uppercase' },
-  calCell:       { minHeight: 44, border: 'none', borderRadius: 6, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3 },
-  calDotPub:     { width: 5, height: 5, borderRadius: '50%' },
-  calDayInfo:    { marginTop: 10, padding: '8px 12px', background: '#f9fafb', borderRadius: 8, fontSize: 14 },
-  calLegend:     { display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 10, fontSize: 11, color: '#6b7280' },
-  calLegendItem: { display: 'flex', alignItems: 'center', gap: 4 },
-};

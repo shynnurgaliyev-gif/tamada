@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import './globals.css';
 
 const WEB_URL = process.env['NEXT_PUBLIC_WEB_URL'] ?? 'https://tamada.kz';
 

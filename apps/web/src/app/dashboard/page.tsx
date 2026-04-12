@@ -5,6 +5,14 @@ const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
 type Account = { id: string; username: string; phone: string; status: string };
 
+const NAV_ITEMS = [
+  { href: '/dashboard/provider', icon: '👤', label: 'Мои профили' },
+  { href: '/dashboard/calendar', icon: '📅', label: 'Календарь' },
+  { href: '/dashboard/integrations', icon: '🔗', label: 'Интеграции (Telegram)' },
+  { href: '/dashboard/subscription', icon: '⭐', label: 'Подписка' },
+  { href: '/dashboard/notifications', icon: '🔔', label: 'Напоминания' },
+];
+
 export default function DashboardPage() {
   const [account, setAccount] = useState<Account | null>(null);
   const [loading, setLoading] = useState(true);
@@ -38,36 +46,49 @@ export default function DashboardPage() {
   }
 
   if (loading) {
-    return <main style={{ padding: '80px 16px' }}><p>Загрузка...</p></main>;
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: 'var(--ink-3)' }}>Загрузка...</p>
+      </div>
+    );
   }
 
   return (
-    <main style={{ maxWidth: 600, margin: '80px auto', padding: '0 16px' }}>
-      <h1>Личный кабинет</h1>
-      {account && (
-        <div>
-          <p><strong>Логин:</strong> {account.username}</p>
-          <p><strong>Телефон:</strong> {account.phone}</p>
-          <p><strong>Статус:</strong> {account.status}</p>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+      {/* Top bar */}
+      <nav className="nav">
+        <span className="nav-logo">🎤 Тамада</span>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <a href="/" className="btn btn-ghost btn-sm">На главную</a>
+          <button onClick={logout} className="btn btn-outline btn-sm">Выйти</button>
         </div>
-      )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 24 }}>
-        <a href="/dashboard/provider" style={navStyle}>Мои профили</a>
-        <a href="/dashboard/calendar" style={navStyle}>Календарь</a>
-        <a href="/dashboard/integrations" style={navStyle}>Интеграции (Telegram)</a>
-        <a href="/dashboard/subscription" style={navStyle}>Подписка</a>
-        <a href="/dashboard/notifications" style={navStyle}>Напоминания</a>
+      </nav>
+
+      <div className="container-sm" style={{ padding: '32px 16px' }}>
+        {/* Account card */}
+        {account && (
+          <div className="card" style={{ padding: '20px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            <div style={{ width: 48, height: 48, background: 'var(--brand)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 20, fontWeight: 700, flexShrink: 0 }}>
+              {account.username[0]?.toUpperCase()}
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 16 }}>{account.username}</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>{account.phone}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Nav grid */}
+        <h2 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Меню</h2>
+        <div className="dash-nav">
+          {NAV_ITEMS.map(item => (
+            <a key={item.href} href={item.href} className="dash-card">
+              <span style={{ fontSize: 24 }}>{item.icon}</span>
+              <span style={{ fontSize: 14, fontWeight: 600 }}>{item.label}</span>
+            </a>
+          ))}
+        </div>
       </div>
-      <div style={{ display: 'flex', gap: 8, marginTop: 24 }}>
-        <a href="/" style={{ background: '#111', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: 14, textDecoration: 'none' }}>На главную</a>
-        <button onClick={logout} style={{ background: 'none', border: '1px solid #ccc', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: 14 }}>Выйти</button>
-      </div>
-    </main>
+    </div>
   );
 }
-
-const navStyle: React.CSSProperties = {
-  display: 'block', padding: '10px 16px', background: '#f9fafb',
-  border: '1px solid #e5e7eb', borderRadius: 8, textDecoration: 'none',
-  color: '#111', fontSize: 14, fontWeight: 500,
-};
