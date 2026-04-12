@@ -31,7 +31,7 @@ export type Account = {
 };
 
 export async function findAccountByUsername(db: Db, username: string): Promise<Account | null> {
-  const rows = await db<Account[]>`SELECT * FROM accounts WHERE username = ${username} LIMIT 1`;
+  const rows = await db<Account[]>`SELECT * FROM accounts WHERE LOWER(username) = LOWER(${username}) LIMIT 1`;
   return rows[0] ?? null;
 }
 

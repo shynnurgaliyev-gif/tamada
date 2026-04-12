@@ -5,12 +5,29 @@ import { FaWhatsapp, FaTelegram, FaInstagram, FaGlobe, FaPhone } from 'react-ico
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
 // ── Types ────────────────────────────────────────────────────────────────────
-type Provider = { id: string; display_name: string; slug: string; city: string | null; region: string | null };
-type Category = { id: string; name: string; slug: string };
-type Subcategory = { id: string; name: string; category_id: string };
-type Photo = { id: string; url: string; is_cover: boolean };
-type Link = { id: string; link_type: string; url: string; label: string | null };
-type TgAccount = { id: string; telegram_username: string | null; telegram_first_name: string | null; status: string };
+type Provider    = { id: string; display_name: string; slug: string; city: string | null; region: string | null };
+type RefRegion   = { id: string; name_ru: string };
+type RefCity     = { id: string; name_ru: string; region_id: string };
+type RefCategory = { id: string; name_ru: string; code: string; icon: string | null };
+type RefSubcat   = { id: string; name_ru: string; category_code: string };
+type Photo       = { id: string; url: string; is_cover: boolean };
+type Link        = { id: string; link_type: string; url: string; label: string | null };
+type TgAccount   = { id: string; telegram_username: string | null; telegram_first_name: string | null; status: string };
+
+const FALLBACK_CATEGORIES: RefCategory[] = [
+  { id: 'tamada',       code: 'tamada',       name_ru: 'Тамада',    icon: '🎤' },
+  { id: 'photographer', code: 'photographer', name_ru: 'Фотограф',  icon: '📸' },
+  { id: 'videographer', code: 'videographer', name_ru: 'Видеограф', icon: '🎬' },
+  { id: 'dj',           code: 'dj',           name_ru: 'Диджей',    icon: '🎧' },
+  { id: 'musician',     code: 'musician',     name_ru: 'Музыкант',  icon: '🎵' },
+  { id: 'dancer',       code: 'dancer',       name_ru: 'Танцор',    icon: '💃' },
+  { id: 'makeup_artist',code: 'makeup_artist',name_ru: 'Визажист',  icon: '💄' },
+  { id: 'animator',     code: 'animator',     name_ru: 'Аниматор',  icon: '🎪' },
+  { id: 'host',         code: 'host',         name_ru: 'Ведущий',   icon: '🎙️' },
+  { id: 'decorator',    code: 'decorator',    name_ru: 'Декоратор', icon: '🎨' },
+  { id: 'baker',        code: 'baker',        name_ru: 'Кондитер',  icon: '🎂' },
+  { id: 'other',        code: 'other',        name_ru: 'Другое',    icon: null },
+];
 
 const STEPS = [
   { n: 1, label: 'Основное',   icon: '👤' },
@@ -194,47 +211,85 @@ export default function OnboardingPage() {
 
 // ── Step 1: Basics ────────────────────────────────────────────────────────────
 function Step1Basics({ provider, onDone }: { provider: Provider | null; onDone: (p: Provider) => void }) {
-  const [name, setName]           = useState(provider?.display_name ?? '');
-  const [slug, setSlug]           = useState(provider?.slug ?? '');
-  const [city, setCity]           = useState(provider?.city ?? '');
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
-  const [catId, setCatId]         = useState('');
-  const [subcatId, setSubcatId]   = useState('');
-  const [saving, setSaving]       = useState(false);
-  const [error, setError]         = useState('');
+  const [name, setName]         = useState(provider?.display_name ?? '');
+  const [slug, setSlug]         = useState(provider?.slug ?? '');
+  const [slugAuto, setSlugAuto] = useState(!provider);
 
+  // Reference data
+  const [regions, setRegions]         = useState<RefRegion[]>([]);
+  const [allCities, setAllCities]     = useState<RefCity[]>([]);
+  const [categories, setCategories]   = useState<RefCategory[]>([]);
+  const [subcats, setSubcats]         = useState<RefSubcat[]>([]);
+
+  // Selections
+  const [regionId, setRegionId]   = useState('');
+  const [cityName, setCityName]   = useState(provider?.city ?? '');
+  const [catCode, setCatCode]     = useState('');
+  const [subcatName, setSubcatName] = useState('');
+
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState('');
+
+  // Load reference data once
   useEffect(() => {
-    fetch(`${API}/reference/categories`).then(r => r.json())
-      .then((d: { ok: boolean; categories?: Category[] }) => { if (d.ok) setCategories(d.categories ?? []); })
-      .catch(() => null);
+    Promise.all([
+      fetch(`${API}/reference/regions`).then(r => r.json()),
+      fetch(`${API}/reference/cities`).then(r => r.json()),
+      fetch(`${API}/reference/categories`).then(r => r.json()),
+      fetch(`${API}/reference/subcategories`).then(r => r.json()),
+    ]).then(([rr, rc, rcat, rsub]: [
+      { ok: boolean; regions?: RefRegion[] },
+      { ok: boolean; cities?: RefCity[] },
+      { ok: boolean; categories?: RefCategory[] },
+      { ok: boolean; subcategories?: RefSubcat[] },
+    ]) => {
+      setRegions(rr.regions ?? []);
+      setAllCities(rc.cities ?? []);
+      setCategories(rcat.categories?.length ? rcat.categories : FALLBACK_CATEGORIES);
+      setSubcats(rsub.subcategories ?? []);
+
+      // Pre-select region if provider has city/region
+      if (provider?.region) {
+        const reg = (rr.regions ?? []).find(r => r.name_ru === provider.region);
+        if (reg) setRegionId(reg.id);
+      }
+    }).catch(() => {
+      setCategories(FALLBACK_CATEGORIES);
+    });
   }, []);
 
-  useEffect(() => {
-    if (!catId) { setSubcategories([]); setSubcatId(''); return; }
-    fetch(`${API}/reference/subcategories?category_id=${catId}`).then(r => r.json())
-      .then((d: { ok: boolean; subcategories?: Subcategory[] }) => { if (d.ok) setSubcategories(d.subcategories ?? []); })
-      .catch(() => null);
-  }, [catId]);
+  // Cities filtered by selected region
+  const filteredCities = regionId ? allCities.filter(c => c.region_id === regionId) : allCities;
+
+  // Subcategories filtered by selected category
+  const filteredSubcats = catCode ? subcats.filter(s => s.category_code === catCode) : [];
 
   function handleNameChange(v: string) {
     setName(v);
-    if (!provider) setSlug(toSlug(v));
+    if (slugAuto) setSlug(toSlug(v));
+  }
+
+  function handleRegionChange(id: string) {
+    setRegionId(id);
+    setCityName(''); // reset city when region changes
   }
 
   async function submit() {
-    if (!name.trim()) { setError('Введите имя'); return; }
-    if (!slug.trim()) { setError('Укажите slug'); return; }
-    if (!city.trim()) { setError('Укажите город'); return; }
+    if (!name.trim())     { setError('Введите имя'); return; }
+    if (!slug.trim())     { setError('Укажите ссылку профиля'); return; }
+    if (!cityName.trim()) { setError('Выберите город'); return; }
+
     setSaving(true); setError('');
     const token = getToken();
+    const regionName = regions.find(r => r.id === regionId)?.name_ru ?? '';
+
     try {
       let p: Provider;
       if (provider) {
         const res = await fetch(`${API}/providers/${provider.id}`, {
           method: 'PATCH',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ display_name: name, city }),
+          body: JSON.stringify({ display_name: name, city: cityName, region: regionName }),
         });
         const d = await res.json() as { ok: boolean; provider?: Provider; error?: string };
         if (!d.ok) { setError(d.error ?? 'Ошибка'); setSaving(false); return; }
@@ -243,7 +298,7 @@ function Step1Basics({ provider, onDone }: { provider: Provider | null; onDone: 
         const res = await fetch(`${API}/providers`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ display_name: name, slug, city }),
+          body: JSON.stringify({ display_name: name, slug, city: cityName, region: regionName }),
         });
         const d = await res.json() as { ok: boolean; provider?: Provider; error?: string };
         if (!d.ok) { setError(d.error ?? 'Ошибка'); setSaving(false); return; }
@@ -251,16 +306,15 @@ function Step1Basics({ provider, onDone }: { provider: Provider | null; onDone: 
       }
 
       // Add service with selected category
-      if (catId) {
-        const selectedCat = categories.find(c => c.id === catId);
-        const selectedSub = subcategories.find(s => s.id === subcatId);
+      if (catCode) {
+        const cat = categories.find(c => c.code === catCode);
         await fetch(`${API}/providers/${p.id}/services`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            category: selectedCat?.name ?? catId,
-            subcategory: selectedSub?.name,
-            title: selectedSub?.name ?? selectedCat?.name ?? name,
+            category: cat?.name_ru ?? catCode,
+            subcategory: subcatName || undefined,
+            title: subcatName || cat?.name_ru || name,
           }),
         }).catch(() => null);
       }
@@ -274,31 +328,49 @@ function Step1Basics({ provider, onDone }: { provider: Provider | null; onDone: 
     <div>
       <StepHeader icon="👤" title="Расскажите о себе" sub="Имя, город и направление — основа вашего профиля" />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
         <Field label="Ваше имя / название">
           <input className="input" value={name} onChange={e => handleNameChange(e.target.value)} placeholder="Например: Дмитрий Козлов" />
         </Field>
+
         {!provider && (
           <Field label="Ссылка на профиль" hint={`linkora.kz/p/${slug || '...'}`}>
-            <input className="input" value={slug} onChange={e => setSlug(toSlug(e.target.value))} placeholder="dmitry-kozlov" />
+            <input className="input" value={slug}
+              onChange={e => { setSlugAuto(false); setSlug(toSlug(e.target.value)); }}
+              placeholder="dmitry-kozlov" />
           </Field>
         )}
-        <Field label="Город">
-          <input className="input" value={city} onChange={e => setCity(e.target.value)} placeholder="Алматы" />
-        </Field>
-        <Field label="Направление (категория)">
-          <select className="input" value={catId} onChange={e => setCatId(e.target.value)}>
-            <option value="">Выберите категорию...</option>
-            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+
+        <Field label="Регион">
+          <select className="input" value={regionId} onChange={e => handleRegionChange(e.target.value)}>
+            <option value="">— выберите регион —</option>
+            {regions.map(r => <option key={r.id} value={r.id}>{r.name_ru}</option>)}
           </select>
         </Field>
-        {subcategories.length > 0 && (
+
+        <Field label="Город">
+          <select className="input" value={cityName} onChange={e => setCityName(e.target.value)}>
+            <option value="">— выберите город —</option>
+            {filteredCities.map(c => <option key={c.id} value={c.name_ru}>{c.name_ru}</option>)}
+          </select>
+        </Field>
+
+        <Field label="Направление (категория)">
+          <select className="input" value={catCode} onChange={e => { setCatCode(e.target.value); setSubcatName(''); }}>
+            <option value="">— выберите категорию —</option>
+            {categories.map(c => <option key={c.id} value={c.code}>{c.icon ? `${c.icon} ` : ''}{c.name_ru}</option>)}
+          </select>
+        </Field>
+
+        {filteredSubcats.length > 0 && (
           <Field label="Подкатегория">
-            <select className="input" value={subcatId} onChange={e => setSubcatId(e.target.value)}>
-              <option value="">Любая</option>
-              {subcategories.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            <select className="input" value={subcatName} onChange={e => setSubcatName(e.target.value)}>
+              <option value="">— любая —</option>
+              {filteredSubcats.map(s => <option key={s.id} value={s.name_ru}>{s.name_ru}</option>)}
             </select>
           </Field>
         )}
+
         {error && <p style={{ color: 'var(--red)', fontSize: 13, margin: 0 }}>{error}</p>}
         <button onClick={() => void submit()} disabled={saving} className="btn btn-brand btn-lg btn-full" style={{ marginTop: 4 }}>
           {saving ? 'Сохранение...' : 'Далее →'}
