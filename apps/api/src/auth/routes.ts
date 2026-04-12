@@ -1,8 +1,10 @@
 import type { FastifyInstance } from 'fastify';
 import type { Db } from '../db';
 import type { WhatsAppProvider } from './whatsapp';
+import type { SupabaseClient } from '../supabase';
 import * as service from './service';
 import { hashToken } from './repositories';
+import { getAuthAccount } from './middleware';
 
 function extractToken(request: { headers: Record<string, string | string[] | undefined> }): string | null {
   const auth = request.headers['authorization'];
@@ -12,7 +14,7 @@ function extractToken(request: { headers: Record<string, string | string[] | und
   return null;
 }
 
-export function createAuthRoutes(db: Db, wa: WhatsAppProvider) {
+export function createAuthRoutes(db: Db, wa: WhatsAppProvider, supabase: SupabaseClient) {
   return async (app: FastifyInstance) => {
     // POST /auth/signup/request-code
     app.post('/auth/signup/request-code', async (req, reply) => {
@@ -101,6 +103,19 @@ export function createAuthRoutes(db: Db, wa: WhatsAppProvider) {
 
       const result = await service.getMe(db, hashToken(token));
       return reply.code(result.ok ? 200 : 401).send(result);
+    });
+
+    // DELETE /auth/account  — permanently delete account + all data
+    app.delete('/auth/account', async (req, reply) => {
+      const account = await getAuthAccount(db, req);
+      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+
+      const body = req.body as Record<string, unknown>;
+      const password = typeof body['password'] === 'string' ? body['password'] : null;
+      if (!password) return reply.code(400).send({ ok: false, error: 'password required' });
+
+      const result = await service.deleteAccount(db, supabase, account.id, password);
+      return reply.code(result.ok ? 200 : 400).send(result);
     });
   };
 }

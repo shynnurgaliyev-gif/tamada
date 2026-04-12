@@ -1,11 +1,24 @@
 import bcrypt from 'bcryptjs';
 import type { Db } from '../db';
 import type { WhatsAppProvider } from './whatsapp';
+import type { SupabaseClient } from '../supabase';
+import { PHOTOS_BUCKET } from '../supabase';
 import * as repo from './repositories';
+import { findProvidersByAccountId, findPhotosByProviderId, deleteProvider } from '../providers/repositories';
 
 const CODE_EXPIRES_MS = 10 * 60 * 1000; // 10 minutes
 const MAX_ATTEMPTS = 5;
 const SESSION_EXPIRES_DAYS = 30;
+
+// Password validation — min 8 chars, upper, lower, digit required
+export function validatePassword(password: string): string | null {
+  if (password.length < 8)   return 'Пароль должен быть не менее 8 символов';
+  if (password.length > 128) return 'Пароль слишком длинный (максимум 128 символов)';
+  if (!/[a-z]/.test(password)) return 'Пароль должен содержать строчную букву';
+  if (!/[A-Z]/.test(password)) return 'Пароль должен содержать заглавную букву';
+  if (!/[0-9]/.test(password)) return 'Пароль должен содержать хотя бы одну цифру';
+  return null;
+}
 
 type Err = { code: string; message: string };
 type Fail = { ok: false; error: Err };
@@ -64,6 +77,9 @@ export async function confirmSignup(
     return fail('USERNAME_TAKEN', 'Username already taken');
   }
 
+  const pwErr = validatePassword(data.password);
+  if (pwErr) return fail('WEAK_PASSWORD', pwErr);
+
   const passwordHash = await bcrypt.hash(data.password, 12);
   const account = await repo.createAccount(db, {
     username: data.username,
@@ -119,10 +135,11 @@ export async function requestPasswordResetCode(
   db: Db,
   wa: WhatsAppProvider,
   phone: string,
-): Promise<Ok> {
+): Promise<Ok | Fail> {
   const account = await repo.findAccountByPhone(db, phone);
-  // Don't reveal whether phone exists
-  if (!account || account.status !== 'active') return { ok: true };
+  if (!account || account.status !== 'active') {
+    return fail('PHONE_NOT_FOUND', 'Этот номер не зарегистрирован в системе');
+  }
 
   const code = repo.generateCode();
   await repo.createVerificationCode(db, {
@@ -156,9 +173,45 @@ export async function confirmPasswordReset(
   const account = await repo.findAccountByPhone(db, data.phone);
   if (!account) return fail('ACCOUNT_NOT_FOUND', 'Account not found');
 
+  const pwErr = validatePassword(data.newPassword);
+  if (pwErr) return fail('WEAK_PASSWORD', pwErr);
+
   const passwordHash = await bcrypt.hash(data.newPassword, 12);
   await repo.updateAccountPassword(db, account.id, passwordHash);
   await repo.revokeAllSessionsForAccount(db, account.id);
+
+  return { ok: true };
+}
+
+// DELETE /auth/account — permanently deletes account + all provider data
+export async function deleteAccount(
+  db: Db,
+  supabase: SupabaseClient,
+  accountId: string,
+  password: string,
+): Promise<Ok | Fail> {
+  const account = await repo.findAccountById(db, accountId);
+  if (!account) return fail('ACCOUNT_NOT_FOUND', 'Account not found');
+
+  const valid = await bcrypt.compare(password, account.password_hash);
+  if (!valid) return fail('INVALID_PASSWORD', 'Неверный пароль');
+
+  // 1. Delete all provider storage photos
+  const providers = await findProvidersByAccountId(db, accountId);
+  for (const provider of providers) {
+    const photos = await findPhotosByProviderId(db, provider.id);
+    if (photos.length > 0) {
+      await supabase.storage.from(PHOTOS_BUCKET).remove(photos.map(p => p.storage_path));
+    }
+    await deleteProvider(db, provider.id);
+  }
+
+  // 2. Delete sessions + verification codes (avoids FK constraint issues)
+  await repo.deleteAllSessionsForAccount(db, accountId);
+  await repo.deleteVerificationCodesByPhone(db, account.phone);
+
+  // 3. Delete account record
+  await repo.deleteAccount(db, accountId);
 
   return { ok: true };
 }

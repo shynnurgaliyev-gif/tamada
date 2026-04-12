@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { href: '/dashboard/integrations', icon: '🔗', label: 'Интеграции (Telegram)' },
   { href: '/dashboard/subscription', icon: '⭐', label: 'Подписка' },
   { href: '/dashboard/notifications', icon: '🔔', label: 'Напоминания' },
+  { href: '/dashboard/settings',      icon: '⚙️', label: 'Настройки' },
 ];
 
 export default function DashboardPage() {

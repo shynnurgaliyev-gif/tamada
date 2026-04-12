@@ -168,3 +168,15 @@ export async function revokeAllSessionsForAccount(db: Db, accountId: string): Pr
     WHERE account_id = ${accountId} AND revoked_at IS NULL
   `;
 }
+
+export async function deleteAllSessionsForAccount(db: Db, accountId: string): Promise<void> {
+  await db`DELETE FROM auth_sessions WHERE account_id = ${accountId}`;
+}
+
+export async function deleteVerificationCodesByPhone(db: Db, phone: string): Promise<void> {
+  await db`DELETE FROM phone_verification_codes WHERE phone = ${phone}`;
+}
+
+export async function deleteAccount(db: Db, id: string): Promise<void> {
+  await db`DELETE FROM accounts WHERE id = ${id}`;
+}

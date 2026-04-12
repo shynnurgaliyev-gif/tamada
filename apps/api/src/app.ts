@@ -78,7 +78,7 @@ export function createApp(env: AppEnv, db: Db, supabase: SupabaseClient, wa: imp
       errorResponseBuilder: () => ({ ok: false, error: 'Too many attempts, try again in 15 minutes' }),
       keyGenerator: (req) => req.ip,
     });
-    void authScope.register(createAuthRoutes(db, wa));
+    void authScope.register(createAuthRoutes(db, wa, supabase));
   });
 
   // ── Search + AI — moderate rate limit (30 req/min per IP) ─────────────
