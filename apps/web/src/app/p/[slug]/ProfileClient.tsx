@@ -27,17 +27,22 @@ export default function ProfileClient({ slug }: { slug: string }) {
   const [calTimezone, setCalTimezone] = useState('Asia/Almaty');
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [isPreview, setIsPreview] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
-    fetch(`${API}/public/providers/${slug}`)
-      .then(r => r.json())
-      .then((d: { ok: boolean; provider?: Provider; services?: Service[]; photos?: Photo[]; links?: Link[] }) => {
-        if (!d.ok) { setNotFound(true); return; }
+
+    async function load() {
+      // Try public endpoint first
+      const res = await fetch(`${API}/public/providers/${slug}`).catch(() => null);
+      const d = res ? await res.json() as { ok: boolean; provider?: Provider; services?: Service[]; photos?: Photo[]; links?: Link[] } : null;
+
+      if (d?.ok) {
         setProvider(d.provider ?? null);
         setServices(d.services ?? []);
         setPhotos(d.photos ?? []);
         setLinks(d.links ?? []);
+        // load calendar
         const from = new Date().toISOString();
         const to = new Date(Date.now() + 90 * 86400000).toISOString();
         fetch(`${API}/public/providers/${slug}/calendar?from=${from}&to=${to}`)
@@ -46,9 +51,38 @@ export default function ProfileClient({ slug }: { slug: string }) {
             if (c.ok) { setCalendar(c.entries ?? []); setCalTimezone(c.timezone ?? 'Asia/Almaty'); }
           })
           .catch(() => null);
-      })
-      .catch(() => setNotFound(true))
-      .finally(() => setLoading(false));
+      } else {
+        // Profile not public — check if owner is viewing
+        const token = localStorage.getItem('session_token');
+        if (token) {
+          try {
+            const meRes = await fetch(`${API}/providers/me`, { headers: { Authorization: `Bearer ${token}` } });
+            const me = await meRes.json() as { ok: boolean; providers?: (Provider & { id: string })[] };
+            const own = me.providers?.find(p => p.slug === slug);
+            if (own) {
+              setIsPreview(true);
+              setProvider(own);
+              const dataRes = await fetch(`${API}/providers/${own.id}/data`, { headers: { Authorization: `Bearer ${token}` } });
+              const data = await dataRes.json() as { ok: boolean; services?: Service[]; photos?: Photo[]; links?: Link[] };
+              if (data.ok) {
+                setServices(data.services ?? []);
+                setPhotos(data.photos ?? []);
+                setLinks(data.links ?? []);
+              }
+            } else {
+              setNotFound(true);
+            }
+          } catch {
+            setNotFound(true);
+          }
+        } else {
+          setNotFound(true);
+        }
+      }
+      setLoading(false);
+    }
+
+    void load();
   }, [slug]);
 
   if (loading) return <div style={s.page}><p>Загрузка...</p></div>;
@@ -63,6 +97,11 @@ export default function ProfileClient({ slug }: { slug: string }) {
 
   return (
     <div style={s.root}>
+      {isPreview && (
+        <div style={s.previewBanner}>
+          👁 Предпросмотр — профиль скрыт от публики. <a href="/dashboard/provider" style={{ color: '#fff', fontWeight: 600 }}>Изменить статус</a>
+        </div>
+      )}
       <div style={{ ...s.hero, backgroundImage: cover ? `url(${cover.url})` : undefined }}>
         <div style={s.heroOverlay} />
         <div style={s.heroContent}>
@@ -157,6 +196,7 @@ export default function ProfileClient({ slug }: { slug: string }) {
 
 const s: Record<string, React.CSSProperties> = {
   root: { fontFamily: 'system-ui, sans-serif', minHeight: '100vh', background: '#f9fafb' },
+  previewBanner: { background: '#f59e0b', color: '#fff', textAlign: 'center' as const, padding: '10px 16px', fontSize: 14 },
   hero: { position: 'relative', height: 280, backgroundSize: 'cover', backgroundPosition: 'center', background: '#1f2937' },
   heroOverlay: { position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,.7) 0%, rgba(0,0,0,.2) 100%)' },
   heroContent: { position: 'absolute', bottom: 28, left: 24, right: 24 },
