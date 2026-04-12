@@ -820,7 +820,7 @@ img { max-width: 100%; display: block; }
 .step-title { font-size: 17px; font-weight: 800; margin: 0 0 8px; }
 .step-desc { font-size: 14px; color: var(--ink-3); line-height: 1.6; margin: 0; }
 
-/* ── Category chips ───────────────────────── */
+/* ── Category chips (legacy, kept for search page) ── */
 .cat-chips {
   display: flex;
   flex-wrap: wrap;
@@ -851,6 +851,53 @@ img { max-width: 100%; display: block; }
   box-shadow: var(--shadow-brand);
 }
 .cat-chip-icon { font-size: 18px; }
+
+/* ── Category grid (landing page coloured cards) ── */
+.cat-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+.cat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 22px 8px 18px;
+  border-radius: 18px;
+  text-decoration: none;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  transition: transform .18s, box-shadow .18s;
+}
+.cat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 32px rgba(0,0,0,.18);
+}
+.cat-card-icon {
+  font-size: 30px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.18));
+}
+.cat-card-label {
+  text-align: center;
+  line-height: 1.2;
+  text-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+@media (max-width: 640px) {
+  .cat-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .cat-card { padding: 18px 6px 14px; font-size: 12px; }
+  .cat-card-icon { font-size: 26px; }
+}
+@media (max-width: 380px) {
+  .cat-grid { grid-template-columns: repeat(2, 1fr); }
+}
 
 /* ── Calendar demo ────────────────────────── */
 .cal-demo-wrap {
@@ -964,15 +1011,17 @@ img { max-width: 100%; display: block; }
 }
 .feature-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
 .feature-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--r-lg);
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  /* background/color overridden per-card via inline style */
   background: var(--brand-xlight);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
-  margin-bottom: 16px;
+  font-size: 24px;
+  margin-bottom: 18px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
 }
 .feature-title { font-size: 16px; font-weight: 800; margin: 0 0 8px; }
 .feature-desc { font-size: 14px; color: var(--ink-3); line-height: 1.6; margin: 0; }

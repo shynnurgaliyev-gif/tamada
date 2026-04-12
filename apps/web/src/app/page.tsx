@@ -10,16 +10,16 @@ const STATS = [
 ];
 
 const CATEGORIES = [
-  { icon: '🎤', label: 'Тамада',    q: 'тамада' },
-  { icon: '📸', label: 'Фотограф', q: 'фотограф' },
-  { icon: '🎬', label: 'Видеограф',q: 'видеограф' },
-  { icon: '🎧', label: 'Диджей',   q: 'диджей' },
-  { icon: '🎵', label: 'Музыкант', q: 'музыкант' },
-  { icon: '💃', label: 'Танцор',   q: 'танцор' },
-  { icon: '💄', label: 'Визажист', q: 'визажист' },
-  { icon: '🌸', label: 'Флорист',  q: 'флорист' },
-  { icon: '🎪', label: 'Аниматор',q: 'аниматор' },
-  { icon: '✨', label: 'Шоу',      q: 'шоу' },
+  { icon: '🎤', label: 'Тамада',    q: 'тамада',    grad: 'linear-gradient(135deg,#7c3aed 0%,#4f46e5 100%)' },
+  { icon: '📸', label: 'Фотограф', q: 'фотограф',  grad: 'linear-gradient(135deg,#0369a1 0%,#0284c7 100%)' },
+  { icon: '🎬', label: 'Видеограф',q: 'видеограф', grad: 'linear-gradient(135deg,#1e1b4b 0%,#4338ca 100%)' },
+  { icon: '🎧', label: 'Диджей',   q: 'диджей',    grad: 'linear-gradient(135deg,#9333ea 0%,#db2777 100%)' },
+  { icon: '🎵', label: 'Музыкант', q: 'музыкант',  grad: 'linear-gradient(135deg,#b45309 0%,#d97706 100%)' },
+  { icon: '💃', label: 'Танцор',   q: 'танцор',    grad: 'linear-gradient(135deg,#e11d48 0%,#9d174d 100%)' },
+  { icon: '💄', label: 'Визажист', q: 'визажист',  grad: 'linear-gradient(135deg,#db2777 0%,#be185d 100%)' },
+  { icon: '🌸', label: 'Флорист',  q: 'флорист',   grad: 'linear-gradient(135deg,#059669 0%,#0d9488 100%)' },
+  { icon: '🎪', label: 'Аниматор',q: 'аниматор',   grad: 'linear-gradient(135deg,#ea580c 0%,#d97706 100%)' },
+  { icon: '✨', label: 'Шоу',      q: 'шоу',        grad: 'linear-gradient(135deg,#ca8a04 0%,#b45309 100%)' },
 ];
 
 const STEPS = [
@@ -42,27 +42,33 @@ const STEPS = [
 
 const FEATURES = [
   {
-    icon: '⚡', title: 'Быстрый поиск',
+    icon: '⚡', color: '#0284c7', bg: '#eff6ff',
+    title: 'Быстрый поиск',
     desc: 'Фильтры по цене, дате, городу. Умный AI-поиск понимает обычные фразы без формул.',
   },
   {
-    icon: '📅', title: 'Живой календарь',
+    icon: '📅', color: '#059669', bg: '#f0fdf4',
+    title: 'Живой календарь',
     desc: 'Занятость исполнителя видна сразу. Не нужно ждать ответа — всё на странице профиля.',
   },
   {
-    icon: '🔗', title: 'Прямой контакт',
+    icon: '🔗', color: '#7c3aed', bg: '#f5f3ff',
+    title: 'Прямой контакт',
     desc: 'WhatsApp, Telegram, Instagram — всё в одном месте. Нажал, написал, договорился.',
   },
   {
-    icon: '🔔', title: 'Telegram-бот',
+    icon: '🔔', color: '#0ea5e9', bg: '#f0f9ff',
+    title: 'Telegram-бот',
     desc: 'Исполнители управляют расписанием прямо в Telegram. Команды за секунды.',
   },
   {
-    icon: '🌍', title: 'Весь Казахстан',
+    icon: '🌍', color: '#d97706', bg: '#fffbeb',
+    title: 'Весь Казахстан',
     desc: 'Алматы, Астана и 10+ городов. Найдите специалиста рядом или по всей стране.',
   },
   {
-    icon: '🆓', title: 'Бесплатно для клиентов',
+    icon: '🆓', color: '#e11d48', bg: '#fff1f2',
+    title: 'Бесплатно для клиентов',
     desc: 'Просмотр профилей, поиск и контакты — бесплатно. Платят только исполнители.',
   },
 ];
@@ -214,15 +220,16 @@ export default function HomePage() {
             <p className="land-eyebrow">Категории</p>
             <h2 className="land-title">Специалисты на любое мероприятие</h2>
           </div>
-          <div className="cat-chips">
+          <div className="cat-grid">
             {CATEGORIES.map(c => (
               <Link
                 key={c.label}
                 href={`/search?category=${encodeURIComponent(c.q)}`}
-                className="cat-chip"
+                className="cat-card"
+                style={{ background: c.grad }}
               >
-                <span className="cat-chip-icon">{c.icon}</span>
-                {c.label}
+                <span className="cat-card-icon">{c.icon}</span>
+                <span className="cat-card-label">{c.label}</span>
               </Link>
             ))}
           </div>
@@ -274,7 +281,7 @@ export default function HomePage() {
           <div className="feature-grid">
             {FEATURES.map((f, i) => (
               <div key={f.title} className={`feature-card slide-up slide-up-${(i % 3) + 1}`}>
-                <div className="feature-icon">{f.icon}</div>
+                <div className="feature-icon" style={{ background: f.bg, color: f.color }}>{f.icon}</div>
                 <h3 className="feature-title">{f.title}</h3>
                 <p className="feature-desc">{f.desc}</p>
               </div>
