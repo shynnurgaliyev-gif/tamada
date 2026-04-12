@@ -16,12 +16,12 @@ type DayInfo = { date: string; status: string; count: number };
 
 const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 const DAYS_SHORT = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-const CAL_ST: Record<string, { bg: string; color: string; label: string }> = {
-  free:     { bg: '#dcfce7', color: '#166534', label: 'Свободно' },
-  busy:     { bg: '#fee2e2', color: '#991b1b', label: 'Занято' },
-  partial:  { bg: '#ffedd5', color: '#9a3412', label: 'Частично' },
-  tentative:{ bg: '#fef9c3', color: '#92400e', label: 'Под вопросом' },
-  past:     { bg: '#f3f4f6', color: '#d1d5db', label: 'Прошлое' },
+const CAL_ST: Record<string, { bg: string; color: string; border: string; label: string }> = {
+  free:     { bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0', label: 'Свободно'    },
+  busy:     { bg: '#fff1f2', color: '#e11d48', border: '#fecdd3', label: 'Занято'       },
+  partial:  { bg: '#fff7ed', color: '#ea580c', border: '#fed7aa', label: 'Частично'     },
+  tentative:{ bg: '#fefce8', color: '#ca8a04', border: '#fde68a', label: 'Под вопросом' },
+  past:     { bg: '#f8fafc', color: '#94a3b8', border: '#e2e8f0', label: 'Прошлое'     },
 };
 
 import type { IconType } from 'react-icons';
@@ -315,52 +315,78 @@ export default function ProfileClient({ slug }: { slug: string }) {
 
         {/* Calendar */}
         <div className="card" style={{ padding: 20, marginBottom: 16 }}>
-          <h2 style={{ margin: '0 0 14px', fontSize: 17, fontWeight: 700 }}>Занятость</h2>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 10 }}>
-            <button onClick={calPrev} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: 'var(--ink-2)' }}>‹</button>
-            <span style={{ fontSize: 15, fontWeight: 700, minWidth: 140, textAlign: 'center' }}>{MONTHS_RU[calMonth - 1]} {calYear}</span>
-            <button onClick={calNext} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: 'var(--ink-2)' }}>›</button>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>Занятость</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button onClick={calPrev} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: 'var(--ink-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
+              <span style={{ fontSize: 15, fontWeight: 700, minWidth: 130, textAlign: 'center' }}>{MONTHS_RU[calMonth - 1]} {calYear}</span>
+              <button onClick={calNext} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: 'var(--ink-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
+            </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3 }}>
-            {DAYS_SHORT.map(d => <div key={d} style={{ textAlign: 'center', fontSize: 10, color: 'var(--ink-4)', fontWeight: 600, padding: '3px 0', textTransform: 'uppercase' }}>{d}</div>)}
+
+          {/* Day headers */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
+            {DAYS_SHORT.map(d => (
+              <div key={d} style={{ textAlign: 'center', fontSize: 11, fontWeight: 700, color: 'var(--ink-4)', padding: '2px 0', textTransform: 'uppercase', letterSpacing: '.04em' }}>{d}</div>
+            ))}
+          </div>
+
+          {/* Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
             {calCells.map((cell, i) => {
-              if (!cell) return <div key={`ep-${i}`} />;
-              const st = CAL_ST[cell.status] ?? CAL_ST.free;
+              if (!cell) return <div key={`ep-${i}`} style={{ minHeight: 48 }} />;
+              const st     = CAL_ST[cell.status] ?? CAL_ST.free!;
               const isToday = cell.date === calTodayStr;
-              const isSel = cell.date === selectedCalDate;
+              const isSel   = cell.date === selectedCalDate;
               return (
                 <button
                   key={cell.date}
                   onClick={() => setSelectedCalDate(isSel ? null : cell.date)}
                   style={{
-                    minHeight: 44, border: 'none', borderRadius: 6, cursor: 'pointer',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3,
-                    background: st.bg, color: st.color,
-                    boxShadow: isSel ? 'inset 0 0 0 2px #111' : isToday ? 'inset 0 0 0 2px #3b82f6' : undefined,
-                    fontWeight: isToday ? 700 : 400,
+                    minHeight: 48,
+                    border: `1.5px solid ${isSel ? '#6d28d9' : isToday ? '#6d28d9' : st.border}`,
+                    borderRadius: 10, cursor: 'pointer',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
+                    background: isSel ? '#ede9fe' : st.bg,
+                    color: isSel ? '#6d28d9' : st.color,
+                    fontWeight: isToday ? 800 : 500,
+                    fontSize: 14,
+                    boxShadow: isSel ? '0 0 0 3px rgba(109,40,217,.18)' : undefined,
+                    transition: 'transform .1s',
                   }}
                 >
-                  <span style={{ fontSize: 13 }}>{parseInt(cell.date.slice(8), 10)}</span>
-                  {cell.count > 0 && <span style={{ width: 5, height: 5, borderRadius: '50%', background: st.color, display: 'inline-block' }} />}
+                  {parseInt(cell.date.slice(8), 10)}
+                  {cell.count > 0 && <span style={{ width: 5, height: 5, borderRadius: '50%', background: isSel ? '#6d28d9' : st.color, display: 'inline-block', flexShrink: 0 }} />}
                 </button>
               );
             })}
           </div>
+
+          {/* Selected day info */}
           {selectedCalDate && (
-            <div style={{ marginTop: 10, padding: '8px 12px', background: 'var(--bg)', borderRadius: 8, fontSize: 14 }}>
-              {selectedDayInfo
-                ? <span style={{ color: CAL_ST[selectedDayInfo.status]?.color ?? 'var(--ink)', fontWeight: 600 }}>
+            <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--surface-2)', borderRadius: 10, fontSize: 14, border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
+              {selectedDayInfo ? (
+                <>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: CAL_ST[selectedDayInfo.status]?.color ?? 'var(--ink-3)', flexShrink: 0 }} />
+                  <span style={{ color: 'var(--ink)', fontWeight: 600 }}>
                     {new Date(selectedCalDate + 'T12:00:00Z').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
-                    {' — '}{CAL_ST[selectedDayInfo.status]?.label ?? selectedDayInfo.status}
                   </span>
-                : <span style={{ color: 'var(--ink-3)' }}>Нет данных</span>
-              }
+                  <span style={{ color: CAL_ST[selectedDayInfo.status]?.color ?? 'var(--ink-3)', fontWeight: 700, fontSize: 13 }}>
+                    — {CAL_ST[selectedDayInfo.status]?.label ?? selectedDayInfo.status}
+                  </span>
+                </>
+              ) : (
+                <span style={{ color: 'var(--ink-3)' }}>Нет данных на эту дату</span>
+              )}
             </div>
           )}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 12, fontSize: 11, color: 'var(--ink-3)' }}>
+
+          {/* Legend */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
             {Object.entries(CAL_ST).filter(([k]) => k !== 'past').map(([key, val]) => (
-              <span key={key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: val.color, display: 'inline-block' }} />
+              <span key={key} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--ink-3)', fontWeight: 500 }}>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', background: val.color, display: 'inline-block', flexShrink: 0 }} />
                 {val.label}
               </span>
             ))}
