@@ -12,6 +12,22 @@ type Provider = {
   has_instagram: boolean; has_whatsapp: boolean; has_two_gis: boolean;
 };
 type Meta    = { cities: string[]; categories: string[] };
+
+const CARD_GRADIENTS = [
+  'linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%)',
+  'linear-gradient(135deg,#0ea5e9 0%,#6366f1 100%)',
+  'linear-gradient(135deg,#db2777 0%,#7c3aed 100%)',
+  'linear-gradient(135deg,#059669 0%,#0284c7 100%)',
+  'linear-gradient(135deg,#d97706 0%,#b45309 100%)',
+  'linear-gradient(135deg,#dc2626 0%,#9d174d 100%)',
+  'linear-gradient(135deg,#7c3aed 0%,#ec4899 100%)',
+  'linear-gradient(135deg,#0f172a 0%,#1e40af 100%)',
+];
+function nameGradient(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
+  return CARD_GRADIENTS[Math.abs(h) % CARD_GRADIENTS.length]!;
+}
 type Sort    = 'featured_first' | 'newest' | 'price_asc' | 'price_desc' | 'name_asc';
 type Filters = {
   city: string; category: string; date: string;
@@ -266,9 +282,27 @@ function ProviderCard({ provider: p, animDelay }: { provider: Provider; animDela
   const cats     = p.categories?.slice(0, 2).join(' · ') ?? '';
   const price    = p.min_price ? `от ${Number(p.min_price).toLocaleString('ru-RU')} ${p.min_currency ?? '₸'}` : '';
   const location = [p.city, p.region].filter(Boolean).join(', ');
+  const initial  = p.display_name[0]?.toUpperCase() ?? '?';
+  const gradient = nameGradient(p.display_name);
   return (
     <a href={`/p/${p.slug}`} className="pcard" style={{ animationDelay: `${animDelay * 40}ms` }}>
-      <div className="pcard-cover" style={{ backgroundImage: p.cover_url ? `url(${p.cover_url})` : undefined, background: p.cover_url ? undefined : 'linear-gradient(135deg,#667eea 0%,#764ba2 100%)' }}>
+      <div className="pcard-cover" style={{ position: 'relative', overflow: 'hidden', background: gradient }}>
+        {/* Blurred photo background */}
+        {p.cover_url && (
+          <div style={{ position: 'absolute', inset: '-10px', backgroundImage: `url(${p.cover_url})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(16px)', transform: 'scale(1.15)' }} />
+        )}
+        {/* Dark overlay */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,.5) 0%, rgba(0,0,0,.1) 100%)' }} />
+        {/* Sharp avatar */}
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {p.cover_url ? (
+            <img src={p.cover_url} alt={p.display_name} style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', border: '2.5px solid rgba(255,255,255,.4)', boxShadow: '0 4px 16px rgba(0,0,0,.35)' }} />
+          ) : (
+            <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(255,255,255,.18)', border: '2.5px solid rgba(255,255,255,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 800, color: '#fff' }}>
+              {initial}
+            </div>
+          )}
+        </div>
         {p.is_featured && <span className="badge badge-featured" style={{ position: 'absolute', top: 10, left: 10 }}>★ Топ</span>}
         {p.is_verified && <span className="badge badge-verified" style={{ position: 'absolute', top: 10, right: 10, borderRadius: '50%', width: 22, height: 22, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✓</span>}
       </div>

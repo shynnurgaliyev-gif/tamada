@@ -40,6 +40,23 @@ const LINK_CFG: Record<string, LinkCfg> = {
   other:     { Icon: FaLink,          label: 'Ссылка',    bg: 'var(--surface-2)', text: 'var(--ink)' },
 };
 
+// Deterministic gradient from name — each provider always gets the same colour
+const GRADIENTS = [
+  'linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%)',
+  'linear-gradient(135deg,#0ea5e9 0%,#6366f1 100%)',
+  'linear-gradient(135deg,#db2777 0%,#7c3aed 100%)',
+  'linear-gradient(135deg,#059669 0%,#0284c7 100%)',
+  'linear-gradient(135deg,#d97706 0%,#b45309 100%)',
+  'linear-gradient(135deg,#dc2626 0%,#9d174d 100%)',
+  'linear-gradient(135deg,#7c3aed 0%,#ec4899 100%)',
+  'linear-gradient(135deg,#0f172a 0%,#1e40af 100%)',
+];
+function nameToGradient(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
+  return GRADIENTS[Math.abs(h) % GRADIENTS.length]!;
+}
+
 // Stable anonymous session id (not tied to user identity)
 function getSessionId(): string {
   const key = 'lk_sid';
@@ -183,7 +200,9 @@ export default function ProfileClient({ slug }: { slug: string }) {
     </div>
   );
 
-  const cover = photos.find(p => p.is_cover) ?? photos[0];
+  const cover      = photos.find(p => p.is_cover) ?? photos[0];
+  const initial    = provider.display_name[0]?.toUpperCase() ?? '?';
+  const bgGradient = nameToGradient(provider.display_name);
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
@@ -202,19 +221,56 @@ export default function ProfileClient({ slug }: { slug: string }) {
         </a>
       </nav>
 
-      {/* Hero cover */}
-      <div style={{ position: 'relative', height: 300, backgroundSize: 'cover', backgroundPosition: 'center', background: 'linear-gradient(135deg,#1e1b4b,#4c1d95)', backgroundImage: cover ? `url(${cover.url})` : undefined }}>
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,.72) 0%, rgba(0,0,0,.15) 60%)' }} />
-        <div style={{ position: 'absolute', bottom: 28, left: 24, right: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, color: '#fff', letterSpacing: '-.02em' }}>{provider.display_name}</h1>
-            {provider.is_verified && <span className="badge badge-verified" style={{ background: 'rgba(255,255,255,.2)', color: '#fff', border: 'none' }}>✓ Верификация</span>}
-          </div>
-          {(provider.city ?? provider.region) && (
-            <p style={{ margin: '6px 0 0', color: 'rgba(255,255,255,.8)', fontSize: 14 }}>
-              📍 {[provider.city, provider.region].filter(Boolean).join(', ')}
-            </p>
+      {/* ── Hero cover ─────────────────────────────────────────── */}
+      <div style={{ position: 'relative', height: 300, overflow: 'hidden' }}>
+
+        {/* Layer 1 — background: blurred photo OR gradient */}
+        {cover ? (
+          <div style={{
+            position: 'absolute', inset: '-30px',
+            backgroundImage: `url(${cover.url})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            filter: 'blur(28px)',
+            transform: 'scale(1.15)',
+          }} />
+        ) : (
+          <div style={{ position: 'absolute', inset: 0, background: bgGradient }} />
+        )}
+
+        {/* Layer 2 — dark gradient overlay */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,.68) 0%, rgba(0,0,0,.18) 55%, transparent 100%)' }} />
+
+        {/* Layer 3 — avatar + name */}
+        <div style={{ position: 'absolute', bottom: 24, left: 24, right: 24, display: 'flex', alignItems: 'flex-end', gap: 16 }}>
+
+          {/* Avatar */}
+          {cover ? (
+            <img
+              src={cover.url}
+              alt={provider.display_name}
+              style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(255,255,255,.35)', flexShrink: 0, boxShadow: '0 4px 20px rgba(0,0,0,.4)' }}
+            />
+          ) : (
+            <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,255,255,.18)', border: '3px solid rgba(255,255,255,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 30, fontWeight: 800, color: '#fff', backdropFilter: 'blur(6px)', boxShadow: '0 4px 20px rgba(0,0,0,.3)' }}>
+              {initial}
+            </div>
           )}
+
+          {/* Name & location */}
+          <div style={{ paddingBottom: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-.02em', textShadow: '0 2px 8px rgba(0,0,0,.4)' }}>{provider.display_name}</h1>
+              {provider.is_verified && (
+                <span style={{ background: 'rgba(255,255,255,.2)', color: '#fff', border: '1px solid rgba(255,255,255,.3)', borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 700, backdropFilter: 'blur(4px)' }}>✓ Верификация</span>
+              )}
+            </div>
+            {(provider.city ?? provider.region) && (
+              <p style={{ margin: '5px 0 0', color: 'rgba(255,255,255,.82)', fontSize: 14, textShadow: '0 1px 4px rgba(0,0,0,.4)' }}>
+                📍 {[provider.city, provider.region].filter(Boolean).join(', ')}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
