@@ -161,13 +161,13 @@ export default function HomePage() {
       <section className="hero-land">
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div className="hero-land-eyebrow">
-            ✦ Octiqa — управляй занятостью, находи клиентов
+            ✦ Octiqa — связываем клиента и специалиста
           </div>
           <h1 className="hero-land-title">
             Профиль. Календарь.<br />Прямой контакт.
           </h1>
           <p className="hero-land-sub">
-            Octiqa — платформа, которая помогает исполнителю управлять занятостью и связывает его с клиентом. Профиль, календарь, прямые контакты — по всему Казахстану.
+            Octiqa помогает быстро найти нужного специалиста через профиль, календарь занятости и прямые контакты — без посредников, по всему Казахстану.
           </p>
           <div className="hero-land-actions">
             <Link href="/search" className="btn btn-white btn-lg">
