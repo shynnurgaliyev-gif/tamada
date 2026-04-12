@@ -56,10 +56,13 @@ export default function DashboardPage() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       {/* Top bar */}
-      <nav className="nav">
-        <span className="nav-logo">🎤 Тамада</span>
+      <nav className="nav-frosted">
+        <a href="/" className="logo-mark" style={{ fontSize: 17 }}>
+          <span className="logo-mark-icon" style={{ width: 28, height: 28, fontSize: 14 }}>✦</span>
+          BRAND_NAME
+        </a>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <a href="/" className="btn btn-ghost btn-sm">На главную</a>
+          <a href="/" className="btn btn-ghost btn-sm">← Главная</a>
           <button onClick={logout} className="btn btn-outline btn-sm">Выйти</button>
         </div>
       </nav>

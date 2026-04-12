@@ -156,9 +156,12 @@ export default function ProfileClient({ slug }: { slug: string }) {
       )}
 
       {/* Back nav */}
-      <nav className="nav">
-        <a href="/search" className="nav-logo" style={{ fontSize: 16 }}>← Поиск</a>
-        <a href="/" style={{ fontSize: 13, color: 'var(--ink-3)' }}>🎤 Тамада</a>
+      <nav className="nav-frosted">
+        <a href="/search" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: 'var(--ink-2)', textDecoration: 'none' }}>← Назад</a>
+        <a href="/" className="logo-mark" style={{ fontSize: 16 }}>
+          <span className="logo-mark-icon" style={{ width: 26, height: 26, fontSize: 13 }}>✦</span>
+          BRAND_NAME
+        </a>
       </nav>
 
       {/* Hero cover */}

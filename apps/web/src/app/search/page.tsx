@@ -148,10 +148,13 @@ export default function SearchPage() {
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
       {/* Header */}
-      <nav className="nav">
-        <a href="/" className="nav-logo">🎤 Тамада</a>
-        <div className="nav-links">
-          <a href="/login" className="nav-link" style={{ color: 'var(--ink-3)' }}>Войти</a>
+      <nav className="nav-frosted">
+        <a href="/" className="logo-mark">
+          <span className="logo-mark-icon">✦</span>
+          <span className="hide-mobile">BRAND_NAME</span>
+        </a>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <a href="/login" className="btn btn-ghost btn-sm" style={{ color: 'var(--ink-3)' }}>Войти</a>
           <a href="/signup" className="btn btn-brand btn-sm">Регистрация</a>
         </div>
       </nav>
