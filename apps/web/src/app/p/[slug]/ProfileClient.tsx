@@ -216,7 +216,7 @@ export default function ProfileClient({ slug }: { slug: string }) {
       )}
 
       <nav className="nav-frosted">
-        <a href="/search" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: 'var(--ink-2)', textDecoration: 'none' }}>← Назад</a>
+        <button onClick={() => window.history.back()} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: 'var(--ink-2)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>← Назад</button>
         <a href="/" className="logo-mark" style={{ fontSize: 16 }}>
           <OctiMark size={26} />
           Octiqa

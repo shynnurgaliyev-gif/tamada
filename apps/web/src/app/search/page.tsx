@@ -67,7 +67,17 @@ export default function SearchPage() {
         if (d.ok) setMeta({ cities: d.cities ?? [], categories: d.categories ?? [] });
       })
       .catch(() => null);
-    void doSearch(EMPTY_FILTERS, 'featured_first', 1);
+
+    // Read URL params (e.g. ?category=диджей from homepage category cards)
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialFilters: Filters = {
+      ...EMPTY_FILTERS,
+      city:     urlParams.get('city')     ?? '',
+      category: urlParams.get('category') ?? '',
+      date:     urlParams.get('date')     ?? '',
+    };
+    setF(initialFilters);
+    void doSearch(initialFilters, 'featured_first', 1);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -136,10 +146,7 @@ export default function SearchPage() {
               <option value="">Все категории</option>
               {meta.categories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
-            <div style={{ flex: 1, minWidth: 120, position: 'relative' }}>
-              {!f.date && <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: 'var(--ink-4)', pointerEvents: 'none', whiteSpace: 'nowrap' }}>📅 Дата мероприятия</span>}
-              <input className="input" style={{ width: '100%' }} type="date" value={f.date} onChange={e => setF(p => ({ ...p, date: e.target.value }))} />
-            </div>
+            <input className="input" style={{ flex: 1, minWidth: 140 }} type="date" value={f.date} onChange={e => setF(p => ({ ...p, date: e.target.value }))} />
             <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? '...' : 'Найти'}</button>
           </div>
 
@@ -151,11 +158,11 @@ export default function SearchPage() {
             <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 <label style={{ flex: 1, minWidth: 120, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <span style={{ fontSize: 11, color: 'var(--ink-4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Время с (Алматы)</span>
+                  <span style={{ fontSize: 11, color: 'var(--ink-4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Время с</span>
                   <input className="input" type="time" value={f.timeFrom} onChange={e => setF(p => ({ ...p, timeFrom: e.target.value }))} />
                 </label>
                 <label style={{ flex: 1, minWidth: 120, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <span style={{ fontSize: 11, color: 'var(--ink-4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Время до (Алматы)</span>
+                  <span style={{ fontSize: 11, color: 'var(--ink-4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Время до</span>
                   <input className="input" type="time" value={f.timeTo} onChange={e => setF(p => ({ ...p, timeTo: e.target.value }))} />
                 </label>
                 <input className="input" style={{ flex: 1, minWidth: 120, maxWidth: 130 }} type="number" value={f.priceFrom} onChange={e => setF(p => ({ ...p, priceFrom: e.target.value }))} placeholder="Цена от ₸" min="0" />
