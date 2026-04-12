@@ -4,6 +4,12 @@ import { useEffect, useState } from 'react';
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
 type Account = { id: string; username: string; phone: string; status: string };
+type OnboardingStatus = {
+  status: string;
+  current_step: number;
+  steps: { basics: boolean; photos: boolean; contacts: boolean; telegram: boolean; calendar: boolean };
+  completion_pct: number;
+};
 
 const NAV_ITEMS = [
   { href: '/dashboard/provider', icon: '👤', label: 'Мои профили' },
@@ -17,18 +23,22 @@ const NAV_ITEMS = [
 export default function DashboardPage() {
   const [account, setAccount] = useState<Account | null>(null);
   const [loading, setLoading] = useState(true);
+  const [onboarding, setOnboarding] = useState<OnboardingStatus | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('session_token');
     if (!token) { window.location.href = '/login'; return; }
 
-    fetch(`${API}/auth/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(r => r.json())
-      .then((data: { ok: boolean; account?: Account }) => {
-        if (!data.ok) { window.location.href = '/login'; return; }
-        setAccount(data.account ?? null);
+    Promise.all([
+      fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+      fetch(`${API}/dashboard/onboarding`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => null),
+    ])
+      .then(([data, ob]: [{ ok: boolean; account?: Account }, { ok: boolean; onboarding?: OnboardingStatus } | null]) => {
+        if (!(data as { ok: boolean }).ok) { window.location.href = '/login'; return; }
+        setAccount((data as { ok: boolean; account?: Account }).account ?? null);
+        if (ob?.ok && ob.onboarding && ob.onboarding.status !== 'completed') {
+          setOnboarding(ob.onboarding);
+        }
       })
       .catch(() => { window.location.href = '/login'; })
       .finally(() => setLoading(false));
@@ -78,6 +88,31 @@ export default function DashboardPage() {
             <div>
               <div style={{ fontWeight: 700, fontSize: 16 }}>{account.username}</div>
               <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>{account.phone}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Onboarding banner */}
+        {onboarding && onboarding.completion_pct < 100 && (
+          <div className="card" style={{ padding: '18px 20px', marginBottom: 24, border: '2px solid var(--brand)', background: 'var(--brand-xlight)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 3 }}>Завершите настройку профиля</div>
+                <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+                  {['Основное', 'Фото', 'Контакты', 'Telegram', 'Календарь']
+                    .filter((_, i) => !Object.values(onboarding.steps)[i])
+                    .join(' · ') || 'Почти готово!'}
+                </div>
+              </div>
+              <a href="/dashboard/onboarding" className="btn btn-brand btn-sm" style={{ flexShrink: 0 }}>
+                Продолжить →
+              </a>
+            </div>
+            <div style={{ height: 6, background: 'rgba(0,0,0,.1)', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${onboarding.completion_pct}%`, background: 'var(--brand)', borderRadius: 3, transition: 'width .5s ease' }} />
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--brand)', fontWeight: 700, marginTop: 5, textAlign: 'right' }}>
+              {onboarding.completion_pct}% готово
             </div>
           </div>
         )}

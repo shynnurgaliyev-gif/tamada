@@ -15,6 +15,7 @@ import { createJobsRoutes } from './jobs/routes';
 import { createSearchRoutes } from './search/routes';
 import { createReferenceRoutes } from './reference/routes';
 import { createAnalyticsRoutes } from './analytics/routes';
+import { createOnboardingRoutes } from './onboarding/routes';
 
 const startTime = Date.now();
 
@@ -101,6 +102,7 @@ export function createApp(env: AppEnv, db: Db, supabase: SupabaseClient, wa: imp
   void app.register(createSubscriptionRoutes(db, env));
   void app.register(createJobsRoutes(db, env));
   void app.register(createAnalyticsRoutes(db));
+  void app.register(createOnboardingRoutes(db));
 
   // ── Global error handler ───────────────────────────────────────────────
   app.setErrorHandler((error: FastifyError, req, reply) => {
