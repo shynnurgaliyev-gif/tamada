@@ -69,6 +69,12 @@ export async function trackProfileView(db: Db, providerId: string): Promise<void
   await incrementDaily(db, providerId, 'profile_views');
 }
 
+// ── Public: track calendar view ───────────────────────────────────────
+
+export async function trackCalendarView(db: Db, providerId: string): Promise<void> {
+  await incrementDaily(db, providerId, 'calendar_views');
+}
+
 // ── Public: log contact reveal ────────────────────────────────────────
 
 export async function logContactReveal(db: Db, data: {

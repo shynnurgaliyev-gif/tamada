@@ -86,6 +86,8 @@ export default function ProfileClient({ slug }: { slug: string }) {
   const [revealed, setRevealed] = useState(false);
   const [revealing, setRevealing] = useState(false);
   const contactRef = useRef<HTMLDivElement>(null);
+  const calendarTrackRef = useRef<HTMLDivElement>(null);
+  const calendarTracked = useRef(false);
 
   useEffect(() => {
     if (!slug) return;
@@ -145,6 +147,25 @@ export default function ProfileClient({ slug }: { slug: string }) {
   }, [calYear, calMonth, slug, provider]);
 
   void calTimezone;
+
+  // Track calendar view once when section scrolls into viewport
+  useEffect(() => {
+    if (!provider || isPreview) return;
+    const el = calendarTrackRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0]?.isIntersecting && !calendarTracked.current) {
+        calendarTracked.current = true;
+        fetch(`${API}/public/providers/${slug}/track`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event: 'calendar_view', viewer_session_id: getSessionId() }),
+        }).catch(() => null);
+      }
+    }, { threshold: 0.2 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [provider, slug, isPreview]);
 
   async function revealContacts() {
     if (revealed || revealing || !provider) return;
@@ -359,7 +380,7 @@ export default function ProfileClient({ slug }: { slug: string }) {
         )}
 
         {/* Calendar */}
-        <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+        <div ref={calendarTrackRef} className="card" style={{ padding: 20, marginBottom: 16 }}>
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
             <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>Занятость</h2>

@@ -22,6 +22,33 @@ type DailyRow = {
 
 const DAYS_OPTIONS = [7, 14, 30, 90];
 
+/** Fill in every day of the range, zero-padding missing dates */
+function fillDays(rows: DailyRow[], days: number): DailyRow[] {
+  const map = new Map(rows.map(r => {
+    const key = typeof r.date === 'string' ? r.date : (r.date as unknown as Date).toISOString().slice(0, 10);
+    return [key, r];
+  }));
+  const result: DailyRow[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000);
+    const key = d.toISOString().slice(0, 10);
+    result.push(map.get(key) ?? {
+      date: key,
+      profile_views: 0,
+      contact_reveals: 0,
+      calendar_views: 0,
+      search_impressions: 0,
+    });
+  }
+  return result;
+}
+
+function formatDate(dateStr: string, short = false): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  if (short) return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+}
+
 export default function AnalyticsPage() {
   const [days, setDays] = useState(30);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -37,7 +64,7 @@ export default function AnalyticsPage() {
     setError('');
 
     const from = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
-    const to = new Date().toISOString().slice(0, 10);
+    const to   = new Date().toISOString().slice(0, 10);
 
     Promise.all([
       fetch(`${API}/dashboard/analytics/summary?days=${days}`, {
@@ -47,21 +74,20 @@ export default function AnalyticsPage() {
         headers: { Authorization: `Bearer ${token}` },
       }).then(r => r.json()),
     ])
-      .then(([sum, dly]: [{ ok: boolean; summary: Summary | null }, { ok: boolean; rows: DailyRow[] }]) => {
+      .then(([sum, dly]: [
+        { ok: boolean; summary: Summary | null },
+        { ok: boolean; rows: DailyRow[] }
+      ]) => {
         if (!sum.ok) { setError('Ошибка загрузки аналитики'); return; }
         setSummary(sum.summary);
-        setDaily(dly.rows ?? []);
+        setDaily(fillDays(dly.rows ?? [], days));
       })
       .catch(() => setError('Ошибка сети'))
       .finally(() => setLoading(false));
   }, [days]);
 
-  const maxViews = daily.length > 0 ? Math.max(...daily.map(r => r.profile_views), 1) : 1;
-  const maxReveals = daily.length > 0 ? Math.max(...daily.map(r => r.contact_reveals), 1) : 1;
-
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      {/* Top bar */}
       <nav className="nav-frosted">
         <a href="/" className="logo-mark" style={{ fontSize: 17 }}>
           <OctiMark size={28} />
@@ -71,6 +97,7 @@ export default function AnalyticsPage() {
       </nav>
 
       <div className="container-sm" style={{ padding: '32px 16px' }}>
+        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>Аналитика</h1>
           <div style={{ display: 'flex', gap: 6 }}>
@@ -79,18 +106,14 @@ export default function AnalyticsPage() {
                 key={d}
                 onClick={() => setDays(d)}
                 className={`btn btn-sm ${days === d ? 'btn-primary' : 'btn-outline'}`}
-              >
-                {d}д
-              </button>
+              >{d}д</button>
             ))}
           </div>
         </div>
 
         {loading && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 24 }}>
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="skeleton" style={{ height: 90, borderRadius: 'var(--r-lg)' }} />
-            ))}
+            {[1, 2, 3, 4].map(i => <div key={i} className="skeleton" style={{ height: 90, borderRadius: 'var(--r-lg)' }} />)}
           </div>
         )}
 
@@ -107,10 +130,10 @@ export default function AnalyticsPage() {
 
         {!loading && !error && summary !== null && (
           <>
-            {/* KPI cards */}
+            {/* ── KPI cards ─────────────────────────────── */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12, marginBottom: 28 }}>
-              <StatCard icon="👁" label="Просмотры профиля" value={summary.profile_views} />
-              <StatCard icon="📲" label="Открытия контактов" value={summary.contact_reveals} />
+              <StatCard icon="👁" label="Просмотры профиля"   value={summary.profile_views} />
+              <StatCard icon="📲" label="Открытия контактов"  value={summary.contact_reveals} />
               <StatCard icon="📅" label="Просмотры календаря" value={summary.calendar_views} />
               <StatCard
                 icon="🎯"
@@ -121,22 +144,23 @@ export default function AnalyticsPage() {
               />
             </div>
 
-            {/* Bar chart — profile views */}
+            {/* ── Combined chart ────────────────────────── */}
             {daily.length > 0 && (
               <>
-                <SectionTitle>Просмотры профиля — по дням</SectionTitle>
-                <div className="card" style={{ padding: '16px 12px', marginBottom: 20, overflowX: 'auto' }}>
-                  <BarChart rows={daily} field="profile_views" maxVal={maxViews} color="var(--brand)" />
-                </div>
-
-                <SectionTitle>Открытия контактов — по дням</SectionTitle>
-                <div className="card" style={{ padding: '16px 12px', marginBottom: 20, overflowX: 'auto' }}>
-                  <BarChart rows={daily} field="contact_reveals" maxVal={maxReveals} color="var(--green)" />
+                <SectionTitle>Динамика за {days} дней</SectionTitle>
+                <div className="card" style={{ padding: '20px 16px 12px', marginBottom: 24 }}>
+                  <CombinedChart rows={daily} days={days} />
+                  {/* Legend */}
+                  <div style={{ display: 'flex', gap: 16, marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>
+                    <LegendItem color="var(--brand)" label="Просмотры профиля" />
+                    <LegendItem color="var(--green)" label="Открытия контактов" />
+                    {summary.calendar_views > 0 && <LegendItem color="#f59e0b" label="Просмотры календаря" />}
+                  </div>
                 </div>
               </>
             )}
 
-            {/* Top days */}
+            {/* ── Top days table ───────────────────────── */}
             {summary.top_days.length > 0 && (
               <>
                 <SectionTitle>Топ дней по открытиям контактов</SectionTitle>
@@ -184,13 +208,7 @@ function StatCard({ icon, label, value, hint, accent }: {
   return (
     <div className="card" style={{ padding: '16px 14px' }}>
       <div style={{ fontSize: 22, marginBottom: 6 }}>{icon}</div>
-      <div style={{
-        fontSize: 26,
-        fontWeight: 800,
-        color: accent ? 'var(--brand)' : 'var(--ink)',
-        lineHeight: 1.1,
-        marginBottom: 4,
-      }}>{value}</div>
+      <div style={{ fontSize: 26, fontWeight: 800, color: accent ? 'var(--brand)' : 'var(--ink)', lineHeight: 1.1, marginBottom: 4 }}>{value}</div>
       <div style={{ fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.3 }}>{label}</div>
       {hint && <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 2 }}>{hint}</div>}
     </div>
@@ -205,36 +223,86 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-function BarChart({ rows, field, maxVal, color }: {
-  rows: DailyRow[]; field: 'profile_views' | 'contact_reveals'; maxVal: number; color: string;
-}) {
-  const BAR_H = 80;
+function LegendItem({ color, label }: { color: string; label: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, minWidth: rows.length * 20, height: BAR_H + 28 }}>
-      {rows.map(row => {
-        const val = row[field];
-        const h = maxVal > 0 ? Math.max(2, Math.round((val / maxVal) * BAR_H)) : 2;
-        return (
-          <div key={row.date} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, minWidth: 12 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--ink-3)' }}>
+      <span style={{ width: 10, height: 10, borderRadius: 2, background: color, display: 'inline-block', flexShrink: 0 }} />
+      {label}
+    </div>
+  );
+}
+
+function CombinedChart({ rows, days }: { rows: DailyRow[]; days: number }) {
+  const BAR_H = 120;
+  const maxVal = Math.max(...rows.map(r => r.profile_views), 1);
+  // How often to show a date label
+  const labelEvery = days <= 7 ? 1 : days <= 14 ? 2 : days <= 30 ? 5 : 10;
+
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, minWidth: Math.max(rows.length * 18, 300), height: BAR_H + 36, paddingBottom: 0 }}>
+        {rows.map((row, idx) => {
+          const viewH    = maxVal > 0 ? Math.max(row.profile_views > 0 ? 3 : 1,    Math.round((row.profile_views    / maxVal) * BAR_H)) : 1;
+          const revealH  = maxVal > 0 ? Math.max(row.contact_reveals > 0 ? 3 : 0,  Math.round((row.contact_reveals  / maxVal) * BAR_H)) : 0;
+          const calH     = maxVal > 0 ? Math.max(row.calendar_views > 0 ? 3 : 0,   Math.round((row.calendar_views   / maxVal) * BAR_H)) : 0;
+          const showLabel = idx % labelEvery === 0;
+          const dateParts = row.date.slice(5).replace('-', '/');
+
+          return (
             <div
-              title={`${formatDate(row.date)}: ${val}`}
-              style={{
-                width: '100%',
-                height: h,
-                background: color,
-                borderRadius: '3px 3px 0 0',
-                opacity: val === 0 ? 0.15 : 0.85,
-                transition: 'height .3s ease',
-              }}
-            />
-            {rows.length <= 14 && (
-              <div style={{ fontSize: 9, color: 'var(--ink-4)', marginTop: 3, writingMode: 'vertical-rl', transform: 'rotate(180deg)', lineHeight: 1 }}>
-                {row.date.slice(5)}
+              key={row.date}
+              title={`${formatDate(row.date, true)}\nПросмотры: ${row.profile_views}\nКонтакты: ${row.contact_reveals}\nКалендарь: ${row.calendar_views}`}
+              style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'default', minWidth: 12 }}
+            >
+              {/* Value hint above bar on non-zero days */}
+              <div style={{ fontSize: 9, color: 'var(--ink-4)', marginBottom: 2, height: 12, lineHeight: '12px', fontWeight: 600 }}>
+                {row.profile_views > 0 ? row.profile_views : ''}
               </div>
-            )}
-          </div>
-        );
-      })}
+
+              {/* Bar group */}
+              <div style={{ width: '100%', display: 'flex', alignItems: 'flex-end', gap: 1, height: BAR_H }}>
+                {/* Profile views bar */}
+                <div style={{
+                  flex: 1,
+                  height: viewH,
+                  background: row.profile_views > 0 ? 'var(--brand)' : 'var(--border)',
+                  borderRadius: '2px 2px 0 0',
+                  opacity: row.profile_views > 0 ? 0.85 : 0.4,
+                }} />
+                {/* Contact reveals bar */}
+                <div style={{
+                  flex: 1,
+                  height: revealH || 1,
+                  background: row.contact_reveals > 0 ? 'var(--green)' : 'transparent',
+                  borderRadius: '2px 2px 0 0',
+                  opacity: 0.9,
+                }} />
+                {/* Calendar views bar */}
+                {calH > 0 && (
+                  <div style={{
+                    flex: 1,
+                    height: calH,
+                    background: '#f59e0b',
+                    borderRadius: '2px 2px 0 0',
+                    opacity: 0.8,
+                  }} />
+                )}
+              </div>
+
+              {/* X-axis label */}
+              <div style={{
+                fontSize: 9,
+                color: showLabel ? 'var(--ink-3)' : 'transparent',
+                marginTop: 4,
+                whiteSpace: 'nowrap',
+                fontWeight: 500,
+              }}>
+                {dateParts}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -253,9 +321,4 @@ function Td({ children, align, bold }: { children: React.ReactNode; align?: 'rig
       {children}
     </td>
   );
-}
-
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
 }

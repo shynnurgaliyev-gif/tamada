@@ -38,6 +38,21 @@ export function createAnalyticsRoutes(db: Db) {
       return reply.send({ ok: true, links });
     });
 
+    // POST /public/providers/:slug/track  — fire-and-forget event tracker
+    app.post('/public/providers/:slug/track', async (req, reply) => {
+      const { slug } = req.params as { slug: string };
+      const provider = await findProviderBySlug(db, slug);
+      if (!provider || provider.publication_status !== 'visible') {
+        return reply.code(404).send({ ok: false });
+      }
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const event = typeof body['event'] === 'string' ? body['event'] : '';
+      if (event === 'calendar_view') {
+        repo.trackCalendarView(db, provider.id).catch(() => null);
+      }
+      return reply.send({ ok: true });
+    });
+
     // GET /dashboard/analytics/summary?provider_id=&days=
     app.get('/dashboard/analytics/summary', async (req, reply) => {
       const account = await getAuthAccount(db, req);
