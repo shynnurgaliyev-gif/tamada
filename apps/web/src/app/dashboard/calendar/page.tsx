@@ -6,8 +6,8 @@ function getToken() { return localStorage.getItem('session_token') ?? ''; }
 function authH() { return { Authorization: `Bearer ${getToken()}` }; }
 
 type Provider = { id: string; display_name: string; timezone: string; };
-type DayInfo = { date: string; status: string; count: number };
-type Entry = {
+type DayInfo  = { date: string; status: string; count: number };
+type Entry    = {
   id: string; starts_at: string; ends_at: string;
   status: string; title: string | null; notes: string | null;
   client: { client_name: string | null; client_phone: string | null; event_type: string | null; price_amount: string | null; currency: string } | null;
@@ -16,12 +16,13 @@ type Entry = {
 const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 const DAYS_SHORT = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
 
-const ST: Record<string, { bg: string; color: string; label: string }> = {
-  free:     { bg: '#dcfce7', color: '#166534', label: 'Свободно' },
-  busy:     { bg: '#fee2e2', color: '#991b1b', label: 'Занято' },
-  partial:  { bg: '#ffedd5', color: '#9a3412', label: 'Частично' },
-  tentative:{ bg: '#fef9c3', color: '#92400e', label: 'Под вопросом' },
-  past:     { bg: '#f3f4f6', color: '#9ca3af', label: 'Прошлое' },
+// ── Status colours — vivid, consistent with landing page calendar ─────────────
+const ST: Record<string, { bg: string; color: string; border: string; label: string }> = {
+  free:     { bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0', label: 'Свободно'      },
+  busy:     { bg: '#fff1f2', color: '#e11d48', border: '#fecdd3', label: 'Занято'         },
+  partial:  { bg: '#fff7ed', color: '#ea580c', border: '#fed7aa', label: 'Частично'       },
+  tentative:{ bg: '#fefce8', color: '#ca8a04', border: '#fde68a', label: 'Под вопросом'   },
+  past:     { bg: '#f8fafc', color: '#94a3b8', border: '#e2e8f0', label: 'Прошлое'        },
 };
 
 const STATUS_ENTRY: Record<string, string> = {
@@ -37,19 +38,18 @@ function fmtDate(d: string, tz: string) {
 
 export default function CalendarPage() {
   const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
-  const [providers, setProviders] = useState<Provider[]>([]);
-  const [selectedId, setSelectedId] = useState('');
-  const [timezone, setTimezone] = useState('Asia/Almaty');
-  const [days, setDays] = useState<DayInfo[]>([]);
+  const [year, setYear]               = useState(now.getFullYear());
+  const [month, setMonth]             = useState(now.getMonth() + 1);
+  const [providers, setProviders]     = useState<Provider[]>([]);
+  const [selectedId, setSelectedId]   = useState('');
+  const [timezone, setTimezone]       = useState('Asia/Almaty');
+  const [days, setDays]               = useState<DayInfo[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [dayEntries, setDayEntries] = useState<Entry[]>([]);
+  const [dayEntries, setDayEntries]   = useState<Entry[]>([]);
   const [loadingMonth, setLoadingMonth] = useState(false);
-  const [loadingDay, setLoadingDay] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loadingDay, setLoadingDay]   = useState(false);
+  const [loading, setLoading]         = useState(true);
 
-  // Load providers
   useEffect(() => {
     if (!getToken()) { window.location.href = '/login'; return; }
     fetch(`${API}/providers/me`, { headers: authH() })
@@ -64,7 +64,6 @@ export default function CalendarPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Load month statuses
   const loadMonth = useCallback(() => {
     if (!selectedId) return;
     setLoadingMonth(true);
@@ -79,30 +78,25 @@ export default function CalendarPage() {
 
   useEffect(() => { loadMonth(); }, [loadMonth]);
 
-  // Load day entries when date selected
   useEffect(() => {
     if (!selectedDate || !selectedId) return;
     setLoadingDay(true);
     const from = `${selectedDate}T00:00:00.000Z`;
-    const to = `${selectedDate}T23:59:59.999Z`;
+    const to   = `${selectedDate}T23:59:59.999Z`;
     fetch(`${API}/providers/${selectedId}/calendar?from=${from}&to=${to}`, { headers: authH() })
       .then(r => r.json())
-      .then((d: { ok: boolean; entries?: Entry[] }) => {
-        if (d.ok) setDayEntries(d.entries ?? []);
-      })
+      .then((d: { ok: boolean; entries?: Entry[] }) => { if (d.ok) setDayEntries(d.entries ?? []); })
       .catch(() => null)
       .finally(() => setLoadingDay(false));
   }, [selectedDate, selectedId]);
 
   function prevMonth() {
-    if (month === 1) { setYear(y => y - 1); setMonth(12); }
-    else setMonth(m => m - 1);
     setSelectedDate(null);
+    if (month === 1) { setYear(y => y - 1); setMonth(12); } else setMonth(m => m - 1);
   }
   function nextMonth() {
-    if (month === 12) { setYear(y => y + 1); setMonth(1); }
-    else setMonth(m => m + 1);
     setSelectedDate(null);
+    if (month === 12) { setYear(y => y + 1); setMonth(1); } else setMonth(m => m + 1);
   }
 
   async function deleteEntry(id: string) {
@@ -112,177 +106,169 @@ export default function CalendarPage() {
     loadMonth();
   }
 
-  // Build 7-column grid
-  const firstDow = new Date(year, month - 1, 1).getDay(); // 0=Sun
-  const startPad = (firstDow + 6) % 7; // Mon=0
-  const cells: (DayInfo | null)[] = [
-    ...Array(startPad).fill(null),
-    ...days,
-  ];
+  const firstDow  = new Date(year, month - 1, 1).getDay();
+  const startPad  = (firstDow + 6) % 7;
+  const cells: (DayInfo | null)[] = [...Array(startPad).fill(null), ...days];
   while (cells.length % 7 !== 0) cells.push(null);
 
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  const todayStr   = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   const selectedInfo = days.find(d => d.date === selectedDate);
 
-  if (loading) return <div style={s.page}><p>Загрузка...</p></div>;
+  if (loading) return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <p style={{ color: 'var(--ink-3)' }}>Загрузка...</p>
+    </div>
+  );
 
   return (
-    <div style={s.page}>
-      {/* Header */}
-      <div style={s.header}>
-        <div>
-          <a href="/dashboard" style={s.back}>← Кабинет</a>
-          <h1 style={s.title}>Календарь</h1>
-        </div>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+      {/* Nav */}
+      <nav className="nav-frosted">
+        <a href="/dashboard" className="btn btn-ghost btn-sm">← Кабинет</a>
+        <h1 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>Календарь</h1>
         {selectedId && (
-          <a href={`/dashboard/calendar/new?provider=${selectedId}${selectedDate ? `&date=${selectedDate}` : ''}`} style={s.addBtn}>
+          <a
+            href={`/dashboard/calendar/new?provider=${selectedId}${selectedDate ? `&date=${selectedDate}` : ''}`}
+            className="btn btn-brand btn-sm"
+          >
             + Добавить
           </a>
         )}
-      </div>
+      </nav>
 
-      {/* Provider selector */}
-      {providers.length > 1 && (
-        <select style={s.select} value={selectedId} onChange={e => {
-          const p = providers.find(x => x.id === e.target.value);
-          setSelectedId(e.target.value);
-          if (p) setTimezone(p.timezone);
-          setSelectedDate(null);
-        }}>
-          {providers.map(p => <option key={p.id} value={p.id}>{p.display_name}</option>)}
-        </select>
-      )}
+      <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 16px 64px' }}>
 
-      {/* Month navigator */}
-      <div style={s.monthNav}>
-        <button onClick={prevMonth} style={s.navBtn}>‹</button>
-        <span style={s.monthLabel}>{MONTHS_RU[month - 1]} {year}</span>
-        <button onClick={nextMonth} style={s.navBtn}>›</button>
-      </div>
+        {/* Provider selector */}
+        {providers.length > 1 && (
+          <select className="input" style={{ marginBottom: 16 }} value={selectedId} onChange={e => {
+            const p = providers.find(x => x.id === e.target.value);
+            setSelectedId(e.target.value);
+            if (p) setTimezone(p.timezone);
+            setSelectedDate(null);
+          }}>
+            {providers.map(p => <option key={p.id} value={p.id}>{p.display_name}</option>)}
+          </select>
+        )}
 
-      {/* Calendar grid */}
-      <div style={s.grid}>
-        {DAYS_SHORT.map(d => (
-          <div key={d} style={s.dayHeader}>{d}</div>
-        ))}
-        {cells.map((cell, i) => {
-          if (!cell) return <div key={`empty-${i}`} style={s.emptyCell} />;
-          const st = ST[cell.status] ?? ST.free;
-          const isToday = cell.date === todayStr;
-          const isSelected = cell.date === selectedDate;
-          const dayNum = parseInt(cell.date.slice(8), 10);
-          return (
-            <button
-              key={cell.date}
-              onClick={() => setSelectedDate(cell.date)}
-              style={{
-                ...s.dayCell,
-                background: st.bg,
-                color: st.color,
-                boxShadow: isSelected
-                  ? 'inset 0 0 0 2px #111'
-                  : isToday
-                    ? 'inset 0 0 0 2px #3b82f6'
-                    : undefined,
-                fontWeight: isToday ? 700 : 400,
-              }}
-            >
-              <span style={s.dayNum}>{dayNum}</span>
-              {cell.count > 0 && <span style={{ ...s.dot, background: st.color }} />}
-            </button>
-          );
-        })}
-      </div>
+        {/* Calendar card */}
+        <div className="card" style={{ padding: '20px 16px', marginBottom: 16 }}>
 
-      {loadingMonth && <p style={s.hint}>Загрузка...</p>}
-
-      {/* Legend */}
-      <div style={s.legend}>
-        {Object.entries(ST).map(([key, val]) => (
-          <span key={key} style={s.legendItem}>
-            <span style={{ ...s.legendDot, background: val.color }} />
-            {val.label}
-          </span>
-        ))}
-      </div>
-
-      {/* Day panel */}
-      {selectedDate && (
-        <div style={s.dayPanel}>
-          <div style={s.dayPanelHeader}>
-            <strong>{fmtDate(selectedDate + 'T12:00:00Z', timezone)}</strong>
-            {selectedInfo && (
-              <span style={{ ...s.dayPanelBadge, background: ST[selectedInfo.status]?.bg ?? '#f3f4f6', color: ST[selectedInfo.status]?.color ?? '#111' }}>
-                {ST[selectedInfo.status]?.label ?? selectedInfo.status}
-              </span>
-            )}
-            <a href={`/dashboard/calendar/new?provider=${selectedId}&date=${selectedDate}`} style={s.addDayBtn}>
-              + Добавить запись
-            </a>
+          {/* Month navigator */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+            <span style={{ fontSize: 18, fontWeight: 800 }}>{MONTHS_RU[month - 1]} {year}</span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={prevMonth} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, width: 34, height: 34, cursor: 'pointer', fontSize: 16, color: 'var(--ink-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
+              <button onClick={nextMonth} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, width: 34, height: 34, cursor: 'pointer', fontSize: 16, color: 'var(--ink-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
+            </div>
           </div>
 
-          {loadingDay ? (
-            <p style={s.hint}>Загрузка...</p>
-          ) : dayEntries.length === 0 ? (
-            <p style={s.hint}>Нет записей на этот день</p>
-          ) : (
-            <div style={s.entryList}>
-              {dayEntries.map(e => (
-                <div key={e.id} style={s.entryRow}>
-                  <div style={{ ...s.entryDot, background: e.status === 'busy' ? '#ef4444' : e.status === 'tentative' ? '#f59e0b' : '#6b7280' }} />
-                  <div style={s.entryInfo}>
-                    <span style={s.entryTime}>{fmt(e.starts_at, timezone)} — {fmt(e.ends_at, timezone)}</span>
-                    <span style={s.entryStatus}>{STATUS_ENTRY[e.status] ?? e.status}{e.title ? ` · ${e.title}` : ''}</span>
-                    {e.client?.client_name && <span style={s.entryClient}>{e.client.client_name}{e.client.client_phone ? ` · ${e.client.client_phone}` : ''}</span>}
-                    {e.client?.price_amount && <span style={s.entryPrice}>{e.client.price_amount} {e.client.currency}</span>}
-                  </div>
-                  <div style={s.entryActions}>
-                    <a href={`/dashboard/calendar/${e.id}?provider=${selectedId}`} style={s.editBtn}>✎</a>
-                    <button onClick={() => void deleteEntry(e.id)} style={s.delBtn}>✕</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Day headers */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
+            {DAYS_SHORT.map(d => (
+              <div key={d} style={{ textAlign: 'center', fontSize: 11, fontWeight: 700, color: 'var(--ink-4)', padding: '2px 0', textTransform: 'uppercase', letterSpacing: '.04em' }}>{d}</div>
+            ))}
+          </div>
+
+          {/* Calendar grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, opacity: loadingMonth ? .6 : 1, transition: 'opacity .2s' }}>
+            {cells.map((cell, i) => {
+              if (!cell) return <div key={`ep-${i}`} style={{ minHeight: 52 }} />;
+              const st       = ST[cell.status] ?? ST.free!;
+              const isToday  = cell.date === todayStr;
+              const isSel    = cell.date === selectedDate;
+              const dayNum   = parseInt(cell.date.slice(8), 10);
+              return (
+                <button
+                  key={cell.date}
+                  onClick={() => setSelectedDate(isSel ? null : cell.date)}
+                  style={{
+                    minHeight: 52, border: `1.5px solid ${isSel ? '#6d28d9' : isToday ? '#6d28d9' : st.border}`,
+                    borderRadius: 10, cursor: 'pointer',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
+                    background: isSel ? '#ede9fe' : st.bg,
+                    color: isSel ? '#6d28d9' : st.color,
+                    fontWeight: isToday ? 800 : 500,
+                    fontSize: 14,
+                    transition: 'transform .1s, box-shadow .1s',
+                    boxShadow: isSel ? '0 0 0 3px rgba(109,40,217,.2)' : undefined,
+                  }}
+                >
+                  {dayNum}
+                  {cell.count > 0 && (
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: isSel ? '#6d28d9' : st.color, flexShrink: 0 }} />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Legend */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+            {Object.entries(ST).map(([key, val]) => (
+              <span key={key} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--ink-3)', fontWeight: 500 }}>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', background: val.color, flexShrink: 0 }} />
+                {val.label}
+              </span>
+            ))}
+          </div>
         </div>
-      )}
+
+        {/* Day panel */}
+        {selectedDate && (
+          <div className="card anim-fadeUp" style={{ padding: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+              <strong style={{ fontSize: 15 }}>{fmtDate(selectedDate + 'T12:00:00Z', timezone)}</strong>
+              {selectedInfo && (
+                <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700, background: ST[selectedInfo.status]?.bg ?? '#f3f4f6', color: ST[selectedInfo.status]?.color ?? 'var(--ink)', border: `1px solid ${ST[selectedInfo.status]?.border ?? 'var(--border)'}` }}>
+                  {ST[selectedInfo.status]?.label ?? selectedInfo.status}
+                </span>
+              )}
+              <a href={`/dashboard/calendar/new?provider=${selectedId}&date=${selectedDate}`} className="btn btn-brand btn-sm" style={{ marginLeft: 'auto' }}>
+                + Добавить запись
+              </a>
+            </div>
+
+            {loadingDay ? (
+              <p style={{ color: 'var(--ink-4)', fontSize: 13 }}>Загрузка...</p>
+            ) : dayEntries.length === 0 ? (
+              <p style={{ color: 'var(--ink-4)', fontSize: 13, margin: 0 }}>Нет записей на этот день</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {dayEntries.map(e => {
+                  const entryColor = e.status === 'busy' ? ST.busy!.color : e.status === 'tentative' ? ST.tentative!.color : 'var(--ink-3)';
+                  return (
+                    <div key={e.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px', background: 'var(--surface-2)', borderRadius: 10, border: '1px solid var(--border)' }}>
+                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: entryColor, marginTop: 5, flexShrink: 0 }} />
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
+                          {fmt(e.starts_at, timezone)} — {fmt(e.ends_at, timezone)}
+                        </span>
+                        <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+                          {STATUS_ENTRY[e.status] ?? e.status}{e.title ? ` · ${e.title}` : ''}
+                        </span>
+                        {e.client?.client_name && (
+                          <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+                            {e.client.client_name}{e.client.client_phone ? ` · ${e.client.client_phone}` : ''}
+                          </span>
+                        )}
+                        {e.client?.price_amount && (
+                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
+                            {e.client.price_amount} {e.client.currency}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                        <a href={`/dashboard/calendar/${e.id}?provider=${selectedId}`} className="btn btn-ghost btn-sm" style={{ padding: '4px 8px', fontSize: 13 }}>✎</a>
+                        <button onClick={() => void deleteEntry(e.id)} className="btn btn-sm" style={{ padding: '4px 8px', fontSize: 13, background: '#fef2f2', color: 'var(--red)', border: '1px solid #fecaca' }}>✕</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
-
-const s: Record<string, React.CSSProperties> = {
-  page:           { maxWidth: 680, margin: '0 auto', padding: '20px 12px', fontFamily: 'system-ui, sans-serif' },
-  header:         { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 16 },
-  back:           { color: '#9ca3af', textDecoration: 'none', fontSize: 13, display: 'block', marginBottom: 4 },
-  title:          { margin: 0, fontSize: 22, fontWeight: 700 },
-  addBtn:         { background: '#111', color: '#fff', padding: '9px 18px', borderRadius: 8, textDecoration: 'none', fontSize: 14, whiteSpace: 'nowrap' },
-  select:         { width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, marginBottom: 12 },
-  monthNav:       { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, marginBottom: 12 },
-  navBtn:         { background: 'none', border: '1px solid #d1d5db', borderRadius: 8, width: 36, height: 36, cursor: 'pointer', fontSize: 18, color: '#374151' },
-  monthLabel:     { fontSize: 17, fontWeight: 600, minWidth: 160, textAlign: 'center' },
-  grid:           { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3 },
-  dayHeader:      { textAlign: 'center', fontSize: 11, fontWeight: 600, color: '#9ca3af', padding: '4px 0', textTransform: 'uppercase' },
-  emptyCell:      { minHeight: 44 },
-  dayCell:        { minHeight: 52, border: 'none', borderRadius: 8, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, padding: 4, transition: 'opacity .15s' },
-  dayNum:         { fontSize: 15, lineHeight: 1 },
-  dot:            { width: 6, height: 6, borderRadius: '50%' },
-  hint:           { fontSize: 13, color: '#9ca3af', margin: '8px 0' },
-  legend:         { display: 'flex', flexWrap: 'wrap', gap: 12, margin: '14px 0 0', padding: '12px 0', borderTop: '1px solid #f3f4f6' },
-  legendItem:     { display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6b7280' },
-  legendDot:      { width: 10, height: 10, borderRadius: '50%', flexShrink: 0 },
-  dayPanel:       { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 16, marginTop: 16 },
-  dayPanelHeader: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 },
-  dayPanelBadge:  { padding: '2px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600 },
-  addDayBtn:      { marginLeft: 'auto', background: '#111', color: '#fff', padding: '6px 14px', borderRadius: 8, textDecoration: 'none', fontSize: 13, whiteSpace: 'nowrap' },
-  entryList:      { display: 'flex', flexDirection: 'column', gap: 8 },
-  entryRow:       { display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 0', borderBottom: '1px solid #f3f4f6' },
-  entryDot:       { width: 10, height: 10, borderRadius: '50%', marginTop: 4, flexShrink: 0 },
-  entryInfo:      { flex: 1, display: 'flex', flexDirection: 'column', gap: 2 },
-  entryTime:      { fontSize: 14, fontWeight: 600, color: '#111' },
-  entryStatus:    { fontSize: 13, color: '#6b7280' },
-  entryClient:    { fontSize: 13, color: '#374151' },
-  entryPrice:     { fontSize: 13, fontWeight: 600, color: '#111' },
-  entryActions:   { display: 'flex', gap: 4, flexShrink: 0 },
-  editBtn:        { background: '#f3f4f6', color: '#374151', borderRadius: 6, padding: '4px 8px', textDecoration: 'none', fontSize: 13, border: 'none', cursor: 'pointer' },
-  delBtn:         { background: 'none', color: '#ef4444', border: 'none', cursor: 'pointer', fontSize: 13, padding: '4px 6px' },
-};

@@ -51,6 +51,20 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
         timezone: typeof body['timezone'] === 'string' ? body['timezone'] : undefined,
       });
 
+      // Auto-create 30-day trial subscription so provider appears in search immediately.
+      // Only create if this account has no active/trial subscription yet.
+      const trialEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      await db`
+        INSERT INTO subscriptions (account_id, provider_id, plan_code, status, starts_at, expires_at, trial_ends_at)
+        SELECT ${account.id}, ${provider.id}, 'trial', 'trial', NOW(), ${trialEnd}, ${trialEnd}
+        WHERE NOT EXISTS (
+          SELECT 1 FROM subscriptions
+          WHERE account_id = ${account.id}
+            AND status NOT IN ('cancelled', 'expired', 'blocked')
+            AND expires_at > NOW()
+        )
+      `.catch(() => null);
+
       return reply.code(201).send({ ok: true, provider });
     });
 
