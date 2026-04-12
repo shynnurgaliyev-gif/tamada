@@ -67,9 +67,12 @@ export default function SignupPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, code, username, password }),
       });
-      const data = await res.json() as { ok: boolean; token?: string; error?: { message?: string } | string };
+      const data = await res.json() as { ok: boolean; token?: string; expires_at?: string; error?: { message?: string } | string };
       if (!data.ok) { setError(typeof data.error === 'object' ? (data.error?.message ?? 'Ошибка') : (data.error ?? 'Ошибка')); return; }
-      if (data.token) localStorage.setItem('session_token', data.token);
+      if (data.token) {
+        localStorage.setItem('session_token', data.token);
+        if (data.expires_at) localStorage.setItem('session_expires_at', data.expires_at);
+      }
       window.location.href = '/dashboard/onboarding';
     } catch { setError('Ошибка сети'); }
     finally { setLoading(false); }

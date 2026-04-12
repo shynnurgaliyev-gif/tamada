@@ -226,6 +226,7 @@ function Step1Basics({ provider, onDone }: { provider: Provider | null; onDone: 
   const [cityName, setCityName]   = useState(provider?.city ?? '');
   const [catCode, setCatCode]     = useState('');
   const [subcatName, setSubcatName] = useState('');
+  const [customCat, setCustomCat] = useState('');
 
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState('');
@@ -308,15 +309,18 @@ function Step1Basics({ provider, onDone }: { provider: Provider | null; onDone: 
       // Add service with selected category
       if (catCode) {
         const cat = categories.find(c => c.code === catCode);
-        await fetch(`${API}/providers/${p.id}/services`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            category: cat?.name_ru ?? catCode,
-            subcategory: subcatName || undefined,
-            title: subcatName || cat?.name_ru || name,
-          }),
-        }).catch(() => null);
+        const categoryName = catCode === '__custom__' ? customCat.trim() : (cat?.name_ru ?? catCode);
+        if (categoryName) {
+          await fetch(`${API}/providers/${p.id}/services`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              category: categoryName,
+              subcategory: catCode !== '__custom__' ? (subcatName || undefined) : undefined,
+              title: (catCode !== '__custom__' ? subcatName : '') || categoryName || name,
+            }),
+          }).catch(() => null);
+        }
       }
 
       onDone(p);
@@ -356,13 +360,26 @@ function Step1Basics({ provider, onDone }: { provider: Provider | null; onDone: 
         </Field>
 
         <Field label="Направление (категория)">
-          <select className="input" value={catCode} onChange={e => { setCatCode(e.target.value); setSubcatName(''); }}>
+          <select className="input" value={catCode} onChange={e => { setCatCode(e.target.value); setSubcatName(''); setCustomCat(''); }}>
             <option value="">— выберите категорию —</option>
             {categories.map(c => <option key={c.id} value={c.code}>{c.icon ? `${c.icon} ` : ''}{c.name_ru}</option>)}
+            <option value="__custom__">✏️ Написать своё...</option>
           </select>
         </Field>
 
-        {filteredSubcats.length > 0 && (
+        {catCode === '__custom__' && (
+          <Field label="Ваше направление" hint="Например: Шоу-программа, Живая музыка, Свадебный организатор...">
+            <input
+              className="input"
+              value={customCat}
+              onChange={e => setCustomCat(e.target.value)}
+              placeholder="Введите свою категорию"
+              autoFocus
+            />
+          </Field>
+        )}
+
+        {catCode !== '__custom__' && filteredSubcats.length > 0 && (
           <Field label="Подкатегория">
             <select className="input" value={subcatName} onChange={e => setSubcatName(e.target.value)}>
               <option value="">— любая —</option>

@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
@@ -8,6 +8,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sessionMsg, setSessionMsg] = useState('');
+
+  useEffect(() => {
+    const reason = new URLSearchParams(window.location.search).get('reason');
+    if (reason === 'expired') setSessionMsg('Сессия истекла. Войдите снова.');
+    if (reason === 'idle')    setSessionMsg('Вы были отключены из-за неактивности.');
+  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -19,13 +26,16 @@ export default function LoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
-      const data = await res.json() as { ok: boolean; token?: string; error?: { message?: string } | string };
+      const data = await res.json() as { ok: boolean; token?: string; expires_at?: string; error?: { message?: string } | string };
       if (!data.ok) {
         const msg = typeof data.error === 'object' ? data.error?.message : data.error;
         setError(msg ?? 'Ошибка');
         return;
       }
-      if (data.token) localStorage.setItem('session_token', data.token);
+      if (data.token) {
+        localStorage.setItem('session_token', data.token);
+        if (data.expires_at) localStorage.setItem('session_expires_at', data.expires_at);
+      }
       window.location.href = '/dashboard';
     } catch {
       setError('Ошибка сети');
@@ -42,6 +52,11 @@ export default function LoginPage() {
           Linkora
         </a>
         <h1 style={{ margin: '0 0 24px', fontSize: 22, fontWeight: 700, textAlign: 'center' }}>Вход</h1>
+        {sessionMsg && (
+          <p style={{ margin: '0 0 16px', padding: '10px 14px', background: '#fef9c3', color: '#713f12', borderRadius: 10, fontSize: 14, textAlign: 'center', border: '1px solid #fde047' }}>
+            ⏱ {sessionMsg}
+          </p>
+        )}
         <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 14, color: 'var(--ink-2)', fontWeight: 500 }}>
             Логин

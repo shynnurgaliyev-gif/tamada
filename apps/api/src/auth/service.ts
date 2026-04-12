@@ -60,7 +60,7 @@ export async function confirmSignup(
   db: Db,
   data: { phone: string; code: string; username: string; password: string },
   meta: { userAgent: string | null; ipAddress: string | null },
-): Promise<Ok<{ token: string; account: repo.Account }> | Fail> {
+): Promise<Ok<{ token: string; account: repo.Account; expires_at: string }> | Fail> {
   const verification = await repo.findValidVerificationCode(db, data.phone, 'signup');
   if (!verification) return fail('CODE_INVALID', 'Code expired or not found');
 
@@ -88,15 +88,16 @@ export async function confirmSignup(
   });
 
   const token = repo.generateToken();
+  const expiresAt = sessionExpiresAt();
   await repo.createSession(db, {
     accountId: account.id,
     tokenHash: repo.hashToken(token),
     userAgent: meta.userAgent,
     ipAddress: meta.ipAddress,
-    expiresAt: sessionExpiresAt(),
+    expiresAt,
   });
 
-  return { ok: true, token, account };
+  return { ok: true, token, account, expires_at: expiresAt.toISOString() };
 }
 
 // POST /auth/login
@@ -104,7 +105,7 @@ export async function login(
   db: Db,
   data: { username: string; password: string },
   meta: { userAgent: string | null; ipAddress: string | null },
-): Promise<Ok<{ token: string; account: repo.Account }> | Fail> {
+): Promise<Ok<{ token: string; account: repo.Account; expires_at: string }> | Fail> {
   const account = await repo.findAccountByUsername(db, data.username);
   if (!account) return fail('INVALID_CREDENTIALS', 'Invalid username or password');
   if (account.status !== 'active') return fail('ACCOUNT_INACTIVE', 'Account is not active');
@@ -113,15 +114,16 @@ export async function login(
   if (!valid) return fail('INVALID_CREDENTIALS', 'Invalid username or password');
 
   const token = repo.generateToken();
+  const expiresAt = sessionExpiresAt();
   await repo.createSession(db, {
     accountId: account.id,
     tokenHash: repo.hashToken(token),
     userAgent: meta.userAgent,
     ipAddress: meta.ipAddress,
-    expiresAt: sessionExpiresAt(),
+    expiresAt,
   });
 
-  return { ok: true, token, account };
+  return { ok: true, token, account, expires_at: expiresAt.toISOString() };
 }
 
 // POST /auth/logout
