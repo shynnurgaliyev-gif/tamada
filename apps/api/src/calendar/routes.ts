@@ -4,6 +4,41 @@ import { getAuthAccount } from '../auth/middleware';
 import { findProviderById, findProviderBySlug } from '../providers/repositories';
 import * as repo from './repositories';
 
+type DayInfo = { date: string; status: string; count: number };
+
+function computeMonthDays(entries: repo.CalendarEntry[], year: number, month: number): DayInfo[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const daysInMonth = new Date(year, month, 0).getDate(); // month 1-based: new Date(y, m, 0) = last day of month
+
+  const result: DayInfo[] = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dayStart = new Date(Date.UTC(year, month - 1, d));
+    const dayEnd = new Date(Date.UTC(year, month - 1, d + 1));
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+    const isPast = dayStart.getTime() < today.getTime();
+    const dayEntries = entries.filter(e =>
+      e.starts_at.getTime() < dayEnd.getTime() && e.ends_at.getTime() > dayStart.getTime(),
+    );
+
+    let status: string;
+    if (isPast) {
+      status = 'past';
+    } else if (dayEntries.length === 0) {
+      status = 'free';
+    } else {
+      const hasBusy = dayEntries.some(e => e.status === 'busy' || e.status === 'blocked');
+      const hasTentative = dayEntries.some(e => e.status === 'tentative');
+      if (hasBusy && hasTentative) status = 'partial';
+      else if (hasBusy) status = 'busy';
+      else status = 'tentative';
+    }
+    result.push({ date: dateStr, status, count: dayEntries.length });
+  }
+  return result;
+}
+
 export function createCalendarRoutes(db: Db) {
   const plugin: FastifyPluginAsync = async (app) => {
 
@@ -157,6 +192,42 @@ export function createCalendarRoutes(db: Db) {
 
       await repo.deleteEntry(db, entryId);
       return reply.send({ ok: true });
+    });
+
+    // GET /providers/:id/calendar/month?year=&month=
+    app.get('/providers/:id/calendar/month', async (req, reply) => {
+      const account = await getAuthAccount(db, req);
+      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+
+      const { id } = req.params as { id: string };
+      const provider = await findProviderById(db, id);
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+
+      const q = req.query as Record<string, string>;
+      const year = parseInt(q['year'] ?? String(new Date().getFullYear()), 10);
+      const month = parseInt(q['month'] ?? String(new Date().getMonth() + 1), 10);
+      const monthStart = new Date(Date.UTC(year, month - 1, 1));
+      const monthEnd = new Date(Date.UTC(year, month, 1));
+
+      const entries = await repo.findEntriesByRange(db, id, monthStart, monthEnd);
+      return reply.send({ ok: true, year, month, days: computeMonthDays(entries, year, month), timezone: provider.timezone });
+    });
+
+    // GET /public/providers/:slug/calendar/month?year=&month=
+    app.get('/public/providers/:slug/calendar/month', async (req, reply) => {
+      const { slug } = req.params as { slug: string };
+      const provider = await findProviderBySlug(db, slug);
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+
+      const q = req.query as Record<string, string>;
+      const year = parseInt(q['year'] ?? String(new Date().getFullYear()), 10);
+      const month = parseInt(q['month'] ?? String(new Date().getMonth() + 1), 10);
+      const monthStart = new Date(Date.UTC(year, month - 1, 1));
+      const monthEnd = new Date(Date.UTC(year, month, 1));
+
+      const entries = await repo.findEntriesByRange(db, provider.id, monthStart, monthEnd);
+      return reply.send({ ok: true, year, month, days: computeMonthDays(entries, year, month), timezone: provider.timezone });
     });
 
     // GET /public/providers/:slug/calendar?from=&to=

@@ -13,12 +13,14 @@ function toLocalInputValue(date: Date) {
 function NewEntryForm() {
   const params = useSearchParams();
   const providerId = params.get('provider') ?? '';
+  const dateParam = params.get('date'); // YYYY-MM-DD
 
   const now = new Date();
-  const later = new Date(now.getTime() + 2 * 3600000);
+  const baseDate = dateParam ? new Date(`${dateParam}T10:00:00`) : now;
+  const later = new Date(baseDate.getTime() + 2 * 3600000);
 
   const [form, setForm] = useState({
-    starts_at: toLocalInputValue(now),
+    starts_at: toLocalInputValue(baseDate),
     ends_at: toLocalInputValue(later),
     status: 'busy',
     title: '',
