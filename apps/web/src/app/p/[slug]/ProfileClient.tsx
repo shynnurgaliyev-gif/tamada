@@ -259,7 +259,7 @@ export default function ProfileClient({ slug }: { slug: string }) {
           )}
 
           {/* Name & location */}
-          <div style={{ paddingBottom: 4 }}>
+          <div style={{ paddingBottom: 4, flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-.02em', textShadow: '0 2px 8px rgba(0,0,0,.4)' }}>{provider.display_name}</h1>
               {provider.is_verified && (
@@ -272,6 +272,28 @@ export default function ProfileClient({ slug }: { slug: string }) {
               </p>
             )}
           </div>
+
+          {/* Hero contact CTA */}
+          {!isPreview && (
+            <div style={{ paddingBottom: 4, flexShrink: 0 }}>
+              {!revealed ? (
+                <button
+                  onClick={() => void revealContacts()}
+                  disabled={revealing}
+                  style={{ background: 'rgba(255,255,255,.95)', color: '#4f46e5', border: 'none', borderRadius: 24, padding: '10px 18px', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, backdropFilter: 'blur(6px)', boxShadow: '0 2px 12px rgba(0,0,0,.25)', whiteSpace: 'nowrap' }}
+                >
+                  {revealing ? '...' : '📲 Контакты'}
+                </button>
+              ) : (
+                <button
+                  onClick={() => contactRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })}
+                  style={{ background: 'rgba(255,255,255,.95)', color: '#16a34a', border: 'none', borderRadius: 24, padding: '10px 18px', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, backdropFilter: 'blur(6px)', boxShadow: '0 2px 12px rgba(0,0,0,.25)', whiteSpace: 'nowrap' }}
+                >
+                  ✓ Контакты ↓
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

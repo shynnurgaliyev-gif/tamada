@@ -5,6 +5,7 @@ import { OctiMark } from '@/components/OctiLogo';
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
 type Account = { id: string; username: string; phone: string; status: string };
+type ProviderInfo = { id: string; display_name: string; slug: string; provider_status: string };
 type OnboardingStatus = {
   status: string;
   current_step: number;
@@ -26,6 +27,7 @@ export default function DashboardPage() {
   const [account, setAccount] = useState<Account | null>(null);
   const [loading, setLoading] = useState(true);
   const [onboarding, setOnboarding] = useState<OnboardingStatus | null>(null);
+  const [providers, setProviders] = useState<ProviderInfo[]>([]);
 
   useEffect(() => {
     const token = localStorage.getItem('session_token');
@@ -34,13 +36,15 @@ export default function DashboardPage() {
     Promise.all([
       fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
       fetch(`${API}/dashboard/onboarding`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => null),
+      fetch(`${API}/providers/me`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => null),
     ])
-      .then(([data, ob]: [{ ok: boolean; account?: Account }, { ok: boolean; onboarding?: OnboardingStatus } | null]) => {
+      .then(([data, ob, prov]: [{ ok: boolean; account?: Account }, { ok: boolean; onboarding?: OnboardingStatus } | null, { ok: boolean; providers?: ProviderInfo[] } | null]) => {
         if (!(data as { ok: boolean }).ok) { window.location.href = '/login'; return; }
         setAccount((data as { ok: boolean; account?: Account }).account ?? null);
         if (ob?.ok && ob.onboarding && ob.onboarding.status !== 'completed') {
           setOnboarding(ob.onboarding);
         }
+        if (prov?.ok && prov.providers) setProviders(prov.providers);
       })
       .catch(() => { window.location.href = '/login'; })
       .finally(() => setLoading(false));
@@ -83,14 +87,35 @@ export default function DashboardPage() {
       <div className="container-sm" style={{ padding: '32px 16px' }}>
         {/* Account card */}
         {account && (
-          <div className="card" style={{ padding: '20px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-            <div style={{ width: 48, height: 48, background: 'var(--brand)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 20, fontWeight: 700, flexShrink: 0 }}>
-              {account.username[0]?.toUpperCase()}
+          <div className="card" style={{ padding: '20px 24px', marginBottom: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+              <div style={{ width: 48, height: 48, background: 'var(--brand)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 20, fontWeight: 700, flexShrink: 0 }}>
+                {account.username[0]?.toUpperCase()}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 16 }}>{account.username}</div>
+                <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>{account.phone}</div>
+              </div>
             </div>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 16 }}>{account.username}</div>
-              <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>{account.phone}</div>
-            </div>
+            {providers.length > 0 && (
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {providers.map(p => (
+                  <a
+                    key={p.id}
+                    href={`/p/${p.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--brand)', textDecoration: 'none', background: 'var(--brand-xlight)', padding: '5px 12px', borderRadius: 20 }}
+                  >
+                    👤 {p.display_name}
+                    <span style={{ fontSize: 11, opacity: .7, fontWeight: 400 }}>
+                      {p.provider_status === 'active' ? '● активен' : p.provider_status === 'inactive' ? '○ скрыт' : p.provider_status}
+                    </span>
+                    <span style={{ opacity: .55 }}>→</span>
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
