@@ -118,7 +118,7 @@ export default function SearchPage() {
           <span className="hide-mobile">Octiqa</span>
         </a>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <a href="/for-specialists" className="btn btn-ghost btn-sm hide-mobile">Специалистам</a>
+          <a href="/for-specialists" className="btn btn-ghost btn-sm hide-mobile" style={{ color: 'var(--ink-3)' }}>Специалистам</a>
           <a href="/login"  className="btn btn-ghost btn-sm" style={{ color: 'var(--ink-3)' }}>Войти</a>
           <a href="/signup" className="btn btn-brand btn-sm">Регистрация</a>
         </div>

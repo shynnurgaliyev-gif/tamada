@@ -20,17 +20,22 @@ const STEPS = [
   {
     n: '1', icon: '🔍',
     title: 'Найдите специалиста',
-    desc: 'Поиск по городу, дате и категории. Фотограф, тамада, диджей — в любом городе Казахстана.',
+    desc: 'Фильтры по городу, дате и категории. Тамада, фотограф, диджей — в любом городе Казахстана.',
   },
   {
-    n: '2', icon: '📅',
+    n: '2', icon: '📋',
+    title: 'Изучите профиль',
+    desc: 'Фото, описание, услуги и цены — всё на одной странице. Оцените специалиста до того, как напишете.',
+  },
+  {
+    n: '3', icon: '📅',
     title: 'Проверьте занятость',
     desc: 'Цветной календарь прямо на профиле. Сразу видно свободные и занятые даты — без переписки.',
   },
   {
-    n: '3', icon: '💬',
+    n: '4', icon: '💬',
     title: 'Свяжитесь напрямую',
-    desc: 'WhatsApp, Telegram, Instagram — всё в одном месте. Нажали, написали, договорились.',
+    desc: 'WhatsApp, Telegram, Instagram — один клик и вы уже пишете специалисту. Никаких посредников.',
   },
 ];
 
@@ -47,7 +52,6 @@ const CAL_DAYS = [
   { d: 25, s: 'free' }, { d: 26, s: 'free' }, { d: 27, s: 'free' },
   { d: 28, s: 'tentative' }, { d: 29, s: 'free' }, { d: 30, s: 'free' },
 ];
-
 const CAL_STYLE: Record<string, { bg: string; color: string; dot: string }> = {
   free:     { bg: '#dcfce7', color: '#166534', dot: '#22c55e' },
   busy:     { bg: '#fee2e2', color: '#991b1b', dot: '#ef4444' },
@@ -67,9 +71,8 @@ export default function HomePage() {
           {BRAND}
         </a>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Link href="/for-clients"     className="btn btn-ghost btn-sm hide-mobile">Клиентам</Link>
-          <Link href="/for-specialists" className="btn btn-ghost btn-sm hide-mobile">Специалистам</Link>
           <Link href="/search"          className="btn btn-ghost btn-sm hide-mobile">Найти</Link>
+          <Link href="/for-specialists" className="btn btn-ghost btn-sm hide-mobile">Специалистам</Link>
           <Link href="/login"           className="btn btn-ghost btn-sm" style={{ color: 'var(--ink-3)' }}>Войти</Link>
           <Link href="/signup"          className="btn btn-brand btn-sm">Регистрация</Link>
         </div>
@@ -82,16 +85,20 @@ export default function HomePage() {
             ✦ Octiqa — связываем клиента и специалиста
           </div>
           <h1 className="hero-land-title">
-            Профиль. Календарь.<br />Прямой контакт.
+            Найдите нужного<br />специалиста за минуты
           </h1>
           <p className="hero-land-sub">
-            Octiqa помогает быстро найти нужного специалиста через профиль, календарь занятости и прямые контакты — без посредников, по всему Казахстану.
+            Смотрите профили, проверяйте занятость и связывайтесь напрямую — без посредников, по всему Казахстану.
           </p>
           <div className="hero-land-actions">
-            <Link href="/for-clients"     className="btn btn-white btn-lg">Ищу специалиста</Link>
-            <Link href="/for-specialists" className="btn btn-ghost-inv btn-lg">Я специалист →</Link>
+            <Link href="/search" className="btn btn-white btn-lg">Найти специалиста</Link>
           </div>
-          <p className="hero-land-note">Для клиентов — бесплатно · Для специалистов — 30 дней бесплатно</p>
+          <p className="hero-land-note">
+            Вы специалист?{' '}
+            <Link href="/for-specialists" style={{ color: 'rgba(255,255,255,.75)', textDecoration: 'underline' }}>
+              Создать профиль →
+            </Link>
+          </p>
         </div>
       </section>
 
@@ -100,12 +107,12 @@ export default function HomePage() {
         <div className="container">
           <div className="land-header">
             <p className="land-eyebrow">Как это работает</p>
-            <h2 className="land-title">Три шага до результата</h2>
-            <p className="land-sub">От «нужен специалист» до «договорились» — без посредников.</p>
+            <h2 className="land-title">Четыре шага до результата</h2>
+            <p className="land-sub">От поиска до первого сообщения — быстро и без лишних действий.</p>
           </div>
-          <div className="steps-grid">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
             {STEPS.map((st, i) => (
-              <div key={st.n} className={`step-card slide-up slide-up-${i + 1}`}>
+              <div key={st.n} className={`step-card slide-up slide-up-${(i % 3) + 1}`}>
                 <div className="step-num">{st.n}</div>
                 <div style={{ fontSize: 28, marginBottom: 10 }}>{st.icon}</div>
                 <h3 className="step-title">{st.title}</h3>
@@ -150,22 +157,24 @@ export default function HomePage() {
               <CalendarDemo />
             </div>
             <div style={{ order: 1 }}>
-              <p className="land-eyebrow">Визуальный календарь</p>
+              <p className="land-eyebrow">Занятость без звонков</p>
               <h2 className="land-title" style={{ textAlign: 'left', maxWidth: 440 }}>
-                Смотрите занятость<br />без переписки
+                Проверьте занятость<br />прямо сейчас
               </h2>
-              <p className="land-sub" style={{ textAlign: 'left', margin: 0 }}>
-                На профиле каждого специалиста — живой цветной календарь.
-                Сразу видно занятые и свободные дни. Никакой переписки — просто открываете и видите.
+              <p className="land-sub" style={{ textAlign: 'left', margin: '0 0 20px' }}>
+                На профиле каждого специалиста — живой цветной календарь. Сразу видно свободные и занятые дни. Не нужно ждать ответа.
               </p>
-              <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {[
-                  '🟢 Зелёный — день свободен',
-                  '🔴 Красный — день занят',
-                  '🟡 Жёлтый — под вопросом',
-                  '🟠 Оранжевый — частично занят',
+                  { dot: '#22c55e', text: 'Зелёный — свободен' },
+                  { dot: '#ef4444', text: 'Красный — занят' },
+                  { dot: '#f59e0b', text: 'Жёлтый — под вопросом' },
+                  { dot: '#f97316', text: 'Оранжевый — частично занят' },
                 ].map(item => (
-                  <div key={item} style={{ fontSize: 14, color: 'var(--ink-2)', display: 'flex', alignItems: 'center', gap: 8 }}>{item}</div>
+                  <div key={item.text} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: 'var(--ink-2)' }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: item.dot, flexShrink: 0 }} />
+                    {item.text}
+                  </div>
                 ))}
               </div>
             </div>
@@ -177,12 +186,9 @@ export default function HomePage() {
       {/* ── CTA band ────────────────────────── */}
       <section className="cta-band">
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <h2 className="cta-band-title">С чего начать?</h2>
-          <p className="cta-band-sub">Найдите специалиста бесплатно или создайте свой профиль.</p>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link href="/for-clients"     className="btn btn-white btn-lg">Ищу специалиста</Link>
-            <Link href="/for-specialists" className="btn btn-ghost-inv btn-lg">Я специалист</Link>
-          </div>
+          <h2 className="cta-band-title">Начните прямо сейчас</h2>
+          <p className="cta-band-sub">Поиск специалиста — без регистрации.</p>
+          <Link href="/search" className="btn btn-white btn-lg">Найти специалиста</Link>
         </div>
       </section>
 
@@ -195,15 +201,15 @@ export default function HomePage() {
               {BRAND}
             </a>
             <div className="footer-land-links">
-              <Link href="/for-clients"     className="footer-land-link">Клиентам</Link>
-              <Link href="/for-specialists" className="footer-land-link">Специалистам</Link>
               <Link href="/search"          className="footer-land-link">Поиск</Link>
+              <Link href="/for-specialists" className="footer-land-link">Специалистам</Link>
               <Link href="/login"           className="footer-land-link">Войти</Link>
               <Link href="/signup"          className="footer-land-link">Регистрация</Link>
+              <a href="mailto:octiqa.info@gmail.com" className="footer-land-link">octiqa.info@gmail.com</a>
             </div>
           </div>
           <div className="footer-land-bottom">
-            <span className="footer-land-copy">© 2026 {BRAND} — Управляй занятостью. Находи клиентов.</span>
+            <span className="footer-land-copy">© 2026 {BRAND} — Связываем клиента и специалиста в Казахстане</span>
             <span style={{ fontSize: 13 }}>Алматы · Астана · Шымкент и ещё</span>
           </div>
         </div>

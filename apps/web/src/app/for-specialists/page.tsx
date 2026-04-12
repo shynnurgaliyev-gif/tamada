@@ -66,7 +66,7 @@ export default function ForSpecialistsPage() {
           Octiqa
         </a>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Link href="/for-clients" className="btn btn-ghost btn-sm hide-mobile">Клиентам</Link>
+          <Link href="/search" className="btn btn-ghost btn-sm hide-mobile">Найти</Link>
           <Link href="/login"  className="btn btn-ghost btn-sm" style={{ color: 'var(--ink-3)' }}>Войти</Link>
           <Link href="/signup" className="btn btn-brand btn-sm">Регистрация</Link>
         </div>
@@ -76,7 +76,7 @@ export default function ForSpecialistsPage() {
       <section className="hero-land">
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div className="hero-land-eyebrow">
-            ✦ Для специалистов · 30 дней бесплатно
+            ✦ Для специалистов
           </div>
           <h1 className="hero-land-title">
             Профиль, который<br />работает на вас
@@ -88,7 +88,6 @@ export default function ForSpecialistsPage() {
             <Link href="/signup" className="btn btn-white btn-lg">Создать профиль</Link>
             <Link href="/login"  className="btn btn-ghost-inv btn-lg">Уже есть аккаунт →</Link>
           </div>
-          <p className="hero-land-note">30 дней бесплатно · Без привязки карты</p>
         </div>
       </section>
 
@@ -209,7 +208,7 @@ export default function ForSpecialistsPage() {
       <section className="cta-band">
         <div style={{ position: 'relative', zIndex: 1 }}>
           <h2 className="cta-band-title">Начните с Octiqa сегодня</h2>
-          <p className="cta-band-sub">30 дней бесплатно. Никакой привязки карты.</p>
+          <p className="cta-band-sub">Создайте профиль и начните принимать клиентов.</p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link href="/signup" className="btn btn-white btn-lg">Создать профиль</Link>
             <Link href="/login"  className="btn btn-ghost-inv btn-lg">Войти</Link>
@@ -226,10 +225,10 @@ export default function ForSpecialistsPage() {
               Octiqa
             </a>
             <div className="footer-land-links">
-              <Link href="/for-clients" className="footer-land-link">Клиентам</Link>
-              <Link href="/search"      className="footer-land-link">Поиск</Link>
-              <Link href="/login"       className="footer-land-link">Войти</Link>
-              <Link href="/signup"      className="footer-land-link">Регистрация</Link>
+              <Link href="/search"  className="footer-land-link">Поиск</Link>
+              <Link href="/login"   className="footer-land-link">Войти</Link>
+              <Link href="/signup"  className="footer-land-link">Регистрация</Link>
+              <a href="mailto:octiqa.info@gmail.com" className="footer-land-link">octiqa.info@gmail.com</a>
             </div>
           </div>
           <div className="footer-land-bottom">
