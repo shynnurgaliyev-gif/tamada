@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-const BRAND = 'BRAND_NAME';
+const BRAND = 'Linkora';
 
 /* ── Data ──────────────────────────────────── */
 const STATS = [
@@ -154,14 +154,13 @@ export default function HomePage() {
       <section className="hero-land">
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div className="hero-land-eyebrow">
-            ✦ Платформа для организаторов мероприятий
+            ✦ Linkora — связываем клиента и исполнителя
           </div>
           <h1 className="hero-land-title">
-            Найдите исполнителя —<br />без лишних шагов
+            Профиль. Календарь.<br />Прямой кон��акт.
           </h1>
           <p className="hero-land-sub">
-            Тамады, фотографы, диджеи и другие профессионалы по всему Казахстану.
-            Смотрите занятость, связывайтесь напрямую.
+            Linkora связывает вас с нужным специалистом через профиль, календарь занятости и контакты — без посредников, по всему Казахстану.
           </p>
           <div className="hero-land-actions">
             <Link href="/search" className="btn btn-white btn-lg">
@@ -171,7 +170,7 @@ export default function HomePage() {
               Я исполнитель →
             </Link>
           </div>
-          <p className="hero-land-note">Бесплатно для клиентов · 30 дней триала для исполнителей</p>
+          <p className="hero-land-note">Для клиентов — бесплатно · Для исполнителей — 30 дней бесплатно</p>
         </div>
       </section>
 
@@ -192,8 +191,8 @@ export default function HomePage() {
         <div className="container">
           <div className="land-header">
             <p className="land-eyebrow">Как это работает</p>
-            <h2 className="land-title">Три шага до вашего мероприятия</h2>
-            <p className="land-sub">Никаких посредников и лишних звонков — только вы и нужный специалист.</p>
+            <h2 className="land-title">Как работает Linkora</h2>
+            <p className="land-sub">Три шага от «нужен исполнитель» до «договорились» — без посредников и лишних звонков.</p>
           </div>
           <div className="steps-grid">
             {STEPS.map((st, i) => (
@@ -213,7 +212,7 @@ export default function HomePage() {
         <div className="container">
           <div className="land-header">
             <p className="land-eyebrow">Категории</p>
-            <h2 className="land-title">Любой специалист для вашего события</h2>
+            <h2 className="land-title">Специалисты на любое мероприятие</h2>
           </div>
           <div className="cat-chips">
             {CATEGORIES.map(c => (
@@ -270,7 +269,7 @@ export default function HomePage() {
         <div className="container">
           <div className="land-header">
             <p className="land-eyebrow">Почему удобно</p>
-            <h2 className="land-title">Всё что нужно — в одном месте</h2>
+            <h2 className="land-title">Почему выбирают Linkora</h2>
           </div>
           <div className="feature-grid">
             {FEATURES.map((f, i) => (
@@ -341,7 +340,7 @@ export default function HomePage() {
           <div className="land-header">
             <p className="land-eyebrow">Тарифы</p>
             <h2 className="land-title">Прозрачно и честно</h2>
-            <p className="land-sub">Для клиентов — всегда бесплатно. Исполнители платят только за свой профиль.</p>
+            <p className="land-sub">Для клиентов Linkora — всегда бесплатна. Исполнители платят только за активный профиль.</p>
           </div>
           <div className="pricing-grid">
             {/* Client */}
@@ -377,8 +376,8 @@ export default function HomePage() {
       {/* ── CTA band ─────────────────────── */}
       <section className="cta-band">
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <h2 className="cta-band-title">Готовы начать?</h2>
-          <p className="cta-band-sub">Зарегистрируйтесь за минуту. Первые 30 дней — бесплатно.</p>
+          <h2 className="cta-band-title">Начните с Linkora сегодня</h2>
+          <p className="cta-band-sub">Клиентам — поиск бесплатно. Исполнителям — 30 дней без оплаты.</p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link href="/signup" className="btn btn-white btn-lg">Создать профиль</Link>
             <Link href="/search" className="btn btn-ghost-inv btn-lg">Найти исполнителя</Link>
@@ -402,7 +401,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="footer-land-bottom">
-            <span className="footer-land-copy">© 2025 {BRAND} — Платформа исполнителей Казахстана</span>
+            <span className="footer-land-copy">© 2025 {BRAND} — Связываем клиентов и исполнителей в Казахстане</span>
             <span style={{ fontSize: 13 }}>Алматы · Астана · Шымкент и ещё</span>
           </div>
         </div>

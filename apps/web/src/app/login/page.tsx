@@ -39,7 +39,7 @@ export default function LoginPage() {
       <div className="card" style={{ width: '100%', maxWidth: 400, padding: 32 }}>
         <a href="/" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontWeight: 900, fontSize: 20, textDecoration: 'none', color: 'var(--ink)', marginBottom: 24, letterSpacing: '-.04em' }}>
           <span style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #4f46e5, #7c3aed, #a855f7)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, boxShadow: '0 4px 20px rgba(124,58,237,.28)' }}>✦</span>
-          BRAND_NAME
+          Linkora
         </a>
         <h1 style={{ margin: '0 0 24px', fontSize: 22, fontWeight: 700, textAlign: 'center' }}>Вход</h1>
         <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

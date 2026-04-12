@@ -2,13 +2,18 @@
 
 ## Overview
 
+**Brand:** Linkora — платформа, которая связывает клиента и исполнителя.
+
 ```
-Browser → tamada-web (Next.js, Render)
+Browser → linkora-web (Next.js, Render)
              ↓ fetch
-tamada-api (Fastify, Render)
+linkora-api (Fastify, Render)
              ↓ postgres.js
 Supabase (PostgreSQL + Auth + Storage)
 ```
+
+> Note: internal package scope is still `@tamada/*` (not renamed to avoid breaking builds).
+> Service display names updated: `linkora-web`, `linkora-api`.
 
 ## Apps
 
@@ -16,7 +21,7 @@ Supabase (PostgreSQL + Auth + Storage)
 - Fastify v5
 - Entry: src/main.ts → parseEnv() → createApp() → listen()
 - Health: GET /health, GET /api/health → { status, service, env, uptime }
-- Reads env via @tamada/config (Zod)
+- Reads env via @tamada/config (Zod)  <!-- internal scope, not renamed -->
 - Security: @fastify/helmet + @fastify/rate-limit + CORS (CORS_ORIGINS)
 - Body limit: 512 KB JSON, 10 MB multipart
 

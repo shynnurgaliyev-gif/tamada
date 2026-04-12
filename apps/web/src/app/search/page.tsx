@@ -151,7 +151,7 @@ export default function SearchPage() {
       <nav className="nav-frosted">
         <a href="/" className="logo-mark">
           <span className="logo-mark-icon">✦</span>
-          <span className="hide-mobile">BRAND_NAME</span>
+          <span className="hide-mobile">Linkora</span>
         </a>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <a href="/login" className="btn btn-ghost btn-sm" style={{ color: 'var(--ink-3)' }}>Войти</a>

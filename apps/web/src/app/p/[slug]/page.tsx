@@ -43,19 +43,19 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     : provider.display_name;
   const description = provider.bio
     ? provider.bio.slice(0, 160)
-    : `Профиль исполнителя ${provider.display_name} на платформе Тамада. Услуги, фото, контакты и расписание.`;
+    : `Профиль исполнителя ${provider.display_name} на Linkora. Услуги, фото, контакты и календарь занятости.`;
 
   return {
     title,
     description,
     openGraph: {
-      title: `${title} | Тамада`,
+      title: `${title} | Linkora`,
       description,
       type: 'profile',
     },
     twitter: {
       card: 'summary',
-      title: `${title} | Тамада`,
+      title: `${title} | Linkora`,
       description,
     },
     robots: { index: true, follow: true },

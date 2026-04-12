@@ -160,7 +160,7 @@ export default function ProfileClient({ slug }: { slug: string }) {
         <a href="/search" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: 'var(--ink-2)', textDecoration: 'none' }}>← Назад</a>
         <a href="/" className="logo-mark" style={{ fontSize: 16 }}>
           <span className="logo-mark-icon" style={{ width: 26, height: 26, fontSize: 13 }}>✦</span>
-          BRAND_NAME
+          Linkora
         </a>
       </nav>
 

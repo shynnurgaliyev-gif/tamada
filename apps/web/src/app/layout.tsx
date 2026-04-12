@@ -1,17 +1,17 @@
 import type { Metadata } from 'next';
 import './globals.css';
 
-const WEB_URL = process.env['NEXT_PUBLIC_WEB_URL'] ?? 'https://tamada.kz';
+const WEB_URL = process.env['NEXT_PUBLIC_WEB_URL'] ?? 'https://linkora.kz';
 
 export const metadata: Metadata = {
   title: {
-    default: 'Тамада — исполнители на мероприятия в Казахстане',
-    template: '%s | Тамада',
+    default: 'Linkora — найдите исполнителя на мероприятие в Казахстане',
+    template: '%s | Linkora',
   },
-  description: 'Найдите тамаду, фотографа, видеографа, диджея и других исполнителей на свадьбу и мероприятия в Казахстане.',
+  description: 'Linkora связывает клиентов и исполнителей. Тамады, фотографы, видеографы, диджеи и другие специалисты по всему Казахстану — профили, календарь занятости, прямые контакты.',
   metadataBase: new URL(WEB_URL),
   openGraph: {
-    siteName: 'Тамада',
+    siteName: 'Linkora',
     locale: 'ru_KZ',
     type: 'website',
   },
