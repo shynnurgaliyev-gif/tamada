@@ -233,71 +233,38 @@ function LegendItem({ color, label }: { color: string; label: string }) {
 }
 
 function CombinedChart({ rows, days }: { rows: DailyRow[]; days: number }) {
-  const BAR_H = 120;
-  const maxVal = Math.max(...rows.map(r => r.profile_views), 1);
-  // How often to show a date label
+  const CHART_H = 140;
+  const maxVal = Math.max(...rows.map(r => Math.max(r.profile_views, r.contact_reveals, r.calendar_views)), 1);
   const labelEvery = days <= 7 ? 1 : days <= 14 ? 2 : days <= 30 ? 5 : 10;
+  const px = (v: number) => Math.max(v > 0 ? 3 : 0, Math.round((v / maxVal) * CHART_H));
 
   return (
     <div style={{ overflowX: 'auto' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, minWidth: Math.max(rows.length * 18, 300), height: BAR_H + 36, paddingBottom: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, minWidth: Math.max(rows.length * 22, 280) }}>
         {rows.map((row, idx) => {
-          const viewH    = maxVal > 0 ? Math.max(row.profile_views > 0 ? 3 : 1,    Math.round((row.profile_views    / maxVal) * BAR_H)) : 1;
-          const revealH  = maxVal > 0 ? Math.max(row.contact_reveals > 0 ? 3 : 0,  Math.round((row.contact_reveals  / maxVal) * BAR_H)) : 0;
-          const calH     = maxVal > 0 ? Math.max(row.calendar_views > 0 ? 3 : 0,   Math.round((row.calendar_views   / maxVal) * BAR_H)) : 0;
-          const showLabel = idx % labelEvery === 0;
-          const dateParts = row.date.slice(5).replace('-', '/');
-
+          const hasData = row.profile_views > 0 || row.contact_reveals > 0 || row.calendar_views > 0;
+          const showLabel = idx % labelEvery === 0 || idx === rows.length - 1;
           return (
             <div
               key={row.date}
               title={`${formatDate(row.date, true)}\nПросмотры: ${row.profile_views}\nКонтакты: ${row.contact_reveals}\nКалендарь: ${row.calendar_views}`}
-              style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'default', minWidth: 12 }}
+              style={{ flex: 1, minWidth: 14, display: 'flex', flexDirection: 'column', alignItems: 'center' }}
             >
-              {/* Value hint above bar on non-zero days */}
-              <div style={{ fontSize: 9, color: 'var(--ink-4)', marginBottom: 2, height: 12, lineHeight: '12px', fontWeight: 600 }}>
+              {/* Value label */}
+              <div style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, height: 14, display: 'flex', alignItems: 'flex-end', paddingBottom: 2 }}>
                 {row.profile_views > 0 ? row.profile_views : ''}
               </div>
 
-              {/* Bar group */}
-              <div style={{ width: '100%', display: 'flex', alignItems: 'flex-end', gap: 1, height: BAR_H }}>
-                {/* Profile views bar */}
-                <div style={{
-                  flex: 1,
-                  height: viewH,
-                  background: row.profile_views > 0 ? 'var(--brand)' : 'var(--border)',
-                  borderRadius: '2px 2px 0 0',
-                  opacity: row.profile_views > 0 ? 0.85 : 0.4,
-                }} />
-                {/* Contact reveals bar */}
-                <div style={{
-                  flex: 1,
-                  height: revealH || 1,
-                  background: row.contact_reveals > 0 ? 'var(--green)' : 'transparent',
-                  borderRadius: '2px 2px 0 0',
-                  opacity: 0.9,
-                }} />
-                {/* Calendar views bar */}
-                {calH > 0 && (
-                  <div style={{
-                    flex: 1,
-                    height: calH,
-                    background: '#f59e0b',
-                    borderRadius: '2px 2px 0 0',
-                    opacity: 0.8,
-                  }} />
-                )}
+              {/* Bars aligned to bottom */}
+              <div style={{ width: '100%', height: CHART_H, display: 'flex', alignItems: 'flex-end', gap: 1 }}>
+                <div style={{ flex: 1, height: hasData ? Math.max(px(row.profile_views), 1) : 2, backgroundColor: '#7c3aed', borderRadius: '2px 2px 0 0', opacity: row.profile_views > 0 ? 1 : 0.12 }} />
+                <div style={{ flex: 1, height: px(row.contact_reveals) || (hasData ? 0 : 0), backgroundColor: '#22c55e', borderRadius: '2px 2px 0 0', opacity: row.contact_reveals > 0 ? 1 : 0 }} />
+                <div style={{ flex: 1, height: px(row.calendar_views) || 0, backgroundColor: '#f59e0b', borderRadius: '2px 2px 0 0', opacity: row.calendar_views > 0 ? 1 : 0 }} />
               </div>
 
-              {/* X-axis label */}
-              <div style={{
-                fontSize: 9,
-                color: showLabel ? 'var(--ink-3)' : 'transparent',
-                marginTop: 4,
-                whiteSpace: 'nowrap',
-                fontWeight: 500,
-              }}>
-                {dateParts}
+              {/* Date label */}
+              <div style={{ fontSize: 9, color: showLabel ? '#9ca3af' : 'transparent', marginTop: 4, whiteSpace: 'nowrap' }}>
+                {row.date.slice(5).replace('-', '/')}
               </div>
             </div>
           );

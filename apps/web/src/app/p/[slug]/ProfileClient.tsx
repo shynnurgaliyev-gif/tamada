@@ -148,23 +148,31 @@ export default function ProfileClient({ slug }: { slug: string }) {
 
   void calTimezone;
 
-  // Track calendar view once when section scrolls into viewport
+  // Track calendar view: only after user dwells on the section for ≥1.5s
   useEffect(() => {
     if (!provider || isPreview) return;
     const el = calendarTrackRef.current;
     if (!el) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const obs = new IntersectionObserver(entries => {
-      if (entries[0]?.isIntersecting && !calendarTracked.current) {
-        calendarTracked.current = true;
-        fetch(`${API}/public/providers/${slug}/track`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ event: 'calendar_view', viewer_session_id: getSessionId() }),
-        }).catch(() => null);
+      const entry = entries[0];
+      if (entry?.isIntersecting && !calendarTracked.current) {
+        timer = setTimeout(() => {
+          if (calendarTracked.current) return;
+          calendarTracked.current = true;
+          fetch(`${API}/public/providers/${slug}/track`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event: 'calendar_view', viewer_session_id: getSessionId() }),
+          }).catch(() => null);
+        }, 1500);
+      } else {
+        // Scrolled away before 1.5s — cancel
+        if (timer) { clearTimeout(timer); timer = null; }
       }
-    }, { threshold: 0.2 });
+    }, { threshold: 0.3 });
     obs.observe(el);
-    return () => obs.disconnect();
+    return () => { obs.disconnect(); if (timer) clearTimeout(timer); };
   }, [provider, slug, isPreview]);
 
   async function revealContacts() {
