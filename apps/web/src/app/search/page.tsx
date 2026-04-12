@@ -60,12 +60,6 @@ export default function SearchPage() {
 
   const [meta, setMeta] = useState<Meta>({ cities: [], categories: [] });
 
-  // AI Search state
-  const [aiQuery,   setAiQuery]   = useState('');
-  const [aiChips,   setAiChips]   = useState<string[]>([]);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiMode,    setAiMode]    = useState('');
-
   useEffect(() => {
     fetch(`${API}/search/filters/meta`)
       .then(r => r.json())
@@ -107,7 +101,6 @@ export default function SearchPage() {
 
   const handleSearch = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    setAiChips([]);
     void doSearch(f, sort, 1);
   }, [f, sort]);
 
@@ -115,52 +108,6 @@ export default function SearchPage() {
     setSort(newSort);
     void doSearch(f, newSort, 1);
   }, [f]);
-
-  async function doAiSearch(e: React.FormEvent) {
-    e.preventDefault();
-    if (!aiQuery.trim()) return;
-    setAiLoading(true);
-    setAiChips([]);
-
-    const res  = await fetch(`${API}/search/ai`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: aiQuery }),
-    });
-    const data = await res.json() as {
-      ok: boolean;
-      filters?: { city?: string; category?: string; date?: string; time_from?: string; time_to?: string; price_from?: number; price_to?: number };
-      understood?: string[];
-      mode?: string;
-      providers?: Provider[];
-      total?: number;
-      pages?: number;
-    };
-
-    if (data.ok) {
-      const pf = data.filters ?? {};
-      setF(prev => ({
-        ...prev,
-        city:      pf.city      ?? prev.city,
-        category:  pf.category  ?? prev.category,
-        date:      pf.date      ?? prev.date,
-        timeFrom:  pf.time_from ?? prev.timeFrom,
-        timeTo:    pf.time_to   ?? prev.timeTo,
-        priceFrom: pf.price_from != null ? String(pf.price_from) : prev.priceFrom,
-        priceTo:   pf.price_to  != null ? String(pf.price_to)  : prev.priceTo,
-      }));
-      setAiChips(data.understood ?? []);
-      setAiMode(data.mode ?? '');
-      if (data.providers) {
-        setProviders(data.providers ?? []);
-        setTotal(data.total ?? 0);
-        setPages(data.pages ?? 1);
-        setPage(1);
-        setSearched(true);
-      }
-    }
-    setAiLoading(false);
-  }
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
@@ -171,39 +118,14 @@ export default function SearchPage() {
           <span className="hide-mobile">Octiqa</span>
         </a>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <a href="/login" className="btn btn-ghost btn-sm" style={{ color: 'var(--ink-3)' }}>Войти</a>
+          <a href="/for-specialists" className="btn btn-ghost btn-sm hide-mobile">Специалистам</a>
+          <a href="/login"  className="btn btn-ghost btn-sm" style={{ color: 'var(--ink-3)' }}>Войти</a>
           <a href="/signup" className="btn btn-brand btn-sm">Регистрация</a>
         </div>
       </nav>
 
       <div className="container" style={{ padding: '20px 16px' }}>
-        {/* AI Search Bar */}
-        <form onSubmit={doAiSearch} className="ai-bar">
-          <div className="ai-row">
-            <span style={{ fontSize: 20, flexShrink: 0 }}>✨</span>
-            <input
-              className="ai-input"
-              value={aiQuery}
-              onChange={e => setAiQuery(e.target.value)}
-              placeholder='Опишите кого ищете, например: "тамада в Алматы на субботу вечером"'
-            />
-            <button type="submit" className="ai-btn" disabled={aiLoading}>
-              {aiLoading ? '...' : 'Умный поиск'}
-            </button>
-          </div>
-          {aiChips.length > 0 && (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10, alignItems: 'center' }}>
-              {aiMode && (
-                <span className="badge">{aiMode === 'llm' ? '🤖 AI' : '📐 Правила'}</span>
-              )}
-              {aiChips.map((chip, i) => (
-                <span key={i} className="badge badge-featured">✓ {chip}</span>
-              ))}
-            </div>
-          )}
-        </form>
-
-        {/* Regular Filter Form */}
+        {/* Filter Form */}
         <form onSubmit={handleSearch} className="card" style={{ padding: 16, marginBottom: 16 }}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <select className="select" style={{ flex: 1, minWidth: 140 }} value={f.city} onChange={e => setF(p => ({ ...p, city: e.target.value }))}>
