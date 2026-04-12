@@ -51,6 +51,7 @@ export default function DashboardPage() {
   }, []);
 
   async function logout() {
+    if (!window.confirm('Выйти из аккаунта?')) return;
     const token = localStorage.getItem('session_token');
     if (token) {
       await fetch(`${API}/auth/logout`, {

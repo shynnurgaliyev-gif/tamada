@@ -102,6 +102,24 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── Stats band ──────────────────────── */}
+      <section style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
+        <div className="container" style={{ padding: '18px 16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 32 }}>
+            {[
+              { n: '150+', label: 'специалистов' },
+              { n: '10+',  label: 'городов' },
+              { n: '0',    label: 'комиссий' },
+            ].map(s => (
+              <div key={s.label} style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--brand)', lineHeight: 1 }}>{s.n}</div>
+                <div style={{ fontSize: 13, color: 'var(--ink-3)', marginTop: 3 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── How it works ────────────────────── */}
       <section className="land-section" style={{ background: 'var(--bg)' }}>
         <div className="container">

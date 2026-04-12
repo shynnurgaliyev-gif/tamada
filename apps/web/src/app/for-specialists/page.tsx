@@ -192,7 +192,7 @@ export default function ForSpecialistsPage() {
               <span className="price-tag">Для специалистов</span>
               <h3 className="price-name">Профиль</h3>
               <div className="price-amount"><sup>от </sup>9 900<span className="price-period">₸/мес</span></div>
-              <p className="price-desc">Публичный профиль с календарём и Telegram-управлением.</p>
+              <p className="price-desc">Публичный профиль с календарём и Telegram-управлением. Оплата только после пробного периода.</p>
               <ul className="price-features">
                 {PRICE_FEATURES_PRO.map(f => <li key={f}>{f}</li>)}
               </ul>

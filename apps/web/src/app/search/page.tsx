@@ -136,7 +136,10 @@ export default function SearchPage() {
               <option value="">Все категории</option>
               {meta.categories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
-            <input className="input" style={{ flex: 1, minWidth: 120 }} type="date" value={f.date} onChange={e => setF(p => ({ ...p, date: e.target.value }))} />
+            <div style={{ flex: 1, minWidth: 120, position: 'relative' }}>
+              {!f.date && <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: 'var(--ink-4)', pointerEvents: 'none', whiteSpace: 'nowrap' }}>📅 Дата мероприятия</span>}
+              <input className="input" style={{ width: '100%' }} type="date" value={f.date} onChange={e => setF(p => ({ ...p, date: e.target.value }))} />
+            </div>
             <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? '...' : 'Найти'}</button>
           </div>
 
@@ -147,8 +150,14 @@ export default function SearchPage() {
           {showMore && (
             <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                <input className="input" style={{ flex: 1, minWidth: 120 }} type="time" value={f.timeFrom} onChange={e => setF(p => ({ ...p, timeFrom: e.target.value }))} title="Время с (Алматы)" />
-                <input className="input" style={{ flex: 1, minWidth: 120 }} type="time" value={f.timeTo}   onChange={e => setF(p => ({ ...p, timeTo: e.target.value }))}   title="Время до (Алматы)" />
+                <label style={{ flex: 1, minWidth: 120, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <span style={{ fontSize: 11, color: 'var(--ink-4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Время с (Алматы)</span>
+                  <input className="input" type="time" value={f.timeFrom} onChange={e => setF(p => ({ ...p, timeFrom: e.target.value }))} />
+                </label>
+                <label style={{ flex: 1, minWidth: 120, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <span style={{ fontSize: 11, color: 'var(--ink-4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Время до (Алматы)</span>
+                  <input className="input" type="time" value={f.timeTo} onChange={e => setF(p => ({ ...p, timeTo: e.target.value }))} />
+                </label>
                 <input className="input" style={{ flex: 1, minWidth: 120, maxWidth: 130 }} type="number" value={f.priceFrom} onChange={e => setF(p => ({ ...p, priceFrom: e.target.value }))} placeholder="Цена от ₸" min="0" />
                 <input className="input" style={{ flex: 1, minWidth: 120, maxWidth: 130 }} type="number" value={f.priceTo}   onChange={e => setF(p => ({ ...p, priceTo: e.target.value }))}   placeholder="Цена до ₸" min="0" />
               </div>
@@ -202,7 +211,7 @@ export default function SearchPage() {
 }
 
 function ProviderCard({ provider: p, animDelay }: { provider: Provider; animDelay: number }) {
-  const cats     = p.categories?.slice(0, 2).join(' · ') ?? '';
+  const cats     = p.categories?.slice(0, 3).join(' · ') ?? '';
   const price    = p.min_price ? `от ${Number(p.min_price).toLocaleString('ru-RU')} ${p.min_currency ?? '₸'}` : '';
   const location = [p.city, p.region].filter(Boolean).join(', ');
   const initial  = p.display_name[0]?.toUpperCase() ?? '?';

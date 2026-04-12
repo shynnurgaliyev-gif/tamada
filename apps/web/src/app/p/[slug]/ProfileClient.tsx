@@ -70,6 +70,7 @@ export default function ProfileClient({ slug }: { slug: string }) {
   const [provider, setProvider] = useState<Provider | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const now = new Date();
   const [calYear, setCalYear] = useState(now.getFullYear());
   const [calMonth, setCalMonth] = useState(now.getMonth() + 1);
@@ -329,11 +330,32 @@ export default function ProfileClient({ slug }: { slug: string }) {
           <div className="card" style={{ padding: 20, marginBottom: 16 }}>
             <h2 style={{ margin: '0 0 14px', fontSize: 17, fontWeight: 700 }}>Фото</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 8 }}>
-              {photos.map(ph => (
-                <img key={ph.id} src={ph.url} alt={provider.display_name} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 8 }} />
+              {photos.map((ph, i) => (
+                <button
+                  key={ph.id}
+                  onClick={() => setLightboxIdx(i)}
+                  style={{ padding: 0, border: 'none', background: 'none', cursor: 'zoom-in', borderRadius: 8, overflow: 'hidden', display: 'block' }}
+                >
+                  <img src={ph.url} alt={provider.display_name} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block', transition: 'transform .2s' }}
+                    onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.04)')}
+                    onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
+                  />
+                </button>
               ))}
             </div>
           </div>
+        )}
+
+        {/* ── Lightbox ─────────────────────────────────────────── */}
+        {lightboxIdx !== null && (
+          <LightboxOverlay
+            photos={photos}
+            idx={lightboxIdx}
+            name={provider.display_name}
+            onClose={() => setLightboxIdx(null)}
+            onPrev={() => setLightboxIdx(i => i !== null ? (i - 1 + photos.length) % photos.length : null)}
+            onNext={() => setLightboxIdx(i => i !== null ? (i + 1) % photos.length : null)}
+          />
         )}
 
         {/* Calendar */}
@@ -425,12 +447,16 @@ export default function ProfileClient({ slug }: { slug: string }) {
                 <FaComments size={26} />
               </div>
               <h2 style={{ margin: '0 0 8px', fontSize: 19, fontWeight: 800 }}>Связаться с исполнителем</h2>
-              <p style={{ margin: '0 0 6px', fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.55 }}>
+              <p style={{ margin: '0 0 10px', fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.55 }}>
                 WhatsApp, Telegram, Instagram — откроются после нажатия
               </p>
-              {selectedCalDate && (
+              {selectedCalDate ? (
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 4, padding: '5px 12px', background: 'var(--brand-xlight)', borderRadius: 20, fontSize: 13, color: 'var(--brand)', fontWeight: 600 }}>
                   📅 {new Date(selectedCalDate + 'T12:00:00Z').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
+                </div>
+              ) : (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginBottom: 4, padding: '4px 12px', background: 'var(--surface-2)', borderRadius: 20, fontSize: 12, color: 'var(--ink-4)' }}>
+                  💡 Выберите дату в календаре выше, чтобы указать её в запросе
                 </div>
               )}
               <div style={{ height: 20 }} />
@@ -508,6 +534,84 @@ export default function ProfileClient({ slug }: { slug: string }) {
         </div>
 
       </div>
+    </div>
+  );
+}
+
+function LightboxOverlay({
+  photos, idx, name, onClose, onPrev, onNext,
+}: {
+  photos: { id: string; url: string }[];
+  idx: number;
+  name: string;
+  onClose: () => void;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowLeft') onPrev();
+      if (e.key === 'ArrowRight') onNext();
+    }
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [onClose, onPrev, onNext]);
+
+  const photo = photos[idx];
+  if (!photo) return null;
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1000,
+        background: 'rgba(0,0,0,.92)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 16,
+        animation: 'fadeIn .15s ease',
+      }}
+    >
+      {/* Prev */}
+      {photos.length > 1 && (
+        <button
+          onClick={e => { e.stopPropagation(); onPrev(); }}
+          style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,.12)', border: 'none', color: '#fff', width: 44, height: 44, borderRadius: '50%', fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >‹</button>
+      )}
+
+      {/* Image */}
+      <img
+        src={photo.url}
+        alt={name}
+        onClick={e => e.stopPropagation()}
+        style={{ maxWidth: '100%', maxHeight: '90vh', objectFit: 'contain', borderRadius: 10, boxShadow: '0 8px 48px rgba(0,0,0,.6)' }}
+      />
+
+      {/* Next */}
+      {photos.length > 1 && (
+        <button
+          onClick={e => { e.stopPropagation(); onNext(); }}
+          style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,.12)', border: 'none', color: '#fff', width: 44, height: 44, borderRadius: '50%', fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >›</button>
+      )}
+
+      {/* Close */}
+      <button
+        onClick={onClose}
+        style={{ position: 'absolute', top: 14, right: 14, background: 'rgba(255,255,255,.12)', border: 'none', color: '#fff', width: 36, height: 36, borderRadius: '50%', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      >✕</button>
+
+      {/* Counter */}
+      {photos.length > 1 && (
+        <div style={{ position: 'absolute', bottom: 18, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,.5)', color: '#fff', padding: '4px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600 }}>
+          {idx + 1} / {photos.length}
+        </div>
+      )}
     </div>
   );
 }
