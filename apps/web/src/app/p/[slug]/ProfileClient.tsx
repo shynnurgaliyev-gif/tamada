@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
+import { FaWhatsapp, FaTelegram, FaInstagram, FaYoutube, FaTiktok, FaGlobe, FaPhone, FaLink, FaMapMarkerAlt, FaComments } from 'react-icons/fa';
 
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
@@ -23,13 +24,20 @@ const CAL_ST: Record<string, { bg: string; color: string; label: string }> = {
   past:     { bg: '#f3f4f6', color: '#d1d5db', label: 'Прошлое' },
 };
 
-const LINK_ICONS: Record<string, string> = {
-  instagram: '📸', whatsapp: '💬', telegram: '✈️', tiktok: '🎵',
-  youtube: '▶️', website: '🌐', two_gis: '📍', map: '🗺️', other: '🔗',
-};
-const LINK_NAMES: Record<string, string> = {
-  instagram: 'Instagram', whatsapp: 'WhatsApp', telegram: 'Telegram', tiktok: 'TikTok',
-  youtube: 'YouTube', website: 'Сайт', two_gis: '2GIS', map: 'Карта', other: 'Ссылка',
+import type { IconType } from 'react-icons';
+
+type LinkCfg = { Icon: IconType; label: string; bg: string; text: string };
+const LINK_CFG: Record<string, LinkCfg> = {
+  phone:     { Icon: FaPhone,         label: 'Позвонить', bg: 'var(--brand)',  text: '#fff' },
+  whatsapp:  { Icon: FaWhatsapp,      label: 'WhatsApp',  bg: '#25D366',       text: '#fff' },
+  telegram:  { Icon: FaTelegram,      label: 'Telegram',  bg: '#229ED9',       text: '#fff' },
+  instagram: { Icon: FaInstagram,     label: 'Instagram', bg: 'linear-gradient(135deg,#f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%)', text: '#fff' },
+  tiktok:    { Icon: FaTiktok,        label: 'TikTok',    bg: '#010101',       text: '#fff' },
+  youtube:   { Icon: FaYoutube,       label: 'YouTube',   bg: '#FF0000',       text: '#fff' },
+  website:   { Icon: FaGlobe,         label: 'Сайт',      bg: 'var(--surface-2)', text: 'var(--ink)' },
+  two_gis:   { Icon: FaMapMarkerAlt,  label: '2GIS',      bg: 'var(--surface-2)', text: 'var(--ink)' },
+  map:       { Icon: FaMapMarkerAlt,  label: 'Карта',     bg: 'var(--surface-2)', text: 'var(--ink)' },
+  other:     { Icon: FaLink,          label: 'Ссылка',    bg: 'var(--surface-2)', text: 'var(--ink)' },
 };
 
 // Stable anonymous session id (not tied to user identity)
@@ -306,65 +314,88 @@ export default function ProfileClient({ slug }: { slug: string }) {
         {/* ── Contact Reveal ─────────────────────────────────── */}
         <div ref={contactRef}>
           {!revealed ? (
-            /* Reveal button */
-            <div className="card" style={{ padding: 24, textAlign: 'center' }}>
-              <div style={{ fontSize: 32, marginBottom: 10 }}>💬</div>
-              <h2 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800 }}>Связаться с исполнителем</h2>
-              <p style={{ margin: '0 0 20px', fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.5 }}>
-                WhatsApp, Telegram, Instagram и другие контакты откроются после нажатия
-                {selectedCalDate && (
-                  <span style={{ display: 'block', marginTop: 6, color: 'var(--brand)', fontWeight: 600 }}>
-                    📅 Выбранная дата: {new Date(selectedCalDate + 'T12:00:00Z').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
-                  </span>
-                )}
+            /* ── Reveal gate ── */
+            <div className="card" style={{ padding: '28px 24px', textAlign: 'center' }}>
+              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--brand-xlight)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', color: 'var(--brand)' }}>
+                <FaComments size={26} />
+              </div>
+              <h2 style={{ margin: '0 0 8px', fontSize: 19, fontWeight: 800 }}>Связаться с исполнителем</h2>
+              <p style={{ margin: '0 0 6px', fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.55 }}>
+                WhatsApp, Telegram, Instagram — откроются после нажатия
               </p>
+              {selectedCalDate && (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 4, padding: '5px 12px', background: 'var(--brand-xlight)', borderRadius: 20, fontSize: 13, color: 'var(--brand)', fontWeight: 600 }}>
+                  📅 {new Date(selectedCalDate + 'T12:00:00Z').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
+                </div>
+              )}
+              <div style={{ height: 20 }} />
               <button
                 onClick={() => void revealContacts()}
                 disabled={revealing}
                 className="btn btn-brand btn-lg btn-full"
-                style={{ maxWidth: 320, margin: '0 auto' }}
+                style={{ maxWidth: 340, margin: '0 auto', fontSize: 16 }}
               >
-                {revealing ? 'Загрузка...' : '📲 Показать контакты'}
+                {revealing
+                  ? <span style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}><span style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin .7s linear infinite', display: 'inline-block' }} />Загрузка...</span>
+                  : '📲 Показать контакты'
+                }
               </button>
             </div>
           ) : (
-            /* Contact card */
-            <div className="card" style={{ padding: 24, animation: 'fadeUp .25s ease both' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+            /* ── Contact card ── */
+            <div className="card anim-fadeUp" style={{ padding: '22px 20px 24px', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
                 <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, flex: 1 }}>Контакты</h2>
-                <span style={{ fontSize: 11, background: 'var(--green-bg)', color: 'var(--green-text)', padding: '3px 10px', borderRadius: 20, fontWeight: 700 }}>Открыто</span>
+                <span style={{ fontSize: 11, background: 'var(--green-bg)', color: 'var(--green-text)', padding: '3px 10px', borderRadius: 20, fontWeight: 700, letterSpacing: '.03em' }}>● Открыто</span>
               </div>
 
               {revealLinks.length === 0 ? (
-                <p style={{ color: 'var(--ink-3)', fontSize: 14, margin: 0 }}>Контакты не добавлены.</p>
+                <div style={{ textAlign: 'center', padding: '12px 0 8px' }}>
+                  <div style={{ fontSize: 36, marginBottom: 10 }}>🤷</div>
+                  <p style={{ margin: 0, color: 'var(--ink-3)', fontSize: 14 }}>Исполнитель пока не добавил контакты</p>
+                </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {revealLinks.map(lk => (
-                    <a
-                      key={lk.id}
-                      href={lk.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 14,
-                        padding: '14px 16px',
-                        background: 'var(--surface-2)',
-                        border: '1.5px solid var(--border)',
-                        borderRadius: 'var(--r-lg)',
-                        textDecoration: 'none', color: 'var(--ink)',
-                        transition: 'border-color var(--t), box-shadow var(--t)',
-                      }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--brand)'; (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-brand)'; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
-                    >
-                      <span style={{ fontSize: 24, lineHeight: 1, flexShrink: 0 }}>{LINK_ICONS[lk.link_type] ?? '🔗'}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, fontSize: 14 }}>{lk.label ?? LINK_NAMES[lk.link_type] ?? lk.link_type}</div>
-                        <div style={{ fontSize: 12, color: 'var(--ink-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lk.url}</div>
-                      </div>
-                      <span style={{ fontSize: 16, color: 'var(--ink-4)', flexShrink: 0 }}>→</span>
-                    </a>
-                  ))}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 210px), 1fr))',
+                  gap: 10,
+                }}>
+                  {revealLinks.map((lk, i) => {
+                    const cfg = LINK_CFG[lk.link_type] ?? LINK_CFG['other']!;
+                    const isLight = cfg.bg.startsWith('var(--surface');
+                    const { Icon } = cfg;
+                    return (
+                      <a
+                        key={lk.id}
+                        href={lk.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 14,
+                          padding: '15px 18px',
+                          minHeight: 62,
+                          borderRadius: 'var(--r-lg)',
+                          background: cfg.bg,
+                          border: isLight ? '1.5px solid var(--border)' : 'none',
+                          textDecoration: 'none',
+                          color: cfg.text,
+                          fontWeight: 700,
+                          fontSize: 15,
+                          transition: 'opacity .15s, transform .15s',
+                          animation: `fadeUp .3s ${i * 60}ms both`,
+                          cursor: 'pointer',
+                        }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = '.85'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = '1'; (e.currentTarget as HTMLElement).style.transform = 'none'; }}
+                      >
+                        <Icon size={22} style={{ flexShrink: 0 }} />
+                        <span style={{ flex: 1 }}>{lk.label ?? cfg.label}</span>
+                        <span style={{ fontSize: 16, opacity: .6, flexShrink: 0 }}>→</span>
+                      </a>
+                    );
+                  })}
                 </div>
               )}
             </div>
