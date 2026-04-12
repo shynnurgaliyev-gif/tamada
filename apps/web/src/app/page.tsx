@@ -157,7 +157,7 @@ export default function HomePage() {
             ✦ Linkora — связываем клиента и исполнителя
           </div>
           <h1 className="hero-land-title">
-            Профиль. Календарь.<br />Прямой кон��акт.
+            Профиль. Календарь.<br />Прямой контакт.
           </h1>
           <p className="hero-land-sub">
             Linkora связывает вас с нужным специалистом через профиль, календарь занятости и контакты — без посредников, по всему Казахстану.
@@ -401,7 +401,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="footer-land-bottom">
-            <span className="footer-land-copy">© 2025 {BRAND} — Связываем клиентов и исполнителей в Казахстане</span>
+            <span className="footer-land-copy">© 2026 {BRAND} — Связываем клиентов и исполнителей в Казахстане</span>
             <span style={{ fontSize: 13 }}>Алматы · Астана · Шымкент и ещё</span>
           </div>
         </div>
