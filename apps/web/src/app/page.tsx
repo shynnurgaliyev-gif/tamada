@@ -1,6 +1,7 @@
 import Link from 'next/link';
+import { OctiMark } from '@/components/OctiLogo';
 
-const BRAND = 'Linkora';
+const BRAND = 'Octiqa';
 
 /* ── Data ──────────────────────────────────── */
 const STATS = [
@@ -146,7 +147,7 @@ export default function HomePage() {
       {/* ── Nav ──────────────────────────── */}
       <nav className="nav-frosted">
         <a href="/" className="logo-mark">
-          <span className="logo-mark-icon">✦</span>
+          <OctiMark size={32} />
           {BRAND}
         </a>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -160,13 +161,13 @@ export default function HomePage() {
       <section className="hero-land">
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div className="hero-land-eyebrow">
-            ✦ Linkora — связываем клиента и исполнителя
+            ✦ Octiqa — управляй занятостью, находи клиентов
           </div>
           <h1 className="hero-land-title">
             Профиль. Календарь.<br />Прямой контакт.
           </h1>
           <p className="hero-land-sub">
-            Linkora связывает вас с нужным специалистом через профиль, календарь занятости и контакты — без посредников, по всему Казахстану.
+            Octiqa — платформа, которая помогает исполнителю управлять занятостью и связывает его с клиентом. Профиль, календарь, прямые контакты — по всему Казахстану.
           </p>
           <div className="hero-land-actions">
             <Link href="/search" className="btn btn-white btn-lg">
@@ -197,7 +198,7 @@ export default function HomePage() {
         <div className="container">
           <div className="land-header">
             <p className="land-eyebrow">Как это работает</p>
-            <h2 className="land-title">Как работает Linkora</h2>
+            <h2 className="land-title">Как работает Octiqa</h2>
             <p className="land-sub">Три шага от «нужен исполнитель» до «договорились» — без посредников и лишних звонков.</p>
           </div>
           <div className="steps-grid">
@@ -276,7 +277,7 @@ export default function HomePage() {
         <div className="container">
           <div className="land-header">
             <p className="land-eyebrow">Почему удобно</p>
-            <h2 className="land-title">Почему выбирают Linkora</h2>
+            <h2 className="land-title">Почему выбирают Octiqa</h2>
           </div>
           <div className="feature-grid">
             {FEATURES.map((f, i) => (
@@ -347,7 +348,7 @@ export default function HomePage() {
           <div className="land-header">
             <p className="land-eyebrow">Тарифы</p>
             <h2 className="land-title">Прозрачно и честно</h2>
-            <p className="land-sub">Для клиентов Linkora — всегда бесплатна. Исполнители платят только за активный профиль.</p>
+            <p className="land-sub">Для клиентов Octiqa — всегда бесплатна. Исполнители платят только за активный профиль.</p>
           </div>
           <div className="pricing-grid">
             {/* Client */}
@@ -383,7 +384,7 @@ export default function HomePage() {
       {/* ── CTA band ─────────────────────── */}
       <section className="cta-band">
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <h2 className="cta-band-title">Начните с Linkora сегодня</h2>
+          <h2 className="cta-band-title">Начните с Octiqa сегодня</h2>
           <p className="cta-band-sub">Клиентам — поиск бесплатно. Исполнителям — 30 дней без оплаты.</p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link href="/signup" className="btn btn-white btn-lg">Создать профиль</Link>
@@ -397,7 +398,7 @@ export default function HomePage() {
         <div className="footer-land-inner">
           <div className="footer-land-top">
             <a href="/" className="logo-mark logo-mark-inv" style={{ fontSize: 18 }}>
-              <span className="logo-mark-icon" style={{ width: 28, height: 28, fontSize: 14 }}>✦</span>
+              <OctiMark size={28} />
               {BRAND}
             </a>
             <div className="footer-land-links">
@@ -408,7 +409,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="footer-land-bottom">
-            <span className="footer-land-copy">© 2026 {BRAND} — Связываем клиентов и исполнителей в Казахстане</span>
+            <span className="footer-land-copy">© 2026 {BRAND} — Управляй занятостью. Находи клиентов.</span>
             <span style={{ fontSize: 13 }}>Алматы · Астана · Шымкент и ещё</span>
           </div>
         </div>

@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
 import { FaWhatsapp, FaTelegram, FaInstagram, FaYoutube, FaTiktok, FaGlobe, FaPhone, FaLink, FaMapMarkerAlt, FaComments } from 'react-icons/fa';
+import { OctiMark } from '@/components/OctiLogo';
 
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
@@ -216,8 +217,8 @@ export default function ProfileClient({ slug }: { slug: string }) {
       <nav className="nav-frosted">
         <a href="/search" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: 'var(--ink-2)', textDecoration: 'none' }}>← Назад</a>
         <a href="/" className="logo-mark" style={{ fontSize: 16 }}>
-          <span className="logo-mark-icon" style={{ width: 26, height: 26, fontSize: 13 }}>✦</span>
-          Linkora
+          <OctiMark size={26} />
+          Octiqa
         </a>
       </nav>
 

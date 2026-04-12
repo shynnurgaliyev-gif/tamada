@@ -348,7 +348,7 @@ export default function EditProviderPage() {
                 placeholder="my-profile"
                 required
               />
-              <span style={s.hint}>linkora.kz/p/{form.slug || '...'}</span>
+              <span style={s.hint}>octiqa.kz/p/{form.slug || '...'}</span>
             </label>
             <label style={s.label}>Регион
               <select style={s.input} value={form.region} onChange={e => setForm(f => ({ ...f, region: e.target.value, city: '' }))}>

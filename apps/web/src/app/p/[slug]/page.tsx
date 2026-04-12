@@ -43,19 +43,19 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     : provider.display_name;
   const description = provider.bio
     ? provider.bio.slice(0, 160)
-    : `Профиль исполнителя ${provider.display_name} на Linkora. Услуги, фото, контакты и календарь занятости.`;
+    : `Профиль исполнителя ${provider.display_name} на Octiqa. Услуги, фото, контакты и календарь занятости.`;
 
   return {
     title,
     description,
     openGraph: {
-      title: `${title} | Linkora`,
+      title: `${title} | Octiqa`,
       description,
       type: 'profile',
     },
     twitter: {
       card: 'summary',
-      title: `${title} | Linkora`,
+      title: `${title} | Octiqa`,
       description,
     },
     robots: { index: true, follow: true },

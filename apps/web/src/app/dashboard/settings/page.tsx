@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { OctiMark } from '@/components/OctiLogo';
 
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
@@ -61,8 +62,8 @@ export default function SettingsPage() {
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       <nav className="nav-frosted">
         <a href="/" className="logo-mark" style={{ fontSize: 17 }}>
-          <span className="logo-mark-icon" style={{ width: 28, height: 28, fontSize: 14 }}>✦</span>
-          Linkora
+          <OctiMark size={28} />
+          Octiqa
         </a>
         <a href="/dashboard" className="btn btn-ghost btn-sm">← Кабинет</a>
       </nav>

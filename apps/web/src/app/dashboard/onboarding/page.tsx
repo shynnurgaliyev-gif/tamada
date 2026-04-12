@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { FaWhatsapp, FaTelegram, FaInstagram, FaGlobe, FaPhone } from 'react-icons/fa';
+import { OctiMark } from '@/components/OctiLogo';
 
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
@@ -125,8 +126,8 @@ export default function OnboardingPage() {
       {/* Top bar */}
       <nav className="nav-frosted">
         <a href="/" className="logo-mark" style={{ fontSize: 17 }}>
-          <span className="logo-mark-icon" style={{ width: 28, height: 28, fontSize: 14 }}>✦</span>
-          Linkora
+          <OctiMark size={28} />
+          Octiqa
         </a>
         <a href="/dashboard" className="btn btn-ghost btn-sm">Пропустить</a>
       </nav>
@@ -338,7 +339,7 @@ function Step1Basics({ provider, onDone }: { provider: Provider | null; onDone: 
         </Field>
 
         {!provider && (
-          <Field label="Ссылка на профиль" hint={`linkora.kz/p/${slug || '...'}`}>
+          <Field label="Ссылка на профиль" hint={`octiqa.kz/p/${slug || '...'}`}>
             <input className="input" value={slug}
               onChange={e => { setSlugAuto(false); setSlug(toSlug(e.target.value)); }}
               placeholder="dmitry-kozlov" />

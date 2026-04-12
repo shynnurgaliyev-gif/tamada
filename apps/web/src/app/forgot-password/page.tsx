@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { OctiMark } from '@/components/OctiLogo';
 
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
@@ -94,8 +95,8 @@ export default function ForgotPasswordPage() {
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div className="card" style={{ width: '100%', maxWidth: 400, padding: 32 }}>
         <a href="/" className="logo-mark" style={{ fontSize: 18, justifyContent: 'center', marginBottom: 24 }}>
-          <span className="logo-mark-icon" style={{ width: 32, height: 32, fontSize: 15 }}>✦</span>
-          Linkora
+          <OctiMark size={32} />
+          Octiqa
         </a>
         <h1 style={{ margin: '0 0 6px', fontSize: 22, fontWeight: 700, textAlign: 'center' }}>Сброс пароля</h1>
         <p style={{ margin: '0 0 24px', fontSize: 14, color: 'var(--ink-3)', textAlign: 'center' }}>

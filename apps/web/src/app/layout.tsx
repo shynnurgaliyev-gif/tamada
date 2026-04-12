@@ -1,17 +1,17 @@
 import type { Metadata } from 'next';
 import './globals.css';
 
-const WEB_URL = process.env['NEXT_PUBLIC_WEB_URL'] ?? 'https://linkora.kz';
+const WEB_URL = process.env['NEXT_PUBLIC_WEB_URL'] ?? 'https://octiqa.kz';
 
 export const metadata: Metadata = {
   title: {
-    default: 'Linkora — найдите исполнителя на мероприятие в Казахстане',
-    template: '%s | Linkora',
+    default: 'Octiqa — найдите исполнителя на мероприятие в Казахстане',
+    template: '%s | Octiqa',
   },
-  description: 'Linkora связывает клиентов и исполнителей. Тамады, фотографы, видеографы, диджеи и другие специалисты по всему Казахстану — профили, календарь занятости, прямые контакты.',
+  description: 'Octiqa — платформа, которая помогает исполнителю управлять занятостью и связывает его с клиентом. Тамады, фотографы, видеографы, диджеи по всему Казахстану.',
   metadataBase: new URL(WEB_URL),
   openGraph: {
-    siteName: 'Linkora',
+    siteName: 'Octiqa',
     locale: 'ru_KZ',
     type: 'website',
   },

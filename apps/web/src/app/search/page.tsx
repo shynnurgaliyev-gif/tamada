@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
+import { OctiMark } from '@/components/OctiLogo';
 
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
@@ -166,8 +167,8 @@ export default function SearchPage() {
       {/* Header */}
       <nav className="nav-frosted">
         <a href="/" className="logo-mark">
-          <span className="logo-mark-icon">✦</span>
-          <span className="hide-mobile">Linkora</span>
+          <OctiMark size={28} />
+          <span className="hide-mobile">Octiqa</span>
         </a>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <a href="/login" className="btn btn-ghost btn-sm" style={{ color: 'var(--ink-3)' }}>Войти</a>

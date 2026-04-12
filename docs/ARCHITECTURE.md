@@ -2,18 +2,19 @@
 
 ## Overview
 
-**Brand:** Linkora — платформа, которая связывает клиента и исполнителя.
+**Brand:** Octiqa — платформа, которая помогает исполнителю управлять занятостью и связывает его с клиентом.
+**Brand mark:** rounded square + minimalist octopus imprint (`apps/web/src/components/OctiLogo.tsx`).
 
 ```
-Browser → linkora-web (Next.js, Render)
+Browser → octiqa-web (Next.js, Render)
              ↓ fetch
-linkora-api (Fastify, Render)
+octiqa-api (Fastify, Render)
              ↓ postgres.js
 Supabase (PostgreSQL + Auth + Storage)
 ```
 
 > Note: internal package scope is still `@tamada/*` (not renamed to avoid breaking builds).
-> Service display names updated: `linkora-web`, `linkora-api`.
+> Service display names: `octiqa-web`, `octiqa-api`.
 
 ## Apps
 
