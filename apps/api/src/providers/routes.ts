@@ -296,13 +296,17 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
         return reply.code(404).send({ ok: false, error: 'Provider not found' });
       }
 
-      const [services, photos, links] = await Promise.all([
+      // Track profile view — fire-and-forget, never blocks response
+      const { trackProfileView } = await import('../analytics/repositories');
+      trackProfileView(db, provider.id).catch(() => null);
+
+      const [services, photos] = await Promise.all([
         repo.findServicesByProviderId(db, provider.id),
         repo.findPhotosByProviderId(db, provider.id),
-        repo.findLinksByProviderId(db, provider.id),
       ]);
 
       // Strip private fields before sending public response
+      // Links are NOT included here — returned only via POST reveal-contacts
       const { account_id: _a, ...publicProvider } = provider as typeof provider & { account_id: unknown };
 
       return reply.send({
@@ -310,7 +314,6 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
         provider: publicProvider,
         services: services.filter(s => s.is_active),
         photos: withPhotoUrls(env, photos),
-        links,
       });
     });
   };

@@ -14,6 +14,7 @@ import { createSubscriptionRoutes } from './subscription/routes';
 import { createJobsRoutes } from './jobs/routes';
 import { createSearchRoutes } from './search/routes';
 import { createReferenceRoutes } from './reference/routes';
+import { createAnalyticsRoutes } from './analytics/routes';
 
 const startTime = Date.now();
 
@@ -99,6 +100,7 @@ export function createApp(env: AppEnv, db: Db, supabase: SupabaseClient, wa: imp
   void app.register(createTelegramRoutes(db, env));
   void app.register(createSubscriptionRoutes(db, env));
   void app.register(createJobsRoutes(db, env));
+  void app.register(createAnalyticsRoutes(db));
 
   // ── Global error handler ───────────────────────────────────────────────
   app.setErrorHandler((error: FastifyError, req, reply) => {

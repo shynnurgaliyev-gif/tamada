@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
@@ -32,11 +32,18 @@ const LINK_NAMES: Record<string, string> = {
   youtube: 'YouTube', website: 'Сайт', two_gis: '2GIS', map: 'Карта', other: 'Ссылка',
 };
 
+// Stable anonymous session id (not tied to user identity)
+function getSessionId(): string {
+  const key = 'lk_sid';
+  let id = sessionStorage.getItem(key);
+  if (!id) { id = Math.random().toString(36).slice(2); sessionStorage.setItem(key, id); }
+  return id;
+}
+
 export default function ProfileClient({ slug }: { slug: string }) {
   const [provider, setProvider] = useState<Provider | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
-  const [links, setLinks] = useState<Link[]>([]);
   const now = new Date();
   const [calYear, setCalYear] = useState(now.getFullYear());
   const [calMonth, setCalMonth] = useState(now.getMonth() + 1);
@@ -47,18 +54,23 @@ export default function ProfileClient({ slug }: { slug: string }) {
   const [notFound, setNotFound] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
 
+  // Contact reveal state
+  const [revealLinks, setRevealLinks] = useState<Link[]>([]);
+  const [revealed, setRevealed] = useState(false);
+  const [revealing, setRevealing] = useState(false);
+  const contactRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!slug) return;
 
     async function load() {
       const res = await fetch(`${API}/public/providers/${slug}`).catch(() => null);
-      const d = res ? await res.json() as { ok: boolean; provider?: Provider; services?: Service[]; photos?: Photo[]; links?: Link[] } : null;
+      const d = res ? await res.json() as { ok: boolean; provider?: Provider; services?: Service[]; photos?: Photo[] } : null;
 
       if (d?.ok) {
         setProvider(d.provider ?? null);
         setServices(d.services ?? []);
         setPhotos(d.photos ?? []);
-        setLinks(d.links ?? []);
         const yr = new Date().getFullYear();
         const mo = new Date().getMonth() + 1;
         fetch(`${API}/public/providers/${slug}/calendar/month?year=${yr}&month=${mo}`)
@@ -68,6 +80,7 @@ export default function ProfileClient({ slug }: { slug: string }) {
           })
           .catch(() => null);
       } else {
+        // Owner preview fallback
         const token = localStorage.getItem('session_token');
         if (token) {
           try {
@@ -82,17 +95,13 @@ export default function ProfileClient({ slug }: { slug: string }) {
               if (data.ok) {
                 setServices(data.services ?? []);
                 setPhotos(data.photos ?? []);
-                setLinks(data.links ?? []);
+                // In preview mode, show links directly (owner sees their own contacts)
+                setRevealLinks(data.links ?? []);
+                setRevealed(true);
               }
-            } else {
-              setNotFound(true);
-            }
-          } catch {
-            setNotFound(true);
-          }
-        } else {
-          setNotFound(true);
-        }
+            } else { setNotFound(true); }
+          } catch { setNotFound(true); }
+        } else { setNotFound(true); }
       }
       setLoading(false);
     }
@@ -108,7 +117,30 @@ export default function ProfileClient({ slug }: { slug: string }) {
       .catch(() => null);
   }, [calYear, calMonth, slug, provider]);
 
-  void calTimezone; // used for future locale formatting
+  void calTimezone;
+
+  async function revealContacts() {
+    if (revealed || revealing || !provider) return;
+    setRevealing(true);
+    try {
+      const res = await fetch(`${API}/public/providers/${slug}/reveal-contacts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source_page: 'profile',
+          selected_date: selectedCalDate ?? undefined,
+          viewer_session_id: getSessionId(),
+        }),
+      });
+      const data = await res.json() as { ok: boolean; links?: Link[] };
+      if (data.ok) {
+        setRevealLinks(data.links ?? []);
+        setRevealed(true);
+        setTimeout(() => contactRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+      }
+    } catch { /* ignore */ }
+    setRevealing(false);
+  }
 
   function calPrev() {
     setSelectedCalDate(null);
@@ -147,7 +179,6 @@ export default function ProfileClient({ slug }: { slug: string }) {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      {/* Preview banner */}
       {isPreview && (
         <div style={{ background: 'var(--amber)', color: '#fff', textAlign: 'center', padding: '10px 16px', fontSize: 14, fontWeight: 500 }}>
           👁 Предпросмотр — профиль скрыт от публики.{' '}
@@ -155,7 +186,6 @@ export default function ProfileClient({ slug }: { slug: string }) {
         </div>
       )}
 
-      {/* Back nav */}
       <nav className="nav-frosted">
         <a href="/search" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: 'var(--ink-2)', textDecoration: 'none' }}>← Назад</a>
         <a href="/" className="logo-mark" style={{ fontSize: 16 }}>
@@ -180,8 +210,8 @@ export default function ProfileClient({ slug }: { slug: string }) {
         </div>
       </div>
 
-      {/* Body */}
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '20px 16px 48px' }}>
+
         {provider.bio && (
           <div className="card" style={{ padding: 20, marginBottom: 16 }}>
             <p style={{ margin: 0, color: 'var(--ink-2)', lineHeight: 1.65, fontSize: 15 }}>{provider.bio}</p>
@@ -273,20 +303,74 @@ export default function ProfileClient({ slug }: { slug: string }) {
           </div>
         </div>
 
-        {links.length > 0 && (
-          <div className="card" style={{ padding: 20 }}>
-            <h2 style={{ margin: '0 0 14px', fontSize: 17, fontWeight: 700 }}>Контакты и соцсети</h2>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-              {links.map(lk => (
-                <a key={lk.id} href={lk.url} target="_blank" rel="noopener noreferrer"
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, textDecoration: 'none', color: 'var(--ink)', fontSize: 14, transition: 'box-shadow .15s' }}>
-                  <span style={{ fontSize: 18 }}>{LINK_ICONS[lk.link_type] ?? '🔗'}</span>
-                  <span style={{ fontWeight: 600 }}>{lk.label ?? LINK_NAMES[lk.link_type] ?? lk.link_type}</span>
-                </a>
-              ))}
+        {/* ── Contact Reveal ─────────────────────────────────── */}
+        <div ref={contactRef}>
+          {!revealed ? (
+            /* Reveal button */
+            <div className="card" style={{ padding: 24, textAlign: 'center' }}>
+              <div style={{ fontSize: 32, marginBottom: 10 }}>💬</div>
+              <h2 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800 }}>Связаться с исполнителем</h2>
+              <p style={{ margin: '0 0 20px', fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.5 }}>
+                WhatsApp, Telegram, Instagram и другие контакты откроются после нажатия
+                {selectedCalDate && (
+                  <span style={{ display: 'block', marginTop: 6, color: 'var(--brand)', fontWeight: 600 }}>
+                    📅 Выбранная дата: {new Date(selectedCalDate + 'T12:00:00Z').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
+                  </span>
+                )}
+              </p>
+              <button
+                onClick={() => void revealContacts()}
+                disabled={revealing}
+                className="btn btn-brand btn-lg btn-full"
+                style={{ maxWidth: 320, margin: '0 auto' }}
+              >
+                {revealing ? 'Загрузка...' : '📲 Показать контакты'}
+              </button>
             </div>
-          </div>
-        )}
+          ) : (
+            /* Contact card */
+            <div className="card" style={{ padding: 24, animation: 'fadeUp .25s ease both' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, flex: 1 }}>Контакты</h2>
+                <span style={{ fontSize: 11, background: 'var(--green-bg)', color: 'var(--green-text)', padding: '3px 10px', borderRadius: 20, fontWeight: 700 }}>Открыто</span>
+              </div>
+
+              {revealLinks.length === 0 ? (
+                <p style={{ color: 'var(--ink-3)', fontSize: 14, margin: 0 }}>Контакты не добавлены.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {revealLinks.map(lk => (
+                    <a
+                      key={lk.id}
+                      href={lk.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 14,
+                        padding: '14px 16px',
+                        background: 'var(--surface-2)',
+                        border: '1.5px solid var(--border)',
+                        borderRadius: 'var(--r-lg)',
+                        textDecoration: 'none', color: 'var(--ink)',
+                        transition: 'border-color var(--t), box-shadow var(--t)',
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--brand)'; (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-brand)'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
+                    >
+                      <span style={{ fontSize: 24, lineHeight: 1, flexShrink: 0 }}>{LINK_ICONS[lk.link_type] ?? '🔗'}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: 14 }}>{lk.label ?? LINK_NAMES[lk.link_type] ?? lk.link_type}</div>
+                        <div style={{ fontSize: 12, color: 'var(--ink-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lk.url}</div>
+                      </div>
+                      <span style={{ fontSize: 16, color: 'var(--ink-4)', flexShrink: 0 }}>→</span>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   );
