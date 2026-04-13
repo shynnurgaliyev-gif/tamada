@@ -152,8 +152,8 @@ export default function AnalyticsPage() {
                   <CombinedChart rows={daily} days={days} />
                   {/* Legend */}
                   <div style={{ display: 'flex', gap: 16, marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>
-                    <LegendItem color="var(--brand)" label="Просмотры профиля" />
-                    <LegendItem color="var(--green)" label="Открытия контактов" />
+                    <LegendItem color="#7c3aed" label="Просмотры профиля" />
+                    <LegendItem color="#22c55e" label="Открытия контактов" />
                     {summary.calendar_views > 0 && <LegendItem color="#f59e0b" label="Просмотры календаря" />}
                   </div>
                 </div>
@@ -233,44 +233,79 @@ function LegendItem({ color, label }: { color: string; label: string }) {
 }
 
 function CombinedChart({ rows, days }: { rows: DailyRow[]; days: number }) {
-  const CHART_H = 140;
+  // SVG-based chart — avoids all CSS flex height issues
+  const VW = 660;
+  const VH = 170;
+  const PT = 20;  // top padding (value labels)
+  const PB = 22;  // bottom padding (date labels)
+  const PL = 4;
+  const PR = 4;
+  const chartW = VW - PL - PR;
+  const chartH = VH - PT - PB;
+  const baseY  = PT + chartH;
+
+  const n      = rows.length;
+  const colW   = chartW / n;
+  const barW   = Math.max(1.5, Math.min(10, colW * 0.24));
   const maxVal = Math.max(...rows.map(r => Math.max(r.profile_views, r.contact_reveals, r.calendar_views)), 1);
   const labelEvery = days <= 7 ? 1 : days <= 14 ? 2 : days <= 30 ? 5 : 10;
-  const px = (v: number) => Math.max(v > 0 ? 3 : 0, Math.round((v / maxVal) * CHART_H));
+
+  const bh = (v: number) => v > 0 ? Math.max(2, Math.round((v / maxVal) * chartH)) : 0;
+  const cx = (i: number) => PL + (i + 0.5) * colW;
 
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, minWidth: Math.max(rows.length * 22, 280) }}>
-        {rows.map((row, idx) => {
-          const hasData = row.profile_views > 0 || row.contact_reveals > 0 || row.calendar_views > 0;
-          const showLabel = idx % labelEvery === 0 || idx === rows.length - 1;
-          return (
-            <div
-              key={row.date}
-              title={`${formatDate(row.date, true)}\nПросмотры: ${row.profile_views}\nКонтакты: ${row.contact_reveals}\nКалендарь: ${row.calendar_views}`}
-              style={{ flex: 1, minWidth: 14, display: 'flex', flexDirection: 'column', alignItems: 'center' }}
-            >
-              {/* Value label */}
-              <div style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, height: 14, display: 'flex', alignItems: 'flex-end', paddingBottom: 2 }}>
-                {row.profile_views > 0 ? row.profile_views : ''}
-              </div>
+    <svg
+      viewBox={`0 0 ${VW} ${VH}`}
+      style={{ width: '100%', height: 'auto', display: 'block' }}
+      aria-label="График динамики"
+    >
+      {/* Baseline */}
+      <line x1={PL} y1={baseY} x2={VW - PR} y2={baseY} stroke="#e5e7eb" strokeWidth="1" />
 
-              {/* Bars aligned to bottom */}
-              <div style={{ width: '100%', height: CHART_H, display: 'flex', alignItems: 'flex-end', gap: 1 }}>
-                <div style={{ flex: 1, height: hasData ? Math.max(px(row.profile_views), 1) : 2, backgroundColor: '#7c3aed', borderRadius: '2px 2px 0 0', opacity: row.profile_views > 0 ? 1 : 0.12 }} />
-                <div style={{ flex: 1, height: px(row.contact_reveals) || (hasData ? 0 : 0), backgroundColor: '#22c55e', borderRadius: '2px 2px 0 0', opacity: row.contact_reveals > 0 ? 1 : 0 }} />
-                <div style={{ flex: 1, height: px(row.calendar_views) || 0, backgroundColor: '#f59e0b', borderRadius: '2px 2px 0 0', opacity: row.calendar_views > 0 ? 1 : 0 }} />
-              </div>
+      {rows.map((row, idx) => {
+        const x       = cx(idx);
+        const pvH     = bh(row.profile_views);
+        const crH     = bh(row.contact_reveals);
+        const cvH     = bh(row.calendar_views);
+        const showLbl = idx % labelEvery === 0 || idx === n - 1;
 
-              {/* Date label */}
-              <div style={{ fontSize: 9, color: showLabel ? '#9ca3af' : 'transparent', marginTop: 4, whiteSpace: 'nowrap' }}>
+        return (
+          <g key={row.date}>
+            {/* Dim stub for zero days */}
+            <rect x={x - barW * 1.2} y={baseY - 1} width={barW} height={1} fill="#7c3aed" opacity="0.12" />
+
+            {/* Profile views bar */}
+            {pvH > 0 && (
+              <rect x={x - barW * 1.2} y={baseY - pvH} width={barW} height={pvH} fill="#7c3aed" opacity="0.85" rx="1" />
+            )}
+
+            {/* Contact reveals bar */}
+            {crH > 0 && (
+              <rect x={x - barW * 0.1} y={baseY - crH} width={barW} height={crH} fill="#22c55e" opacity="0.9" rx="1" />
+            )}
+
+            {/* Calendar views bar */}
+            {cvH > 0 && (
+              <rect x={x + barW * 1.0} y={baseY - cvH} width={barW} height={cvH} fill="#f59e0b" opacity="0.9" rx="1" />
+            )}
+
+            {/* Value label above profile bar */}
+            {pvH > 0 && (
+              <text x={x} y={baseY - pvH - 4} textAnchor="middle" fontSize="9" fill="#6b7280" fontWeight="600">
+                {row.profile_views}
+              </text>
+            )}
+
+            {/* Date label */}
+            {showLbl && (
+              <text x={x} y={VH - 5} textAnchor="middle" fontSize="9" fill="#9ca3af">
                 {row.date.slice(5).replace('-', '/')}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+              </text>
+            )}
+          </g>
+        );
+      })}
+    </svg>
   );
 }
 
