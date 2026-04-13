@@ -248,7 +248,7 @@ export default function ProfileClient({ slug }: { slug: string }) {
         <button onClick={() => window.history.back()} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: 'var(--ink-2)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>← Назад</button>
         <a href="/" className="logo-mark" style={{ fontSize: 16 }}>
           <OctiMark size={26} />
-          Octiqa
+          <span className="hide-mobile">Octiqa</span>
         </a>
       </nav>
 
@@ -273,7 +273,8 @@ export default function ProfileClient({ slug }: { slug: string }) {
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,.68) 0%, rgba(0,0,0,.18) 55%, transparent 100%)' }} />
 
         {/* Layer 3 — avatar + name */}
-        <div style={{ position: 'absolute', bottom: 24, left: 24, right: 24, display: 'flex', alignItems: 'flex-end', gap: 16 }}>
+        <style>{`@media(max-width:400px){.hero-info-row{flex-wrap:wrap;}.hero-cta-btn{margin-left:0;margin-top:8px;}}`}</style>
+        <div className="hero-info-row" style={{ position: 'absolute', bottom: 24, left: 24, right: 24, display: 'flex', alignItems: 'flex-end', gap: 16 }}>
 
           {/* Avatar */}
           {cover ? (
@@ -305,19 +306,19 @@ export default function ProfileClient({ slug }: { slug: string }) {
 
           {/* Hero contact CTA */}
           {!isPreview && (
-            <div style={{ paddingBottom: 4, flexShrink: 0 }}>
+            <div className="hero-cta-btn" style={{ paddingBottom: 4, flexShrink: 0 }}>
               {!revealed ? (
                 <button
                   onClick={() => void revealContacts()}
                   disabled={revealing}
-                  style={{ background: 'rgba(255,255,255,.95)', color: '#4f46e5', border: 'none', borderRadius: 24, padding: '10px 18px', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, backdropFilter: 'blur(6px)', boxShadow: '0 2px 12px rgba(0,0,0,.25)', whiteSpace: 'nowrap' }}
+                  style={{ background: 'rgba(255,255,255,.95)', color: '#4f46e5', border: 'none', borderRadius: 24, padding: '10px 14px', minHeight: 44, fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, backdropFilter: 'blur(6px)', boxShadow: '0 2px 12px rgba(0,0,0,.25)', whiteSpace: 'nowrap' }}
                 >
                   {revealing ? '...' : '📲 Контакты'}
                 </button>
               ) : (
                 <button
                   onClick={() => contactRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })}
-                  style={{ background: 'rgba(255,255,255,.95)', color: '#16a34a', border: 'none', borderRadius: 24, padding: '10px 18px', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, backdropFilter: 'blur(6px)', boxShadow: '0 2px 12px rgba(0,0,0,.25)', whiteSpace: 'nowrap' }}
+                  style={{ background: 'rgba(255,255,255,.95)', color: '#16a34a', border: 'none', borderRadius: 24, padding: '10px 14px', minHeight: 44, fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, backdropFilter: 'blur(6px)', boxShadow: '0 2px 12px rgba(0,0,0,.25)', whiteSpace: 'nowrap' }}
                 >
                   ✓ Контакты ↓
                 </button>

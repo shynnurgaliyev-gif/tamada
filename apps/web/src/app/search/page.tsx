@@ -147,8 +147,9 @@ export default function SearchPage() {
               {meta.categories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
             <input className="input" style={{ flex: 1, minWidth: 140 }} type="date" value={f.date} onChange={e => setF(p => ({ ...p, date: e.target.value }))} />
-            <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? '...' : 'Найти'}</button>
+            <button type="submit" className="btn btn-primary search-submit-btn" disabled={loading}>{loading ? '...' : 'Найти'}</button>
           </div>
+          <style>{`@media(max-width:560px){.search-submit-btn{width:100%;margin-top:0;}}`}</style>
 
           <button type="button" style={{ marginTop: 10, background: 'none', border: 'none', color: 'var(--ink-3)', fontSize: 13, cursor: 'pointer', padding: '4px 0' }} onClick={() => setShowMore(v => !v)}>
             {showMore ? '▲ Скрыть фильтры' : '▼ Ещё фильтры'}

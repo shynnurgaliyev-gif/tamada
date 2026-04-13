@@ -165,7 +165,8 @@ export default function AnalyticsPage() {
               <>
                 <SectionTitle>Топ дней по открытиям контактов</SectionTitle>
                 <div className="card" style={{ padding: 0, marginBottom: 24, overflow: 'hidden' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                  <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14, minWidth: 360 }}>
                     <thead>
                       <tr style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
                         <Th>Дата</Th>
@@ -190,6 +191,7 @@ export default function AnalyticsPage() {
                       })}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               </>
             )}

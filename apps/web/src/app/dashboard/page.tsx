@@ -17,7 +17,7 @@ const NAV_ITEMS = [
   { href: '/dashboard/provider', icon: '👤', label: 'Мои профили' },
   { href: '/dashboard/calendar', icon: '📅', label: 'Календарь' },
   { href: '/dashboard/analytics', icon: '📊', label: 'Аналитика' },
-  { href: '/dashboard/integrations', icon: '🔗', label: 'Интеграции (Telegram)' },
+  { href: '/dashboard/integrations', icon: '🔗', label: 'Интеграции' },
   { href: '/dashboard/subscription', icon: '⭐', label: 'Подписка' },
   { href: '/dashboard/notifications', icon: '🔔', label: 'Напоминания' },
   { href: '/dashboard/settings',      icon: '⚙️', label: 'Настройки' },
