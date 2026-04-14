@@ -7,7 +7,12 @@ export const metadata: Metadata = {
   description: 'Создайте профиль, ведите календарь и принимайте клиентов через Telegram Mini App. Профиль автоматически появляется на сайте. 30 дней бесплатно.',
 };
 
-const TG_APP = process.env['NEXT_PUBLIC_TG_APP_URL'] ?? 'https://t.me/OctiqaBot';
+const TG_APP        = process.env['NEXT_PUBLIC_TG_APP_URL'] ?? 'https://t.me/OctiqaBot';
+// Onboarding entry — passes start_param so Mini App opens in onboarding flow.
+// Once the Web App short name is registered in BotFather use:
+//   https://t.me/OctiqaBot/<shortname>?startapp=onboarding
+const TG_ONBOARDING = `${TG_APP}?startapp=onboarding`;
+const TG_DASHBOARD  = TG_APP; // opens Mini App at default dashboard screen
 
 const STEPS = [
   {
@@ -88,10 +93,10 @@ export default function ForSpecialistsPage() {
             Данные автоматически синхронизируются с сайтом — клиенты видят вас в поиске.
           </p>
           <div className="hero-land-actions">
-            <a href={TG_APP} target="_blank" rel="noopener noreferrer" className="btn btn-white btn-lg">
+            <a href={TG_ONBOARDING} target="_blank" rel="noopener noreferrer" className="btn btn-white btn-lg">
               Стать специалистом
             </a>
-            <a href={TG_APP} target="_blank" rel="noopener noreferrer" className="btn btn-ghost-inv btn-lg">
+            <a href={TG_DASHBOARD} target="_blank" rel="noopener noreferrer" className="btn btn-ghost-inv btn-lg">
               Уже есть аккаунт →
             </a>
           </div>
@@ -201,7 +206,7 @@ export default function ForSpecialistsPage() {
                 ))}
               </div>
               <div style={{ marginTop: 28 }}>
-                <a href={TG_APP} target="_blank" rel="noopener noreferrer" className="btn btn-white btn-lg">
+                <a href={TG_DASHBOARD} target="_blank" rel="noopener noreferrer" className="btn btn-white btn-lg">
                   Открыть в Telegram
                 </a>
               </div>
@@ -248,7 +253,7 @@ export default function ForSpecialistsPage() {
                 {PRICE_FEATURES.map(f => <li key={f}>{f}</li>)}
               </ul>
               <div className="price-cta">
-                <a href={TG_APP} target="_blank" rel="noopener noreferrer" className="btn btn-brand btn-full">
+                <a href={TG_ONBOARDING} target="_blank" rel="noopener noreferrer" className="btn btn-brand btn-full">
                   Начать 30 дней бесплатно
                 </a>
               </div>
@@ -263,10 +268,10 @@ export default function ForSpecialistsPage() {
           <h2 className="cta-band-title">Начните прямо сейчас</h2>
           <p className="cta-band-sub">Профиль — через Telegram. Клиенты — на сайте.</p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a href={TG_APP} target="_blank" rel="noopener noreferrer" className="btn btn-white btn-lg">
+            <a href={TG_ONBOARDING} target="_blank" rel="noopener noreferrer" className="btn btn-white btn-lg">
               Стать специалистом
             </a>
-            <a href={TG_APP} target="_blank" rel="noopener noreferrer" className="btn btn-ghost-inv btn-lg">
+            <a href={TG_DASHBOARD} target="_blank" rel="noopener noreferrer" className="btn btn-ghost-inv btn-lg">
               Открыть в Telegram
             </a>
           </div>
