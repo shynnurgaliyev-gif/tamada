@@ -3,39 +3,41 @@ import Link from 'next/link';
 import { OctiMark } from '@/components/OctiLogo';
 
 export const metadata: Metadata = {
-  title: 'Специалистам — профиль, календарь и Telegram-бот',
-  description: 'Создайте публичный профиль, ведите календарь занятости и управляйте расписанием через Telegram. 30 дней бесплатно.',
+  title: 'Специалистам — профиль, календарь и Telegram Mini App',
+  description: 'Создайте публичный профиль через Telegram Mini App, ведите календарь занятости и принимайте клиентов напрямую. 30 дней бесплатно.',
 };
+
+const TG_APP = process.env['NEXT_PUBLIC_TG_APP_URL'] ?? 'https://t.me/OctiqaBot';
 
 const STEPS = [
   {
-    n: '1', icon: '👤',
+    n: '1', icon: '📱',
+    title: 'Откройте Mini App',
+    desc: 'Запустите Octiqa в Telegram — это займёт секунду. Всё управление через привычный мессенджер.',
+  },
+  {
+    n: '2', icon: '👤',
     title: 'Создайте профиль',
-    desc: 'Добавьте фото, описание, список услуг и цены. Ваш профиль станет публичным и доступным для клиентов.',
+    desc: 'Добавьте фото, описание, услуги и цены прямо в Mini App. Профиль автоматически появляется на сайте.',
   },
   {
-    n: '2', icon: '📅',
+    n: '3', icon: '📅',
     title: 'Ведите календарь',
-    desc: 'Отмечайте занятые и свободные дни. Клиенты видят вашу занятость сразу — без звонков и переписки.',
-  },
-  {
-    n: '3', icon: '✈️',
-    title: 'Подключите Telegram',
-    desc: 'Управляйте расписанием прямо из чата. Добавить запись или посмотреть календарь — одна команда.',
+    desc: 'Отмечайте занятые и свободные дни командами боту или через Mini App. Клиенты видят занятость мгновенно.',
   },
   {
     n: '4', icon: '💼',
     title: 'Принимайте клиентов',
-    desc: 'Клиенты сами вас находят и пишут напрямую. Вы работаете — Octiqa занимается видимостью.',
+    desc: 'Клиенты находят вас на сайте и пишут напрямую. Вы работаете — Octiqa занимается видимостью.',
   },
 ];
 
 const FEATURES = [
-  { icon: '🪪', color: '#7c3aed', bg: '#f5f3ff', title: 'Публичный профиль',     desc: 'Фото, описание, услуги, цены, контакты — всё в одном месте. Ваша витрина 24/7.' },
-  { icon: '📅', color: '#059669', bg: '#f0fdf4', title: 'Визуальный календарь',  desc: 'Цветной календарь занятости. Клиент сразу видит, когда вы свободны.' },
-  { icon: '🤖', color: '#0ea5e9', bg: '#f0f9ff', title: 'Telegram-бот',          desc: 'Управляйте расписанием командами прямо в Telegram. Быстро и без открытия сайта.' },
+  { icon: '🪪', color: '#7c3aed', bg: '#f5f3ff', title: 'Публичный профиль',     desc: 'Фото, описание, услуги, цены, контакты — всё в одном месте. Профиль создаётся через Mini App и сразу виден клиентам.' },
+  { icon: '📅', color: '#059669', bg: '#f0fdf4', title: 'Визуальный календарь',  desc: 'Цветной календарь занятости на профиле. Клиент сразу видит свободные дни — без звонков.' },
+  { icon: '🤖', color: '#0ea5e9', bg: '#f0f9ff', title: 'Telegram-бот',          desc: 'Управляйте расписанием командами прямо в чате. Бот и Mini App работают вместе — одно приложение.' },
   { icon: '🔔', color: '#d97706', bg: '#fffbeb', title: 'Напоминания',           desc: 'Бот напоминает о записях заранее. Не забудете ни один ивент.' },
-  { icon: '📊', color: '#0284c7', bg: '#eff6ff', title: 'Аналитика',             desc: 'Просмотры профиля, открытия контактов, конверсия — в вашем кабинете.' },
+  { icon: '📊', color: '#0284c7', bg: '#eff6ff', title: 'Аналитика',             desc: 'Просмотры профиля, открытия контактов, конверсия — всё в кабинете.' },
   { icon: '🌍', color: '#e11d48', bg: '#fff1f2', title: 'Весь Казахстан',        desc: 'Алматы, Астана и 10+ городов. Ваш профиль виден клиентам по всей стране.' },
 ];
 
@@ -49,7 +51,7 @@ const TG_COMMANDS = [
 const PRICE_FEATURES_PRO = [
   'Публичный профиль с фото',
   'Визуальный календарь занятости',
-  'Управление через Telegram-бот',
+  'Управление через Telegram Mini App',
   'До 3 Telegram аккаунтов',
   'Аналитика просмотров',
   '30 дней бесплатно',
@@ -63,12 +65,13 @@ export default function ForSpecialistsPage() {
       <nav className="nav-frosted">
         <a href="/" className="logo-mark">
           <OctiMark size={28} />
-          Octiqa
+          <span className="hide-mobile">Octiqa</span>
         </a>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Link href="/search" className="btn btn-ghost btn-sm hide-mobile">Найти</Link>
-          <Link href="/login"  className="btn btn-ghost btn-sm" style={{ color: 'var(--ink-3)' }}>Войти</Link>
-          <Link href="/signup" className="btn btn-brand btn-sm">Регистрация</Link>
+          <a href={TG_APP} target="_blank" rel="noopener noreferrer" className="btn btn-brand btn-sm">
+            <span className="hide-mobile">Открыть в </span>Telegram
+          </a>
         </div>
       </nav>
 
@@ -82,11 +85,11 @@ export default function ForSpecialistsPage() {
             Профиль, который<br />работает на вас
           </h1>
           <p className="hero-land-sub">
-            Создайте профиль, ведите календарь занятости и принимайте клиентов напрямую. Управление через Telegram — без открытия сайта.
+            Создайте профиль через Telegram Mini App, ведите календарь занятости и принимайте клиентов напрямую — без сайтов и посредников.
           </p>
           <div className="hero-land-actions">
-            <Link href="/signup" className="btn btn-white btn-lg">Создать профиль</Link>
-            <Link href="/login"  className="btn btn-ghost-inv btn-lg">Уже есть аккаунт →</Link>
+            <a href={TG_APP} target="_blank" rel="noopener noreferrer" className="btn btn-white btn-lg">Стать специалистом</a>
+            <a href={TG_APP} target="_blank" rel="noopener noreferrer" className="btn btn-ghost-inv btn-lg">Открыть в Telegram →</a>
           </div>
         </div>
       </section>
@@ -135,13 +138,13 @@ export default function ForSpecialistsPage() {
         <div className="container">
           <div className="tg-grid">
             <div>
-              <p className="land-eyebrow land-eyebrow-inv">Telegram-интеграция</p>
+              <p className="land-eyebrow land-eyebrow-inv">Telegram Mini App + бот</p>
               <h2 className="land-title" style={{ color: '#fff', textAlign: 'left', maxWidth: 420 }}>
                 Управляйте расписанием прямо в Telegram
               </h2>
               <p className="land-sub land-sub-inv" style={{ textAlign: 'left', margin: '0 0 28px' }}>
-                Подключите бота — и управляйте своим календарём командами.
-                Быстро, без открытия сайта.
+                Mini App создаёт профиль и управляет календарём. Бот принимает команды в чате.
+                Всё синхронизируется с сайтом автоматически — клиент видит актуальную занятость.
               </p>
               <div className="tg-commands">
                 {TG_COMMANDS.map(c => (
@@ -152,7 +155,7 @@ export default function ForSpecialistsPage() {
                 ))}
               </div>
               <div style={{ marginTop: 28 }}>
-                <Link href="/signup" className="btn btn-white btn-lg">Подключить Telegram</Link>
+                <a href={TG_APP} target="_blank" rel="noopener noreferrer" className="btn btn-white btn-lg">Открыть в Telegram</a>
               </div>
             </div>
             <div>
@@ -192,12 +195,12 @@ export default function ForSpecialistsPage() {
               <span className="price-tag">Для специалистов</span>
               <h3 className="price-name">Профиль</h3>
               <div className="price-amount"><sup>от </sup>9 900<span className="price-period">₸/мес</span></div>
-              <p className="price-desc">Публичный профиль с календарём и Telegram-управлением. Оплата только после пробного периода.</p>
+              <p className="price-desc">Публичный профиль с календарём и управлением через Telegram Mini App. Оплата только после пробного периода.</p>
               <ul className="price-features">
                 {PRICE_FEATURES_PRO.map(f => <li key={f}>{f}</li>)}
               </ul>
               <div className="price-cta">
-                <Link href="/signup" className="btn btn-brand btn-full">Начать 30 дней бесплатно</Link>
+                <a href={TG_APP} target="_blank" rel="noopener noreferrer" className="btn btn-brand btn-full">Начать 30 дней бесплатно</a>
               </div>
             </div>
           </div>
@@ -208,10 +211,10 @@ export default function ForSpecialistsPage() {
       <section className="cta-band">
         <div style={{ position: 'relative', zIndex: 1 }}>
           <h2 className="cta-band-title">Начните с Octiqa сегодня</h2>
-          <p className="cta-band-sub">Создайте профиль и начните принимать клиентов.</p>
+          <p className="cta-band-sub">Создайте профиль через Telegram и начните принимать клиентов.</p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link href="/signup" className="btn btn-white btn-lg">Создать профиль</Link>
-            <Link href="/login"  className="btn btn-ghost-inv btn-lg">Войти</Link>
+            <a href={TG_APP} target="_blank" rel="noopener noreferrer" className="btn btn-white btn-lg">Стать специалистом</a>
+            <a href={TG_APP} target="_blank" rel="noopener noreferrer" className="btn btn-ghost-inv btn-lg">Открыть в Telegram</a>
           </div>
         </div>
       </section>
@@ -225,14 +228,14 @@ export default function ForSpecialistsPage() {
               Octiqa
             </a>
             <div className="footer-land-links">
-              <Link href="/search"  className="footer-land-link">Поиск</Link>
-              <Link href="/login"   className="footer-land-link">Войти</Link>
-              <Link href="/signup"  className="footer-land-link">Регистрация</Link>
+              <Link href="/search"          className="footer-land-link">Поиск</Link>
+              <Link href="/for-specialists" className="footer-land-link">Специалистам</Link>
+              <a href={TG_APP} target="_blank" rel="noopener noreferrer" className="footer-land-link">Открыть в Telegram</a>
               <a href="mailto:octiqa.info@gmail.com" className="footer-land-link">octiqa.info@gmail.com</a>
             </div>
           </div>
           <div className="footer-land-bottom">
-            <span className="footer-land-copy">© 2026 Octiqa — Управляй занятостью. Находи клиентов.</span>
+            <span className="footer-land-copy">© 2026 Octiqa — Находи специалистов в Казахстане</span>
           </div>
         </div>
       </footer>

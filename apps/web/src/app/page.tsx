@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { OctiMark } from '@/components/OctiLogo';
 
-const BRAND = 'Octiqa';
+const BRAND  = 'Octiqa';
+const TG_APP = process.env['NEXT_PUBLIC_TG_APP_URL'] ?? 'https://t.me/OctiqaBot';
 
 const CATEGORIES = [
   { icon: '🎤', label: 'Тамада',    q: 'тамада',    grad: 'linear-gradient(135deg,#7c3aed 0%,#4f46e5 100%)' },
@@ -68,13 +69,14 @@ export default function HomePage() {
       <nav className="nav-frosted">
         <a href="/" className="logo-mark">
           <OctiMark size={32} />
-          {BRAND}
+          <span className="hide-mobile">{BRAND}</span>
         </a>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Link href="/search"          className="btn btn-ghost btn-sm hide-mobile">Найти</Link>
           <Link href="/for-specialists" className="btn btn-ghost btn-sm hide-mobile">Специалистам</Link>
-          <Link href="/login"           className="btn btn-ghost btn-sm" style={{ color: 'var(--ink-3)' }}>Войти</Link>
-          <Link href="/signup"          className="btn btn-brand btn-sm">Регистрация</Link>
+          <a href={TG_APP} target="_blank" rel="noopener noreferrer" className="btn btn-brand btn-sm">
+            <span className="hide-mobile">Открыть в </span>Telegram
+          </a>
         </div>
       </nav>
 
@@ -82,7 +84,7 @@ export default function HomePage() {
       <section className="hero-land">
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div className="hero-land-eyebrow">
-            ✦ Octiqa — связываем клиента и специалиста
+            ✦ Octiqa — найди специалиста на мероприятие
           </div>
           <h1 className="hero-land-title">
             Найдите нужного<br />специалиста за минуты
@@ -93,12 +95,6 @@ export default function HomePage() {
           <div className="hero-land-actions">
             <Link href="/search" className="btn btn-white btn-lg">Найти специалиста</Link>
           </div>
-          <p className="hero-land-note">
-            Вы специалист?{' '}
-            <Link href="/for-specialists" style={{ color: 'rgba(255,255,255,.75)', textDecoration: 'underline' }}>
-              Создать профиль →
-            </Link>
-          </p>
         </div>
       </section>
 
@@ -221,13 +217,12 @@ export default function HomePage() {
             <div className="footer-land-links">
               <Link href="/search"          className="footer-land-link">Поиск</Link>
               <Link href="/for-specialists" className="footer-land-link">Специалистам</Link>
-              <Link href="/login"           className="footer-land-link">Войти</Link>
-              <Link href="/signup"          className="footer-land-link">Регистрация</Link>
+              <a href={TG_APP} target="_blank" rel="noopener noreferrer" className="footer-land-link">Открыть в Telegram</a>
               <a href="mailto:octiqa.info@gmail.com" className="footer-land-link">octiqa.info@gmail.com</a>
             </div>
           </div>
           <div className="footer-land-bottom">
-            <span className="footer-land-copy">© 2026 {BRAND} — Связываем клиента и специалиста в Казахстане</span>
+            <span className="footer-land-copy">© 2026 {BRAND} — Находи специалистов в Казахстане</span>
             <span style={{ fontSize: 13 }}>Алматы · Астана · Шымкент и ещё</span>
           </div>
         </div>
