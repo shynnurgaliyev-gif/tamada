@@ -34,6 +34,7 @@ export interface MiniAppState {
   activeIdx: number;
   setActiveIdx: (i: number) => void;
   activeProvider: Provider | null;
+  updateActiveProvider: (updated: Provider) => void;
   /* Analytics */
   summary: AnalyticsSummary | null;
   sumLoading: boolean;
@@ -118,12 +119,17 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
     if (next === 'analytics') loadAnalytics();
   }, [loadAnalytics]);
 
+  const updateActiveProvider = useCallback((updated: Provider) => {
+    setProviders(prev => prev.map((p, i) => i === activeIdx ? updated : p));
+  }, [activeIdx]);
+
   return {
     phase, setPhase,
     tab, handleTab,
     tgUser,
     providers, activeIdx, setActiveIdx,
     activeProvider: providers[activeIdx] ?? null,
+    updateActiveProvider,
     summary, sumLoading, loadAnalytics,
   };
 }

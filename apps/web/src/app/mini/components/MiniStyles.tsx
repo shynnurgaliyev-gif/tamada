@@ -242,6 +242,133 @@ export function MiniStyles() {
 
       @keyframes mini-spin { to { transform: rotate(360deg); } }
 
+      /* ── Forms ───────────────────────────────────────────────── */
+      .mini-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+      .mini-field label { font-size: 12px; font-weight: 700; color: var(--tg-theme-hint-color, #6b7280); text-transform: uppercase; letter-spacing: .06em; }
+      .mini-input {
+        width: 100%; padding: 12px 14px;
+        background: var(--tg-theme-bg-color, #f7f6ff);
+        border: 1.5px solid rgba(0,0,0,.1);
+        border-radius: 12px;
+        font-family: inherit; font-size: 15px;
+        color: var(--tg-theme-text-color, #0a0a0f);
+        outline: none;
+        -webkit-user-select: text; user-select: text;
+      }
+      .mini-input:focus { border-color: #7c3aed; }
+      .mini-input[data-error=true] { border-color: #ef4444; }
+      textarea.mini-input { resize: none; line-height: 1.5; }
+      .mini-toggle-row {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 12px 14px;
+        background: var(--tg-theme-secondary-bg-color, #fff);
+        border: 1px solid rgba(0,0,0,.07);
+        border-radius: 12px;
+        margin-bottom: 8px;
+      }
+      .mini-toggle {
+        position: relative; width: 42px; height: 24px; cursor: pointer;
+      }
+      .mini-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+      .mini-toggle-track {
+        position: absolute; inset: 0;
+        background: rgba(0,0,0,.12); border-radius: 12px;
+        transition: background .2s;
+      }
+      .mini-toggle input:checked ~ .mini-toggle-track { background: #7c3aed; }
+      .mini-toggle-thumb {
+        position: absolute; top: 3px; left: 3px;
+        width: 18px; height: 18px;
+        background: #fff; border-radius: 50%;
+        box-shadow: 0 1px 4px rgba(0,0,0,.2);
+        transition: transform .2s;
+      }
+      .mini-toggle input:checked ~ .mini-toggle-thumb { transform: translateX(18px); }
+      .mini-error-msg { font-size: 12px; color: #ef4444; margin-top: -10px; margin-bottom: 10px; }
+      .mini-save-bar {
+        position: sticky; bottom: 0;
+        padding: 12px 0 0;
+        background: linear-gradient(to bottom, transparent, var(--tg-theme-bg-color, #f7f6ff) 35%);
+      }
+
+      /* ── Photo grid ───────────────────────────────────────────── */
+      .mini-photo-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+      .mini-photo-cell {
+        aspect-ratio: 1;
+        border-radius: 12px;
+        overflow: hidden;
+        position: relative;
+        background: rgba(0,0,0,.06);
+      }
+      .mini-photo-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .mini-photo-del {
+        position: absolute; top: 5px; right: 5px;
+        width: 22px; height: 22px;
+        background: rgba(0,0,0,.55); border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 11px; color: #fff; cursor: pointer; border: none;
+      }
+      .mini-photo-cover-badge {
+        position: absolute; bottom: 5px; left: 5px;
+        background: #7c3aed; color: #fff;
+        font-size: 9px; font-weight: 700; letter-spacing: .05em;
+        padding: 2px 6px; border-radius: 5px;
+      }
+      .mini-photo-add {
+        aspect-ratio: 1;
+        border-radius: 12px;
+        border: 1.5px dashed rgba(124,58,237,.35);
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 4px; cursor: pointer;
+        background: rgba(124,58,237,.04);
+        color: #7c3aed;
+        font-size: 11px; font-weight: 600;
+      }
+      .mini-photo-add-icon { font-size: 22px; }
+
+      /* ── Link chips ───────────────────────────────────────────── */
+      .mini-link-type-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+      .mini-link-type-btn {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 4px; padding: 10px 6px;
+        background: var(--tg-theme-secondary-bg-color, #fff);
+        border: 1.5px solid rgba(0,0,0,.08);
+        border-radius: 12px;
+        font-family: inherit; font-size: 11px; font-weight: 600;
+        cursor: pointer; color: inherit;
+      }
+      .mini-link-type-btn[data-selected=true] {
+        border-color: #7c3aed;
+        background: rgba(124,58,237,.07);
+        color: #7c3aed;
+      }
+      .mini-link-type-icon { font-size: 20px; }
+      .mini-link-row {
+        display: flex; align-items: center; gap: 10px;
+        padding: 11px 12px;
+        background: var(--tg-theme-secondary-bg-color, #fff);
+        border: 1px solid rgba(0,0,0,.07);
+        border-radius: 12px;
+        margin-bottom: 8px;
+      }
+      .mini-link-row-icon { font-size: 18px; flex-shrink: 0; }
+      .mini-link-row-url { flex: 1; font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tg-theme-hint-color, #6b7280); }
+      .mini-link-del {
+        padding: 4px 8px; border: none; background: none;
+        font-size: 16px; cursor: pointer; color: rgba(0,0,0,.3);
+        flex-shrink: 0;
+      }
+
       /* ── Skeleton shimmer ────────────────────────────────────── */
       @keyframes mini-shimmer {
         0%   { background-position: -300px 0; }

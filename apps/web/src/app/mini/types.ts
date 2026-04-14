@@ -1,33 +1,92 @@
 /* ── Mini App — shared types ─────────────────────────────────────────────────
-   All types specific to the /mini feature. Root layer — no internal imports.
+   Root layer — no internal imports.
 ────────────────────────────────────────────────────────────────────────────── */
 
-// Re-export Telegram types used across the mini feature
 export type { TelegramWebApp, TgUser } from '@/lib/telegram';
 
-/* ── Domain types ────────────────────────────────────────────────────────────── */
+/* ── Provider status enums ───────────────────────────────────────────────── */
+
+export type ProviderStatus    = 'active' | 'inactive' | 'sick' | 'vacation' | 'blocked';
+export type PublicationStatus = 'draft'  | 'visible'  | 'hidden' | 'suspended';
+
+/* ── Core provider (all fields returned from /providers/me) ──────────────── */
 
 export type Provider = {
-  id: string;
-  display_name: string;
-  slug: string;
-  provider_status: string;
+  id:                 string;
+  display_name:       string;
+  slug:               string;
+  bio:                string | null;
+  country_code:       string | null;
+  region:             string | null;
+  city:               string | null;
+  district:           string | null;
+  address_text:       string | null;
+  timezone:           string;
+  provider_status:    ProviderStatus;
+  publication_status: PublicationStatus;
+  is_featured:        boolean;
+  is_verified:        boolean;
 };
 
+/** Subset of provider fields that can be updated via PATCH /providers/:id */
+export type ProviderUpdate = Partial<
+  Pick<Provider,
+    | 'display_name' | 'bio' | 'country_code' | 'region' | 'city'
+    | 'district' | 'address_text' | 'timezone'
+    | 'provider_status' | 'publication_status'
+  >
+>;
+
+/* ── Provider sub-resources ──────────────────────────────────────────────── */
+
+export type ProviderPhoto = {
+  id:           string;
+  provider_id:  string;
+  storage_path: string;
+  sort_order:   number;
+  is_cover:     boolean;
+  created_at:   string;
+  url:          string;
+};
+
+export type LinkType =
+  | 'instagram' | 'whatsapp' | 'telegram' | 'tiktok'
+  | 'youtube'   | 'website'  | 'two_gis'  | 'map' | 'other';
+
+export type ProviderLink = {
+  id:          string;
+  provider_id: string;
+  link_type:   LinkType;
+  url:         string;
+  label:       string | null;
+};
+
+export type ProviderService = {
+  id:          string;
+  provider_id: string;
+  category:    string;
+  subcategory: string | null;
+  title:       string;
+  description: string | null;
+  price_from:  number | null;
+  price_to:    number | null;
+  currency:    string;
+  is_active:   boolean;
+};
+
+/* ── Analytics ───────────────────────────────────────────────────────────── */
+
 export type AnalyticsSummary = {
-  profile_views: number;
+  profile_views:   number;
   contact_reveals: number;
-  calendar_views: number;
-  conversion_pct: number;
+  calendar_views:  number;
+  conversion_pct:  number;
 };
 
 /* ── Navigation & shell state ─────────────────────────────────────────────── */
 
-/** The 4 persistent tabs of the bottom navigation. */
-export type Tab = 'profiles' | 'calendar' | 'analytics' | 'more';
-
-/** Lifecycle phase of the Mini App shell. */
-export type Phase = 'loading' | 'onboarding' | 'shell';
+export type Tab   = 'profiles' | 'calendar' | 'analytics' | 'more';
+export type Phase = 'loading'  | 'onboarding' | 'shell';
 
 /* ── Entry flow routing ───────────────────────────────────────────────────── */
 
@@ -41,5 +100,5 @@ export function isValidFlow(v: string | null): v is TgFlow {
 /* ── Bottom nav item shape ────────────────────────────────────────────────── */
 
 export type NavItem =
-  | { id: Tab;    icon: string; label: string; special?: false }
-  | { id: 'add';  icon: string; label: string; special: true   };
+  | { id: Tab;   icon: string; label: string; special?: false }
+  | { id: 'add'; icon: string; label: string; special: true   };

@@ -31,6 +31,7 @@ export default function MiniShell() {
     tab, handleTab,
     tgUser,
     providers, activeIdx, setActiveIdx, activeProvider,
+    updateActiveProvider,
     summary, sumLoading, loadAnalytics,
   } = useMiniApp(tgFlow);
 
@@ -66,7 +67,7 @@ export default function MiniShell() {
         />
 
         <main className="mini-content mini-fadein" key={tab}>
-          {tab === 'profiles'  && <MiniProfilesScreen  providers={providers} activeIdx={activeIdx} />}
+          {tab === 'profiles'  && <MiniProfilesScreen  providers={providers} activeIdx={activeIdx} onProviderUpdated={updateActiveProvider} />}
           {tab === 'calendar'  && <MiniCalendarScreen   provider={activeProvider} />}
           {tab === 'analytics' && <MiniAnalyticsScreen  summary={summary} loading={sumLoading} onRetry={loadAnalytics} />}
           {tab === 'more'      && <MiniMoreScreen        tgUser={tgUser} />}
