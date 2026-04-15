@@ -1,136 +1,139 @@
-import { EmptyState } from '../components/EmptyState';
-import type { Provider } from '../types';
+/* ── MiniCalendarScreen ────────────────────────────────────────────────────────
+   Calendar tab orchestrator. View routing:
+     month → day → new-entry / edit-entry
+   Uses Telegram BackButton for back-navigation.
+────────────────────────────────────────────────────────────────────────────── */
 
-export function MiniCalendarScreen({ provider }: { provider: Provider | null }) {
+'use client';
+
+import { useEffect, useState, useCallback } from 'react';
+import { getTelegramWebApp }                from '@/lib/telegram';
+import { useCalendar }                      from '../hooks/useCalendar';
+import { EmptyState }                       from '../components/EmptyState';
+import { CalendarMonthView }                from './calendar/CalendarMonthView';
+import { CalendarDayView }                  from './calendar/CalendarDayView';
+import { CalendarEntryForm }                from './calendar/CalendarEntryForm';
+import type { Provider, CalendarEntryWithClient, EntryInput } from '../types';
+
+type CalView = 'month' | 'day' | 'new-entry' | 'edit-entry';
+
+export function MiniCalendarScreen({
+  provider,
+  openNewEntry,
+  onNewEntryHandled,
+}: {
+  provider:          Provider | null;
+  openNewEntry:      boolean;
+  onNewEntryHandled: () => void;
+}) {
+  const [view,         setView]         = useState<CalView>('month');
+  const [editingEntry, setEditingEntry] = useState<CalendarEntryWithClient | null>(null);
+
+  const cal = useCalendar(provider?.id ?? null);
+
+  /* ── Handle openNewEntry signal from parent (MiniAddSheet → shell → here) */
+  useEffect(() => {
+    if (openNewEntry) {
+      setEditingEntry(null);
+      setView('new-entry');
+      onNewEntryHandled();
+    }
+  }, [openNewEntry, onNewEntryHandled]);
+
+  /* ── Telegram BackButton ──────────────────────────────────────────────── */
+  const goBack = useCallback(() => {
+    if (view === 'day')        setView('month');
+    if (view === 'new-entry')  setView(cal.selectedDate ? 'day' : 'month');
+    if (view === 'edit-entry') setView('day');
+  }, [view, cal.selectedDate]);
+
+  useEffect(() => {
+    const tg = getTelegramWebApp();
+    if (!tg) return;
+    if (view !== 'month') {
+      tg.BackButton.show();
+      tg.BackButton.onClick(goBack);
+      return () => { tg.BackButton.offClick(goBack); tg.BackButton.hide(); };
+    }
+    tg.BackButton.hide();
+  }, [view, goBack]);
+
+  /* ── No provider ─────────────────────────────────────────────────────── */
   if (!provider) {
     return (
       <EmptyState
         icon="📅"
-        title="Нет профиля"
-        sub="Создайте профиль чтобы управлять расписанием"
+        title="Создайте профиль"
+        sub="Календарь доступен после создания профиля"
         href="/dashboard/onboarding"
         cta="Создать профиль"
       />
     );
   }
 
+  /* ── Mutation handlers ───────────────────────────────────────────────── */
+  async function handleSave(data: EntryInput) {
+    let result: CalendarEntryWithClient | null = null;
+    if (view === 'edit-entry' && editingEntry) {
+      result = await cal.updateEntry(editingEntry.id, data);
+    } else {
+      result = await cal.createEntry(data);
+    }
+    if (result) {
+      const localDate = new Date(result.starts_at).toLocaleDateString('sv-SE');
+      cal.selectDate(localDate);
+      setView('day');
+    }
+  }
+
+  async function handleDelete() {
+    if (!editingEntry) return;
+    const ok = await cal.deleteEntry(editingEntry.id);
+    if (ok) {
+      setEditingEntry(null);
+      setView(cal.selectedDate ? 'day' : 'month');
+    }
+  }
+
+  const formDefaultDate = cal.selectedDate ?? new Date().toLocaleDateString('sv-SE');
+
+  /* ── Render ──────────────────────────────────────────────────────────── */
   return (
     <div>
-      {/* Mini month calendar */}
-      <div className="mini-card">
-        <MonthHeader />
-        <MonthGrid />
+      {view === 'month' && (
+        <CalendarMonthView
+          year={cal.year}
+          month={cal.month}
+          days={cal.days}
+          loading={cal.monthLoading}
+          selectedDate={cal.selectedDate}
+          onSelectDate={date => { cal.selectDate(date); setView('day'); }}
+          onPrev={cal.prevMonth}
+          onNext={cal.nextMonth}
+          onAddEntry={() => { setEditingEntry(null); setView('new-entry'); }}
+        />
+      )}
 
-        {/* Legend */}
-        <div style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '6px 14px',
-          marginTop: 12,
-          paddingTop: 12,
-          borderTop: '1px solid rgba(0,0,0,.06)',
-        }}>
-          {LEGEND.map(({ color, label }) => (
-            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <span style={{
-                width: 8, height: 8,
-                borderRadius: '50%',
-                background: color,
-                display: 'block',
-                flexShrink: 0,
-              }} />
-              <span style={{ fontSize: 11, color: 'var(--tg-theme-hint-color, #6b7280)' }}>
-                {label}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+      {view === 'day' && cal.selectedDate && (
+        <CalendarDayView
+          date={cal.selectedDate}
+          entries={cal.dayEntries}
+          loading={cal.dayLoading}
+          onEditEntry={entry => { setEditingEntry(entry); setView('edit-entry'); }}
+          onAddEntry={() => { setEditingEntry(null); setView('new-entry'); }}
+        />
+      )}
 
-      <a href="/dashboard/calendar/new" className="mini-btn mini-btn-primary mini-tap" style={{ marginBottom: 10 }}>
-        ＋ Добавить запись
-      </a>
-      <a href="/dashboard/calendar" className="mini-btn mini-btn-ghost mini-tap">
-        Открыть полный календарь →
-      </a>
-
-      <div style={{ height: 16 }} />
+      {(view === 'new-entry' || view === 'edit-entry') && (
+        <CalendarEntryForm
+          entry={view === 'edit-entry' ? editingEntry : null}
+          defaultDate={formDefaultDate}
+          saving={cal.saving}
+          saveError={cal.saveError}
+          onSave={handleSave}
+          onDelete={view === 'edit-entry' ? handleDelete : undefined}
+        />
+      )}
     </div>
-  );
-}
-
-/* ── Private sub-components ─────────────────────────── */
-
-const LEGEND = [
-  { color: '#22c55e', label: 'Свободен'    },
-  { color: '#ef4444', label: 'Занят'       },
-  { color: '#f59e0b', label: 'Под вопросом' },
-  { color: '#f97316', label: 'Частично'    },
-];
-
-function MonthHeader() {
-  const now   = new Date();
-  const month = now.toLocaleDateString('ru-RU', { month: 'long' });
-  const year  = now.getFullYear();
-  return (
-    <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 10, textAlign: 'center' }}>
-      {month[0]!.toUpperCase() + month.slice(1)} {year}
-    </div>
-  );
-}
-
-function MonthGrid() {
-  const now    = new Date();
-  const year   = now.getFullYear();
-  const month  = now.getMonth();
-  const today  = now.getDate();
-  const first  = new Date(year, month, 1).getDay();
-  const offset = (first + 6) % 7; // Mon-first
-  const total  = new Date(year, month + 1, 0).getDate();
-
-  const cells: (number | null)[] = [
-    ...Array<null>(offset).fill(null),
-    ...Array.from({ length: total }, (_, i) => i + 1),
-  ];
-  while (cells.length % 7 !== 0) cells.push(null);
-
-  return (
-    <>
-      <div className="mini-cal-grid" style={{ marginBottom: 4 }}>
-        {['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d => (
-          <div key={d} style={{
-            textAlign: 'center',
-            fontSize: 10,
-            fontWeight: 700,
-            color: 'var(--tg-theme-hint-color, #9ca3af)',
-            paddingBottom: 4,
-          }}>
-            {d}
-          </div>
-        ))}
-      </div>
-      <div className="mini-cal-grid">
-        {cells.map((d, i) => {
-          const isToday = d === today;
-          const isPast  = d !== null && d < today;
-          return (
-            <div
-              key={i}
-              className="mini-cal-day"
-              style={{
-                background: isToday ? '#7c3aed' : 'transparent',
-                color: isToday ? '#fff'
-                      : isPast ? 'var(--tg-theme-hint-color, #c4c9d4)'
-                      : 'inherit',
-                fontWeight: isToday ? 800 : 400,
-                fontSize: 12,
-              }}
-            >
-              {d ?? ''}
-            </div>
-          );
-        })}
-      </div>
-    </>
   );
 }

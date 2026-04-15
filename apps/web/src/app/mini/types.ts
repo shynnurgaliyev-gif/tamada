@@ -74,6 +74,59 @@ export type ProviderService = {
   is_active:   boolean;
 };
 
+/* ── Calendar ────────────────────────────────────────────────────────────── */
+
+export type CalendarEntryStatus = 'busy' | 'free' | 'tentative' | 'blocked';
+
+export type CalendarEntry = {
+  id:          string;
+  provider_id: string;
+  starts_at:   string;   // ISO string (UTC)
+  ends_at:     string;   // ISO string (UTC)
+  status:      CalendarEntryStatus;
+  title:       string | null;
+  notes:       string | null;
+};
+
+export type CalendarEntryClient = {
+  id:                string;
+  calendar_entry_id: string;
+  client_name:       string | null;
+  client_phone:      string | null;
+  event_type:        string | null;
+  location_text:     string | null;
+  price_amount:      string | null;
+  currency:          string;
+  notes:             string | null;
+};
+
+export type CalendarEntryWithClient = CalendarEntry & { client: CalendarEntryClient | null };
+
+/** Day summary from GET /providers/:id/calendar/month */
+export type DayInfo = {
+  date:   string;   // 'YYYY-MM-DD'
+  status: string;   // 'free' | 'busy' | 'partial' | 'tentative' | 'past'
+  count:  number;
+};
+
+/** Shape sent to POST / PATCH calendar endpoints */
+export type EntryInput = {
+  starts_at: string;
+  ends_at:   string;
+  status:    CalendarEntryStatus;
+  title?:    string | null;
+  notes?:    string | null;
+  client?: {
+    client_name?:    string | null;
+    client_phone?:   string | null;
+    event_type?:     string | null;
+    location_text?:  string | null;
+    price_amount?:   string | null;
+    currency?:       string;
+    notes?:          string | null;
+  };
+};
+
 /* ── Analytics ───────────────────────────────────────────────────────────── */
 
 export type AnalyticsSummary = {

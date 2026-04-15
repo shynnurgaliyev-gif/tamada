@@ -22,8 +22,9 @@ export default function MiniShell() {
   const tgFlow  = params.get('tg_flow');
 
   // ── Overlay state (UI-only, not owned by the hook) ──────
-  const [showAdd,    setShowAdd]    = useState(false);
-  const [showSwitch, setShowSwitch] = useState(false);
+  const [showAdd,          setShowAdd]          = useState(false);
+  const [showSwitch,       setShowSwitch]       = useState(false);
+  const [calendarNewEntry, setCalendarNewEntry] = useState(false);
 
   // ── Core state + init ────────────────────────────────────
   const {
@@ -68,7 +69,7 @@ export default function MiniShell() {
 
         <main className="mini-content mini-fadein" key={tab}>
           {tab === 'profiles'  && <MiniProfilesScreen  providers={providers} activeIdx={activeIdx} onProviderUpdated={updateActiveProvider} />}
-          {tab === 'calendar'  && <MiniCalendarScreen   provider={activeProvider} />}
+          {tab === 'calendar'  && <MiniCalendarScreen   provider={activeProvider} openNewEntry={calendarNewEntry} onNewEntryHandled={() => setCalendarNewEntry(false)} />}
           {tab === 'analytics' && <MiniAnalyticsScreen  summary={summary} loading={sumLoading} onRetry={loadAnalytics} />}
           {tab === 'more'      && <MiniMoreScreen        tgUser={tgUser} />}
         </main>
@@ -83,6 +84,11 @@ export default function MiniShell() {
           <MiniAddSheet
             hasProfile={!!activeProvider}
             onClose={() => setShowAdd(false)}
+            onNewCalendarEntry={() => {
+              setShowAdd(false);
+              handleTab('calendar');
+              setCalendarNewEntry(true);
+            }}
           />
         )}
 

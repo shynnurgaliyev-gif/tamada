@@ -186,7 +186,7 @@ export function MiniStyles() {
         padding: 14px 12px;
       }
 
-      /* ── Calendar grid ────────────────────────────────────────── */
+      /* ── Calendar month grid ─────────────────────────────────── */
       .mini-cal-grid {
         display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px;
       }
@@ -194,6 +194,133 @@ export function MiniStyles() {
         aspect-ratio: 1;
         display: flex; align-items: center; justify-content: center;
         font-size: 12px; border-radius: 8px;
+      }
+      /* Full-featured month calendar */
+      .mcal-nav {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 14px;
+      }
+      .mcal-nav-btn {
+        width: 36px; height: 36px; border: none; border-radius: 10px;
+        background: rgba(0,0,0,.06); font-size: 18px; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        font-family: inherit;
+      }
+      .mcal-month-label { font-weight: 800; font-size: 17px; }
+      .mcal-dow-row {
+        display: grid; grid-template-columns: repeat(7, 1fr);
+        gap: 3px; margin-bottom: 4px;
+      }
+      .mcal-dow {
+        text-align: center; font-size: 11px; font-weight: 700;
+        color: var(--tg-theme-hint-color, #9ca3af); padding: 2px 0;
+      }
+      .mcal-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-bottom: 3px; }
+      .mcal-cell {
+        aspect-ratio: 1;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        border-radius: 10px; font-size: 13px; font-weight: 600; position: relative;
+        cursor: pointer; transition: opacity .15s;
+      }
+      .mcal-cell:active { opacity: 0.6; }
+      .mcal-cell[data-empty=true] { cursor: default; pointer-events: none; }
+      .mcal-cell[data-today=true] { box-shadow: inset 0 0 0 2px #7c3aed; color: #7c3aed; font-weight: 800; }
+      .mcal-cell[data-selected=true] { background: #7c3aed !important; color: #fff !important; box-shadow: none; }
+      .mcal-dot {
+        width: 5px; height: 5px; border-radius: 50%;
+        position: absolute; bottom: 3px;
+      }
+      .mcal-legend {
+        display: flex; flex-wrap: wrap; gap: 8px 16px;
+        margin-top: 14px; padding-top: 12px;
+        border-top: 1px solid rgba(0,0,0,.07);
+      }
+      .mcal-legend-item {
+        display: flex; align-items: center; gap: 5px;
+        font-size: 11px; color: var(--tg-theme-hint-color, #6b7280);
+      }
+      .mcal-legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+      /* ── Day timeline ─────────────────────────────────────────── */
+      .mcal-day-header {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 14px;
+      }
+      .mcal-day-title { font-weight: 800; font-size: 17px; }
+      .mcal-day-add {
+        width: 34px; height: 34px; border-radius: 10px;
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        border: none; color: #fff; font-size: 20px; font-weight: 700;
+        cursor: pointer; display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 2px 8px rgba(124,58,237,.35);
+      }
+      .mcal-timeline { position: relative; }
+      .mcal-hour-row {
+        display: flex; align-items: flex-start; gap: 0;
+        height: 56px; position: relative;
+      }
+      .mcal-hour-label {
+        width: 44px; flex-shrink: 0;
+        font-size: 11px; color: var(--tg-theme-hint-color, #9ca3af);
+        padding-top: 0; text-align: right; padding-right: 8px;
+        line-height: 1; margin-top: -6px;
+      }
+      .mcal-hour-line {
+        flex: 1; border-top: 1px solid rgba(0,0,0,.07);
+        height: 56px;
+      }
+      .mcal-hour-line[data-half=true] {
+        border-top: 1px dashed rgba(0,0,0,.04);
+        margin-top: 28px; height: 28px;
+      }
+      .mcal-entries-layer {
+        position: absolute; left: 44px; right: 0; top: 0; bottom: 0;
+        pointer-events: none;
+      }
+      .mcal-entry-block {
+        position: absolute; left: 4px; right: 4px;
+        border-radius: 8px; padding: 4px 8px;
+        overflow: hidden; pointer-events: all; cursor: pointer;
+        display: flex; flex-direction: column; justify-content: flex-start;
+        min-height: 24px;
+      }
+      .mcal-entry-title { font-size: 11px; font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .mcal-entry-time  { font-size: 10px; opacity: 0.8; margin-top: 1px; }
+      .mcal-allday-bar {
+        margin-bottom: 8px; border-radius: 8px;
+        padding: 7px 10px;
+        font-size: 12px; font-weight: 700;
+        cursor: pointer;
+      }
+      .mcal-empty-day {
+        text-align: center; padding: 32px 0;
+        color: var(--tg-theme-hint-color, #9ca3af); font-size: 14px;
+      }
+
+      /* ── Entry form ───────────────────────────────────────────── */
+      .mcal-form-section {
+        font-size: 11px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .08em;
+        color: var(--tg-theme-hint-color, #9ca3af);
+        margin: 16px 0 8px;
+      }
+      .mcal-status-grid {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px;
+      }
+      .mcal-status-btn {
+        padding: 10px 8px; border-radius: 12px;
+        border: 1.5px solid rgba(0,0,0,.08);
+        background: var(--tg-theme-secondary-bg-color, #fff);
+        font-family: inherit; font-size: 12px; font-weight: 700;
+        cursor: pointer; text-align: center; display: flex;
+        flex-direction: column; align-items: center; gap: 3px;
+      }
+      .mcal-status-btn[data-selected=true] { border-color: #7c3aed; background: rgba(124,58,237,.07); color: #7c3aed; }
+      .mcal-delete-btn {
+        width: 100%; padding: 13px; border: none;
+        background: rgba(239,68,68,.08); border-radius: 13px;
+        color: #ef4444; font-family: inherit; font-size: 15px; font-weight: 700;
+        cursor: pointer; margin-top: 8px;
       }
 
       /* ── Sheet overlay ────────────────────────────────────────── */
