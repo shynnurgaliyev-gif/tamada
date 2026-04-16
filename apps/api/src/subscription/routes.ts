@@ -5,6 +5,7 @@ import { getAuthAccount } from '../auth/middleware';
 import { findProviderById } from '../providers/repositories';
 import * as repo from './repositories';
 import { createPaymentProvider } from './payment-provider';
+import { getMiniSessionContext } from '../telegram/mini-session';
 
 export function createSubscriptionRoutes(db: Db, env: AppEnv) {
   const plugin: FastifyPluginAsync = async (app) => {
@@ -16,9 +17,11 @@ export function createSubscriptionRoutes(db: Db, env: AppEnv) {
     // GET /account/subscription
     app.get('/account/subscription', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      const mini = account ? null : await getMiniSessionContext(db, req, 'can_manage_subscription');
+      const accountId = account?.id ?? mini?.accountId;
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
-      const sub = await repo.findActiveSubscriptionByAccount(db, account.id);
+      const sub = await repo.findActiveSubscriptionByAccount(db, accountId);
       if (!sub) return reply.send({ ok: true, subscription: null });
 
       const computed = repo.computeStatus(sub);
@@ -27,37 +30,41 @@ export function createSubscriptionRoutes(db: Db, env: AppEnv) {
         sub.status = computed;
       }
 
-      const payments = await repo.findPaymentsByAccount(db, account.id, 10);
+      const payments = await repo.findPaymentsByAccount(db, accountId, 10);
       return reply.send({ ok: true, subscription: { ...sub, status: computed }, days_left: repo.daysLeft(sub), payments });
     });
 
     // POST /account/subscription/start-trial
     app.post('/account/subscription/start-trial', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      const mini = account ? null : await getMiniSessionContext(db, req, 'can_manage_subscription');
+      const accountId = account?.id ?? mini?.accountId;
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
-      const existing = await repo.findActiveSubscriptionByAccount(db, account.id);
+      const existing = await repo.findActiveSubscriptionByAccount(db, accountId);
       if (existing) return reply.code(400).send({ ok: false, error: 'Subscription already exists' });
 
-      const sub = await repo.startTrial(db, account.id);
-      await repo.logEvent(db, { accountId: account.id, subscriptionId: sub.id, eventType: 'trial_started' });
+      const sub = await repo.startTrial(db, accountId);
+      await repo.logEvent(db, { accountId, subscriptionId: sub.id, eventType: 'trial_started' });
       return reply.code(201).send({ ok: true, subscription: sub, days_left: repo.daysLeft(sub) });
     });
 
     // POST /account/payments/create-invoice (provider_id in body for payment description)
     app.post('/account/payments/create-invoice', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      const mini = account ? null : await getMiniSessionContext(db, req, 'can_manage_subscription');
+      const accountId = account?.id ?? mini?.accountId;
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const body = req.body as Record<string, unknown>;
       const phone = typeof body['phone'] === 'string' ? body['phone'] : null;
       if (!phone) return reply.code(400).send({ ok: false, error: 'phone required' });
 
-      const sub = await repo.findActiveSubscriptionByAccount(db, account.id);
+      const sub = await repo.findActiveSubscriptionByAccount(db, accountId);
       const amount = repo.SUBSCRIPTION_PRICE;
 
       const payment = await repo.createPayment(db, {
-        accountId: account.id,
+        accountId,
         subscriptionId: sub?.id,
         paymentProvider: 'kaspi',
         amount,
@@ -75,7 +82,7 @@ export function createSubscriptionRoutes(db: Db, env: AppEnv) {
 
       await repo.updatePayment(db, payment.id, { invoice_id: invoiceResult.invoiceId });
       await repo.logEvent(db, {
-        accountId: account.id,
+        accountId,
         subscriptionId: sub?.id,
         eventType: 'invoice_created',
         payloadJson: { payment_id: payment.id, invoice_id: invoiceResult.invoiceId, amount },

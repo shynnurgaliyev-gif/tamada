@@ -9,6 +9,7 @@ import * as repo from './repositories';
 import * as bot from './bot';
 import { verifyTelegramInitData } from './mini-auth';
 import { permissionsForTelegramRole } from './permissions';
+import { getMiniSessionContext } from './mini-session';
 
 export function createTelegramRoutes(db: Db, env: AppEnv) {
   const plugin: FastifyPluginAsync = async (app) => {
@@ -16,7 +17,9 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
     // POST /telegram/link-token  (auth required)
     app.post('/telegram/link-token', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      const mini = account ? null : await getMiniSessionContext(db, req, 'can_manage_integrations');
+      const accountId = account?.id ?? mini?.accountId;
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const body = req.body as Record<string, unknown>;
       const providerId = typeof body['provider_id'] === 'string' ? body['provider_id'] : null;
@@ -24,12 +27,12 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
 
       const provider = await findProviderById(db, providerId);
       if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
-      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
 
       const count = await repo.countLinkedAccounts(db, providerId);
       if (count >= 3) return reply.code(400).send({ ok: false, error: 'Maximum 3 Telegram accounts per provider' });
 
-      const tokenRow = await repo.createLinkToken(db, providerId, 'owner', account.id);
+      const tokenRow = await repo.createLinkToken(db, providerId, 'owner', accountId);
       const rawToken = tokenRow.id; // raw token returned in id field
       const botUsername = env.TELEGRAM_BOT_USERNAME ?? 'tamada_bot';
       const deepLink = `https://t.me/${botUsername}?start=link_${rawToken}`;
@@ -40,14 +43,16 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
     // POST /providers/:id/assistant-invite
     app.post('/providers/:id/assistant-invite', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      const mini = account ? null : await getMiniSessionContext(db, req, 'can_manage_team');
+      const accountId = account?.id ?? mini?.accountId;
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const { id } = req.params as { id: string };
       const provider = await findProviderById(db, id);
       if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
-      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
 
-      const tokenRow = await repo.createLinkToken(db, id, 'assistant', account.id);
+      const tokenRow = await repo.createLinkToken(db, id, 'assistant', accountId);
       const rawToken = tokenRow.id;
       const botUsername = env.TELEGRAM_BOT_USERNAME ?? 'tamada_bot';
       const deepLink = `https://t.me/${botUsername}?start=link_${rawToken}`;
@@ -370,7 +375,9 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
     // POST /telegram/unlink  (auth required)
     app.post('/telegram/unlink', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      const mini = account ? null : await getMiniSessionContext(db, req, 'can_manage_integrations');
+      const accountId = account?.id ?? mini?.accountId;
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const body = req.body as Record<string, unknown>;
       const telegramAccountId = typeof body['telegram_account_id'] === 'string' ? body['telegram_account_id'] : null;
@@ -381,11 +388,11 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       if (!ta) return reply.code(404).send({ ok: false, error: 'Not found' });
 
       const provider = await findProviderById(db, ta.provider_id);
-      if (!provider || provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (!provider || provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
 
       await repo.unlinkTelegramAccount(db, telegramAccountId);
       await repo.revokeMiniSessionsForTelegramAccount(db, telegramAccountId);
-      await repo.logActivity(db, { providerId: ta.provider_id, actorType: 'web', actorAccountId: account.id, telegramAccountId, actionType: 'telegram_unlinked' });
+      await repo.logActivity(db, { providerId: ta.provider_id, actorType: 'web', actorAccountId: accountId, telegramAccountId, actionType: 'telegram_unlinked' });
 
       const token = env.TELEGRAM_BOT_TOKEN ?? '';
       if (token) {
@@ -398,12 +405,14 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
     // GET /providers/:id/telegram-accounts  (auth required)
     app.get('/providers/:id/telegram-accounts', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      const mini = account ? null : await getMiniSessionContext(db, req, 'can_manage_integrations');
+      const accountId = account?.id ?? mini?.accountId;
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const { id } = req.params as { id: string };
       const provider = await findProviderById(db, id);
       if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
-      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
 
       const accounts = await repo.findAllAccountsByProvider(db, id);
       return reply.send({ ok: true, accounts });
@@ -412,12 +421,14 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
     // GET /providers/:id/team  (auth required)
     app.get('/providers/:id/team', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      const mini = account ? null : await getMiniSessionContext(db, req, 'can_manage_team');
+      const accountId = account?.id ?? mini?.accountId;
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const { id } = req.params as { id: string };
       const provider = await findProviderById(db, id);
       if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
-      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
 
       const rows = await db<Array<repo.TelegramAccount & { access_role: repo.TelegramRole | null; access_status: string | null; access_granted_at: Date | null }>>`
         SELECT ta.*, tpa.role AS access_role, tpa.status AS access_status, tpa.granted_at AS access_granted_at
@@ -440,12 +451,14 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
     // POST /providers/:id/team/:telegramAccountId/revoke
     app.post('/providers/:id/team/:telegramAccountId/revoke', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      const mini = account ? null : await getMiniSessionContext(db, req, 'can_manage_team');
+      const accountId = account?.id ?? mini?.accountId;
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const { id, telegramAccountId } = req.params as { id: string; telegramAccountId: string };
       const provider = await findProviderById(db, id);
       if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
-      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
 
       const rows = await db<repo.TelegramAccount[]>`SELECT * FROM telegram_accounts WHERE id = ${telegramAccountId} LIMIT 1`;
       const tgAccount = rows[0];

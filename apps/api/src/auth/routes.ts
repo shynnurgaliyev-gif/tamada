@@ -4,7 +4,9 @@ import type { WhatsAppProvider } from './whatsapp';
 import type { SupabaseClient } from '../supabase';
 import * as service from './service';
 import { hashToken } from './repositories';
+import { findAccountById } from './repositories';
 import { getAuthAccount } from './middleware';
+import { getMiniSessionContext } from '../telegram/mini-session';
 
 function extractToken(request: { headers: Record<string, string | string[] | undefined> }): string | null {
   const auth = request.headers['authorization'];
@@ -99,7 +101,13 @@ export function createAuthRoutes(db: Db, wa: WhatsAppProvider, supabase: Supabas
     // GET /auth/me
     app.get('/auth/me', async (req, reply) => {
       const token = extractToken(req);
-      if (!token) return reply.code(401).send({ ok: false, error: { code: 'UNAUTHORIZED', message: 'No token' } });
+      if (!token) {
+        const mini = await getMiniSessionContext(db, req);
+        if (!mini) return reply.code(401).send({ ok: false, error: { code: 'UNAUTHORIZED', message: 'No token' } });
+        const account = await findAccountById(db, mini.accountId);
+        if (!account) return reply.code(401).send({ ok: false, error: { code: 'ACCOUNT_NOT_FOUND', message: 'Account not found' } });
+        return reply.send({ ok: true, account });
+      }
 
       const result = await service.getMe(db, hashToken(token));
       return reply.code(result.ok ? 200 : 401).send(result);

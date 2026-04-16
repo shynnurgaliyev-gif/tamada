@@ -84,7 +84,7 @@ export default function MiniShell() {
           )}
           {tab === 'calendar'  && permissions.can_manage_calendar && <MiniCalendarScreen   provider={activeProvider} openNewEntry={calendarNewEntry} onNewEntryHandled={() => setCalendarNewEntry(false)} />}
           {tab === 'analytics' && permissions.can_view_analytics && <MiniAnalyticsScreen  summary={summary} loading={sumLoading} onRetry={loadAnalytics} />}
-          {tab === 'more'      && <MiniMoreScreen        tgUser={tgUser} permissions={permissions} />}
+          {tab === 'more'      && <MiniMoreScreen        tgUser={tgUser} permissions={permissions} activeProvider={activeProvider} />}
         </main>
 
         <MiniBottomNav
