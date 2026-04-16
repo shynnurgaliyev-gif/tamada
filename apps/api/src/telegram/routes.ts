@@ -358,11 +358,22 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       const text = msg.text?.trim() ?? '';
       const lower = text.toLowerCase();
       const token = env.TELEGRAM_BOT_TOKEN ?? '';
+      req.log.info({
+        update_id: update.update_id,
+        chat_id: chatId,
+        telegram_user_id: telegramUserId,
+        has_text: !!text,
+        command: lower.startsWith('/') ? lower.split(/\s+/)[0] : undefined,
+      }, 'telegram webhook update');
 
       // /start link_<token>
       if (lower.startsWith('/start')) {
         const parts = text.split(' ');
         const param = parts[1];
+        if (!param) {
+          await bot.sendMessage(token, chatId, bot.startText());
+          return reply.send({ ok: true });
+        }
         if (param?.startsWith('link_')) {
           const rawToken = param.slice(5);
           const tokenRow = await repo.findValidLinkToken(db, rawToken);
@@ -456,7 +467,12 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
           return reply.send({ ok: true });
         }
 
-        await bot.sendMessage(token, chatId, '👋 Привет! Используйте ссылку из кабинета для привязки.' + bot.FOOTER);
+        await bot.sendMessage(token, chatId, bot.startText());
+        return reply.send({ ok: true });
+      }
+
+      if (lower === 'помощь' || lower === '/help' || lower === 'help') {
+        await bot.sendMessage(token, chatId, bot.helpText(null, false));
         return reply.send({ ok: true });
       }
 

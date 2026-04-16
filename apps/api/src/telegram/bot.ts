@@ -1,13 +1,25 @@
 // Telegram Bot API helper — direct HTTP calls, no library needed
 
-export async function sendMessage(token: string, chatId: number, text: string): Promise<void> {
-  if (!token) return;
+export async function sendMessage(token: string, chatId: number, text: string): Promise<boolean> {
+  if (!token) {
+    console.error('telegram_send_message_skipped: TELEGRAM_BOT_TOKEN is empty');
+    return false;
+  }
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
-  await fetch(url, {
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
-  }).catch(() => null);
+  }).catch((err: unknown) => {
+    console.error('telegram_send_message_failed', err);
+    return null;
+  });
+  if (!res?.ok) {
+    const body = res ? await res.text().catch(() => '') : '';
+    console.error('telegram_send_message_bad_response', { status: res?.status, body: body.slice(0, 500) });
+    return false;
+  }
+  return true;
 }
 
 export async function setWebhook(token: string, webhookUrl: string): Promise<void> {
@@ -73,6 +85,17 @@ ${profileHelp}
 При нескольких профилях бот сохраняет записи только в активный профиль.
 
 <i>Для списка команд напишите: помощь</i>`;
+}
+
+export function startText(): string {
+  return [
+    '<b>Octiqa bot работает.</b>',
+    '',
+    'Если у вас уже есть аккаунт или доступ помощника, откройте Mini App в Telegram.',
+    'Если вы новый специалист, создайте аккаунт в Mini App, затем добавьте первый профиль.',
+    '',
+    'Для команд напишите: <b>помощь</b>',
+  ].join('\n');
 }
 
 export const FOOTER = '\n\n<i>Для списка команд напишите: помощь</i>';
