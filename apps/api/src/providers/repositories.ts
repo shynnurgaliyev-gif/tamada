@@ -24,6 +24,8 @@ export type Provider = {
   archived_by_account_id: string | null;
   archive_reason: string | null;
   pending_delete_at: Date | null;
+  primary_category?: string | null;
+  primary_subcategory?: string | null;
   created_at: Date;
   updated_at: Date;
 };
@@ -65,11 +67,35 @@ export type ProviderLink = {
 
 export async function findProvidersByAccountId(db: Db, accountId: string): Promise<Provider[]> {
   return db<Provider[]>`
-    SELECT * FROM providers
-    WHERE account_id = ${accountId}
-      AND archived_at IS NULL
-      AND pending_delete_at IS NULL
-    ORDER BY created_at ASC
+    SELECT p.*, ps.category AS primary_category, ps.subcategory AS primary_subcategory
+    FROM providers p
+    LEFT JOIN LATERAL (
+      SELECT category, subcategory
+      FROM provider_services
+      WHERE provider_id = p.id AND is_active = TRUE
+      ORDER BY created_at ASC
+      LIMIT 1
+    ) ps ON TRUE
+    WHERE p.account_id = ${accountId}
+      AND p.archived_at IS NULL
+      AND p.pending_delete_at IS NULL
+    ORDER BY p.created_at ASC
+  `;
+}
+
+export async function findAllProvidersByAccountId(db: Db, accountId: string): Promise<Provider[]> {
+  return db<Provider[]>`
+    SELECT p.*, ps.category AS primary_category, ps.subcategory AS primary_subcategory
+    FROM providers p
+    LEFT JOIN LATERAL (
+      SELECT category, subcategory
+      FROM provider_services
+      WHERE provider_id = p.id AND is_active = TRUE
+      ORDER BY created_at ASC
+      LIMIT 1
+    ) ps ON TRUE
+    WHERE p.account_id = ${accountId}
+    ORDER BY p.archived_at NULLS FIRST, p.created_at ASC
   `;
 }
 

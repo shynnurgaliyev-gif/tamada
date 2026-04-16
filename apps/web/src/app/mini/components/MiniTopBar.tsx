@@ -10,7 +10,8 @@ export function MiniTopBar({
   providers: Provider[];
   onToggleSwitch: () => void;
 }) {
-  const hasMultiple = providers.length > 1;
+  const activeProviders = providers.filter(p => !p.archived_at && !p.pending_delete_at);
+  const hasMultiple = activeProviders.length > 1;
   const isActive    = provider?.provider_status === 'active';
 
   /* ── No profile yet ──────────────────────────────────── */
@@ -67,8 +68,13 @@ export function MiniTopBar({
           overflow: 'hidden',
           textOverflow: 'ellipsis',
         }}>
-          {provider.display_name}
-        </div>
+            {provider.display_name}
+            {hasMultiple && (
+              <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--tg-theme-hint-color, #9ca3af)', fontWeight: 700 }}>
+                {activeProviders.findIndex(p => p.id === provider.id) + 1}/{activeProviders.length}
+              </span>
+            )}
+          </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
           <span
             className="mini-status-dot"

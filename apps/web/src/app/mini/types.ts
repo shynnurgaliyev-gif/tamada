@@ -24,6 +24,12 @@ export type Provider = {
   timezone:           string;
   provider_status:    ProviderStatus;
   publication_status: PublicationStatus;
+  archived_at?:       string | null;
+  archived_by_account_id?: string | null;
+  archive_reason?:    string | null;
+  pending_delete_at?: string | null;
+  primary_category?:  string | null;
+  primary_subcategory?: string | null;
   is_featured:        boolean;
   is_verified:        boolean;
 };

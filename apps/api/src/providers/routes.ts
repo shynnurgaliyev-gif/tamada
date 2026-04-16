@@ -82,7 +82,11 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
       const account = await getAuthAccount(db, req);
       if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
-      const providers = await repo.findProvidersByAccountId(db, account.id);
+      const query = req.query as Record<string, string>;
+      const includeArchived = query['include_archived'] === '1' || query['include_archived'] === 'true';
+      const providers = includeArchived
+        ? await repo.findAllProvidersByAccountId(db, account.id)
+        : await repo.findProvidersByAccountId(db, account.id);
       return reply.send({ ok: true, providers });
     });
 
@@ -110,6 +114,22 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
 
       const updated = await repo.updateProvider(db, id, updates);
       return reply.send({ ok: true, provider: updated });
+    });
+
+    // POST /providers/:id/archive
+    app.post('/providers/:id/archive', async (req, reply) => {
+      const account = await getAuthAccount(db, req);
+      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+
+      const { id } = req.params as { id: string };
+      const provider = await repo.findProviderById(db, id);
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+
+      const body = req.body as Record<string, unknown>;
+      const reason = typeof body['reason'] === 'string' ? body['reason'] : undefined;
+      const archived = await repo.archiveProvider(db, id, account.id, reason);
+      return reply.send({ ok: true, provider: archived });
     });
 
     // DELETE /providers/:id

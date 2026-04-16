@@ -32,7 +32,7 @@ export default function MiniShell() {
     tab, handleTab,
     tgUser,
     providers, activeIdx, setActiveIdx, activeProvider,
-    updateActiveProvider,
+    updateActiveProvider, canManageProfiles, maxProfiles, createProfile, archiveProfile,
     summary, sumLoading, loadAnalytics,
   } = useMiniApp(tgFlow);
 
@@ -68,7 +68,18 @@ export default function MiniShell() {
         />
 
         <main className="mini-content mini-fadein" key={tab}>
-          {tab === 'profiles'  && <MiniProfilesScreen  providers={providers} activeIdx={activeIdx} onProviderUpdated={updateActiveProvider} />}
+          {tab === 'profiles'  && (
+            <MiniProfilesScreen
+              providers={providers}
+              activeIdx={activeIdx}
+              canManageProfiles={canManageProfiles}
+              maxProfiles={maxProfiles}
+              onSwitchProfile={setActiveIdx}
+              onCreateProfile={createProfile}
+              onArchiveProfile={archiveProfile}
+              onProviderUpdated={updateActiveProvider}
+            />
+          )}
           {tab === 'calendar'  && <MiniCalendarScreen   provider={activeProvider} openNewEntry={calendarNewEntry} onNewEntryHandled={() => setCalendarNewEntry(false)} />}
           {tab === 'analytics' && <MiniAnalyticsScreen  summary={summary} loading={sumLoading} onRetry={loadAnalytics} />}
           {tab === 'more'      && <MiniMoreScreen        tgUser={tgUser} />}
@@ -92,7 +103,7 @@ export default function MiniShell() {
           />
         )}
 
-        {showSwitch && providers.length > 1 && (
+        {showSwitch && providers.filter(p => !p.archived_at && !p.pending_delete_at).length > 1 && (
           <MiniSwitchSheet
             providers={providers}
             activeIdx={activeIdx}
