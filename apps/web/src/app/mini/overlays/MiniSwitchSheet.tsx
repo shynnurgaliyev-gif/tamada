@@ -20,7 +20,10 @@ export function MiniSwitchSheet({
       <div className="mini-sheet mini-slideup" onClick={e => e.stopPropagation()}>
         <div className="mini-sheet-handle" />
         <div style={{ padding: '0 16px 24px' }}>
-          <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 14 }}>Сменить профиль</div>
+          <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 4 }}>Сменить активный профиль</div>
+          <div style={{ fontSize: 12, color: 'var(--tg-theme-hint-color, #6b7280)', marginBottom: 14 }}>
+            Календарь, аналитика и быстрые действия будут работать с выбранным профилем.
+          </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {activeProviders.map(({ provider: p, idx }) => {
@@ -49,7 +52,14 @@ export function MiniSwitchSheet({
                 >
                   <div className="mini-avatar-sm">{p.display_name[0]?.toUpperCase()}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14 }}>{p.display_name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.display_name}</div>
+                      {isSelected && (
+                        <span style={{ fontSize: 10, fontWeight: 900, color: '#7c3aed', background: 'rgba(124,58,237,.1)', padding: '2px 5px', borderRadius: 6, flexShrink: 0 }}>
+                          Активный
+                        </span>
+                      )}
+                    </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
                       <span className="mini-status-dot" style={{ background: isVisible ? '#22c55e' : '#9ca3af' }} />
                       <span style={{ fontSize: 11, color: 'var(--tg-theme-hint-color, #6b7280)' }}>{meta}</span>

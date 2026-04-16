@@ -53,7 +53,14 @@ export async function downloadFile(token: string, filePath: string): Promise<Buf
   return Buffer.from(await res.arrayBuffer());
 }
 
-export const HELP_TEXT = `<b>Команды тамады:</b>
+export function helpText(profileName: string | null, hasMultipleProfiles: boolean): string {
+  const context = profileName
+    ? `\nАктивный профиль: <b>${escapeHtml(profileName)}</b>\n`
+    : '';
+  const profileHelp = hasMultipleProfiles
+    ? '\n<b>Профили</b>\n<b>профили</b> — список доступных профилей\n<b>профиль 1</b> — переключиться по номеру\n<b>профиль Название</b> — переключиться по названию\n<b>сменить профиль</b> — открыть список\n'
+    : '';
+  return `<b>Команды Octiqa:</b>${context}
 
 📅 <b>календарь</b> — ближайшие 7 дней
 ✅ <b>свободно 12.04</b> — отметить день свободным
@@ -62,8 +69,11 @@ export const HELP_TEXT = `<b>Команды тамады:</b>
 👤 <b>клиент 12.04</b> — данные клиента на дату
 📋 <b>подписка</b> — статус и дней осталось
 🔗 <b>отвязать</b> — отключить этот Telegram
+${profileHelp}
+При нескольких профилях бот сохраняет записи только в активный профиль.
 
 <i>Для списка команд напишите: помощь</i>`;
+}
 
 export const FOOTER = '\n\n<i>Для списка команд напишите: помощь</i>';
 

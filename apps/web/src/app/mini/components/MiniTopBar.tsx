@@ -60,6 +60,16 @@ export function MiniTopBar({
       {/* Name + status */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
+          fontSize: 10,
+          fontWeight: 900,
+          textTransform: 'uppercase',
+          color: '#7c3aed',
+          letterSpacing: '.04em',
+          marginBottom: 2,
+        }}>
+          Активный профиль{hasMultiple ? ' · нажмите для смены' : ''}
+        </div>
+        <div style={{
           fontWeight: 800,
           fontSize: 16,
           letterSpacing: '-.02em',

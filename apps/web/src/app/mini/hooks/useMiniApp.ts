@@ -85,10 +85,22 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
   const activeProvider = providers[activeIdx] ?? null;
   const activeProfileCount = providers.filter(p => !p.archived_at && !p.pending_delete_at).length;
   const canManageProfiles = permissions.can_create_profile || permissions.can_archive_profile || permissions.can_edit_profile;
+  const syncActiveProvider = useCallback((providerId: string) => {
+    const miniToken = localStorage.getItem('mini_auth_token');
+    if (!miniToken) return;
+    fetch(`${API}/telegram/mini/active-provider`, {
+      method: 'POST',
+      headers: { ...miniHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider_id: providerId }),
+    }).catch(() => null);
+  }, []);
   const switchActiveIdx = useCallback((i: number) => {
     setSummary(null);
     setActiveIdx(i);
-  }, []);
+    const provider = providers[i];
+    if (!provider || provider.archived_at || provider.pending_delete_at) return;
+    syncActiveProvider(provider.id);
+  }, [providers, syncActiveProvider]);
 
   /* ── Initialise Telegram + data ───────────────────────────────────────── */
   useEffect(() => {
@@ -271,9 +283,10 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
       setActiveIdx(next.length - 1);
       return next;
     });
+    syncActiveProvider(createdProvider.id);
     setTab('profiles');
     return createdProvider;
-  }, [activeProfileCount, permissions.can_create_profile]);
+  }, [activeProfileCount, permissions.can_create_profile, syncActiveProvider]);
 
   const archiveProfile = useCallback(async (providerId: string): Promise<boolean> => {
     const token = localStorage.getItem('session_token');
@@ -293,11 +306,12 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
       if (!current || current.id === providerId || current.archived_at || current.pending_delete_at) {
         const firstActive = next.findIndex(p => !p.archived_at && !p.pending_delete_at);
         setActiveIdx(firstActive >= 0 ? firstActive : 0);
+        if (firstActive >= 0) syncActiveProvider(next[firstActive]!.id);
       }
       return next;
     });
     return true;
-  }, [activeIdx, permissions.can_archive_profile]);
+  }, [activeIdx, permissions.can_archive_profile, syncActiveProvider]);
 
   const unarchiveProfile = useCallback(async (providerId: string): Promise<boolean> => {
     const token = localStorage.getItem('session_token');

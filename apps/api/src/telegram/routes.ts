@@ -158,6 +158,29 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       return reply.send({ ok: true, activity: logs });
     });
 
+    // POST /telegram/mini/active-provider
+    app.post('/telegram/mini/active-provider', async (req, reply) => {
+      const mini = await getMiniSessionContext(db, req);
+      if (!mini) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+
+      const body = req.body as Record<string, unknown>;
+      const providerId = typeof body['provider_id'] === 'string' ? body['provider_id'] : null;
+      if (!providerId) return reply.code(400).send({ ok: false, error: 'provider_id required' });
+
+      const accessibleIds = await repo.findAccessibleProviderIdsForTelegramAccount(db, mini.telegramAccount);
+      if (!accessibleIds.includes(providerId)) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+
+      const provider = await findProviderById(db, providerId);
+      if (!provider || provider.archived_at || provider.pending_delete_at) {
+        return reply.code(404).send({ ok: false, error: 'Provider not found' });
+      }
+
+      const session = await repo.findBotSession(db, mini.telegramAccount.id);
+      const pending_cancelled = await cancelPendingDraftOnProfileSwitch(db, mini.telegramAccount.id, session, providerId);
+      await repo.setBotActiveProvider(db, mini.telegramAccount.id, providerId);
+      return reply.send({ ok: true, active_provider_id: providerId, pending_cancelled });
+    });
+
     // POST /telegram/mini/transfers/:requestId/accept
     app.post('/telegram/mini/transfers/:requestId/accept', async (req, reply) => {
       const mini = await getMiniSessionContext(db, req, 'can_create_profile');
@@ -370,15 +393,34 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
         const idx = Number(profileMatch[1]) - 1;
         const nextProvider = accessibleProviders[idx];
         if (!nextProvider) {
-          await bot.sendMessage(token, chatId, profileListMessage(accessibleProviders));
+          await bot.sendMessage(token, chatId, profileListMessage(accessibleProviders, selectedProvider?.id));
           return reply.send({ ok: true });
         }
+        const pendingWasCancelled = await cancelPendingDraftOnProfileSwitch(db, tgAccount.id, botSession, nextProvider.id);
         await repo.setBotActiveProvider(db, tgAccount.id, nextProvider.id);
-        await bot.sendMessage(token, chatId, `Активный профиль: <b>${nextProvider.display_name}</b>`);
+        await bot.sendMessage(token, chatId, profileSwitchedMessage(nextProvider.display_name, pendingWasCancelled));
         return reply.send({ ok: true });
       }
 
-      if (lower === 'профили' || lower === 'профиль' || lower === 'profiles') {
+      const profileNameMatch = /^(?:профиль|profile)\s+(.+)$/i.exec(text.trim());
+      if (profileNameMatch && accessibleProviders.length > 1) {
+        const query = profileNameMatch[1]?.trim() ?? '';
+        const nextProvider = findProviderByName(accessibleProviders, query);
+        if (!nextProvider) {
+          await bot.sendMessage(token, chatId, [
+            `Профиль <b>${escapeHtml(query)}</b> не найден.`,
+            '',
+            profileListMessage(accessibleProviders, selectedProvider?.id),
+          ].join('\n'));
+          return reply.send({ ok: true });
+        }
+        const pendingWasCancelled = await cancelPendingDraftOnProfileSwitch(db, tgAccount.id, botSession, nextProvider.id);
+        await repo.setBotActiveProvider(db, tgAccount.id, nextProvider.id);
+        await bot.sendMessage(token, chatId, profileSwitchedMessage(nextProvider.display_name, pendingWasCancelled));
+        return reply.send({ ok: true });
+      }
+
+      if (lower === 'профили' || lower === 'профиль' || lower === 'profiles' || lower === 'сменить профиль') {
         await bot.sendMessage(token, chatId, profileListMessage(accessibleProviders, selectedProvider?.id));
         return reply.send({ ok: true });
       }
@@ -541,7 +583,7 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
 
       // помощь
       if (lower === 'помощь' || lower === '/help') {
-        await bot.sendMessage(token, chatId, bot.HELP_TEXT);
+        await bot.sendMessage(token, chatId, bot.helpText(provider.display_name, accessibleProviders.length > 1));
         return reply.send({ ok: true });
       }
 
@@ -874,8 +916,41 @@ function profileListMessage(providers: Provider[], activeProviderId?: string): s
     '<b>Выберите профиль для Telegram bot</b>',
     ...lines,
     '',
-    'Напишите номер или: <b>Профиль 1</b>',
+    'Напишите номер, <b>Профиль 1</b> или <b>Профиль Название</b>.',
   ].join('\n');
+}
+
+async function cancelPendingDraftOnProfileSwitch(
+  db: Db,
+  telegramAccountId: string,
+  session: repo.TelegramBotSession | null,
+  nextProviderId: string,
+): Promise<boolean> {
+  const pending = session?.pending_booking as { provider_id?: unknown } | null | undefined;
+  const expiresAt = session?.pending_expires_at ? new Date(session.pending_expires_at).getTime() : 0;
+  if (!pending || expiresAt <= Date.now()) return false;
+  if (pending.provider_id === nextProviderId) return false;
+  await repo.clearBotPendingBooking(db, telegramAccountId);
+  return true;
+}
+
+function profileSwitchedMessage(profileName: string, pendingWasCancelled: boolean): string {
+  return [
+    `Активный профиль: <b>${escapeHtml(profileName)}</b>`,
+    pendingWasCancelled ? 'Черновик записи отменен, чтобы не сохранить его в другой профиль.' : null,
+  ].filter(Boolean).join('\n');
+}
+
+function findProviderByName(providers: Provider[], query: string): Provider | null {
+  const needle = normalizeProfileName(query);
+  if (!needle) return null;
+  return providers.find(provider => normalizeProfileName(provider.display_name) === needle)
+    ?? providers.find(provider => normalizeProfileName(provider.display_name).includes(needle))
+    ?? null;
+}
+
+function normalizeProfileName(value: string): string {
+  return value.toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
 }
 
 function audioFilename(fileName: string | undefined, filePath: string): string {
