@@ -1,7 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify';
+import bcrypt from 'bcryptjs';
 import type { Db } from '../db';
 import type { AppEnv } from '@tamada/config';
 import { getAuthAccount } from '../auth/middleware';
+import * as authRepo from '../auth/repositories';
 import { countActiveProvidersByAccountId, findProviderById, transferProviderToAccount, type Provider } from '../providers/repositories';
 import { findEntriesByRange, createEntry, checkOverlap, upsertClient, CalendarEntryStatus } from '../calendar/repositories';
 import { publishCalendarChange } from '../calendar/events';
@@ -87,15 +89,34 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       if (!verified) return reply.code(401).send({ ok: false, error: 'Invalid Telegram Mini App auth data' });
 
       const tgAccount = await repo.findLinkedAccountByTelegramUserId(db, verified.user.id);
-      if (!tgAccount) return reply.send({ ok: true, providers: [], role: null, permissions: permissionsForTelegramRole(null), mini_token: null, expires_at: null });
+      if (!tgAccount) {
+        return reply.send({
+          ok: true,
+          state: 'guest',
+          providers: [],
+          role: null,
+          permissions: permissionsForTelegramRole(null),
+          mini_token: null,
+          expires_at: null,
+        });
+      }
 
       const providers = await listMiniAccessibleProviders(db, tgAccount);
       const incomingTransfers = tgAccount.account_id
         ? await repo.findIncomingOwnershipTransferRequests(db, tgAccount.account_id)
         : [];
       const hasPendingIncomingTransfer = incomingTransfers.some(r => r.status === 'pending');
-      if (providers.length === 0 && !hasPendingIncomingTransfer) {
-        return reply.send({ ok: true, providers: [], role: tgAccount.telegram_role, permissions: permissionsForTelegramRole(tgAccount.telegram_role), mini_token: null, expires_at: null });
+      const isOwnerWithoutFirstProfile = tgAccount.is_primary && tgAccount.telegram_role === 'owner' && !!tgAccount.account_id;
+      if (providers.length === 0 && !hasPendingIncomingTransfer && !isOwnerWithoutFirstProfile) {
+        return reply.send({
+          ok: true,
+          state: 'guest',
+          providers: [],
+          role: tgAccount.telegram_role,
+          permissions: permissionsForTelegramRole(tgAccount.telegram_role),
+          mini_token: null,
+          expires_at: null,
+        });
       }
 
       const rawSessionToken = repo.generateMiniSessionToken();
@@ -110,11 +131,78 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
 
       return reply.send({
         ok: true,
+        state: 'authenticated',
         providers,
         role: tgAccount.telegram_role,
         permissions: permissionsForTelegramRole(tgAccount.telegram_role),
         mini_token: rawSessionToken,
         expires_at: expiresAt.toISOString(),
+      });
+    });
+
+    // POST /telegram/mini/account
+    app.post('/telegram/mini/account', async (req, reply) => {
+      const body = req.body as Record<string, unknown>;
+      const initData = typeof body['init_data'] === 'string'
+        ? body['init_data']
+        : typeof body['initData'] === 'string' ? body['initData'] : '';
+      const fullName = typeof body['full_name'] === 'string' ? body['full_name'].trim() : '';
+      if (!initData) return reply.code(400).send({ ok: false, error: 'init_data required' });
+      if (fullName.length < 2) return reply.code(400).send({ ok: false, error: 'full_name required' });
+
+      const token = env.TELEGRAM_BOT_TOKEN ?? '';
+      if (!token) return reply.code(503).send({ ok: false, error: 'Telegram Mini App auth is not configured' });
+
+      const verified = verifyTelegramInitData(initData, token);
+      if (!verified) return reply.code(401).send({ ok: false, error: 'Invalid Telegram Mini App auth data' });
+
+      const linked = await repo.findLinkedAccountByTelegramUserId(db, verified.user.id);
+      if (linked) return reply.code(409).send({ ok: false, error: 'Telegram user already has account access' });
+
+      const existingTelegram = await repo.findAccountByTelegramUserId(db, verified.user.id);
+      const username = await uniqueMiniAccountUsername(db, fullName, verified.user.username, verified.user.id);
+      const passwordHash = await bcrypt.hash(authRepo.generateToken(), 12);
+      const account = await authRepo.createAccount(db, {
+        username,
+        phone: `tg:${verified.user.id}`,
+        passwordHash,
+      });
+
+      const tgAccount = existingTelegram
+        ? await repo.relinkOwnerTelegramAccountWithoutProvider(db, existingTelegram.id, {
+            accountId: account.id,
+            telegramUsername: verified.user.username,
+            telegramFirstName: verified.user.first_name ?? fullName,
+            telegramLastName: verified.user.last_name,
+          })
+        : await repo.createOwnerTelegramAccountWithoutProvider(db, {
+            accountId: account.id,
+            telegramUserId: verified.user.id,
+            telegramUsername: verified.user.username,
+            telegramFirstName: verified.user.first_name ?? fullName,
+            telegramLastName: verified.user.last_name,
+          });
+      if (!tgAccount) return reply.code(500).send({ ok: false, error: 'Failed to link Telegram account' });
+
+      const rawSessionToken = repo.generateMiniSessionToken();
+      const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000);
+      await repo.createMiniSession(db, {
+        telegramAccountId: tgAccount.id,
+        telegramUserId: verified.user.id,
+        role: 'owner',
+        tokenHash: repo.hashToken(rawSessionToken),
+        expiresAt,
+      });
+
+      return reply.send({
+        ok: true,
+        state: 'authenticated',
+        providers: [],
+        role: 'owner',
+        permissions: permissionsForTelegramRole('owner'),
+        mini_token: rawSessionToken,
+        expires_at: expiresAt.toISOString(),
+        account,
       });
     });
 
@@ -291,7 +379,7 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
 
           // Check if already linked to another provider
           const existing = await repo.findAccountByTelegramUserId(db, telegramUserId);
-          const existingProvider = existing ? await findProviderById(db, existing.provider_id) : null;
+          const existingProvider = existing?.provider_id ? await findProviderById(db, existing.provider_id) : null;
           if (
             existing &&
             existing.status === 'linked' &&
@@ -742,6 +830,7 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       const ta = tgAccount[0];
       if (!ta) return reply.code(404).send({ ok: false, error: 'Not found' });
 
+      if (!ta.provider_id) return reply.code(400).send({ ok: false, error: 'Telegram account is not linked to a profile' });
       const provider = await findProviderById(db, ta.provider_id);
       if (!provider || provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
 
@@ -986,4 +1075,29 @@ async function listMiniAccessibleProviders(db: Db, tgAccount: repo.TelegramAccou
       AND p.pending_delete_at IS NULL
     ORDER BY p.created_at ASC
   `;
+}
+
+async function uniqueMiniAccountUsername(
+  db: Db,
+  fullName: string,
+  telegramUsername: string | undefined,
+  telegramUserId: number,
+): Promise<string> {
+  const base = slugAccountName(telegramUsername || fullName) || 'telegram';
+  const candidates = [
+    `${base}_${telegramUserId}`,
+    `telegram_${telegramUserId}`,
+  ];
+  for (const candidate of candidates) {
+    if (!await authRepo.findAccountByUsername(db, candidate)) return candidate;
+  }
+  return `telegram_${telegramUserId}_${Date.now().toString(36)}`;
+}
+
+function slugAccountName(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 28);
 }

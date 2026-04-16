@@ -15,6 +15,7 @@ import { MiniMoreScreen }               from './screens/MiniMoreScreen';
 import { MiniAddSheet }                 from './overlays/MiniAddSheet';
 import { MiniSwitchSheet }              from './overlays/MiniSwitchSheet';
 import { MiniOnboardingGate }           from './overlays/MiniOnboardingGate';
+import { MiniGuestGate }                from './overlays/MiniGuestGate';
 
 export default function MiniShell() {
   // useSearchParams must be called here (inside the Suspense boundary in page.tsx)
@@ -30,7 +31,7 @@ export default function MiniShell() {
   const {
     phase, setPhase,
     tab, handleTab,
-    tgUser, miniAuthError, permissions,
+    tgUser, miniAuthError, permissions, createGuestAccount,
     providers, activeIdx, setActiveIdx, activeProvider,
     updateActiveProvider, refreshProviders, canManageProfiles, maxProfiles, createProfile, archiveProfile, unarchiveProfile,
     summary, sumLoading, loadAnalytics,
@@ -45,6 +46,16 @@ export default function MiniShell() {
 
   // ── Phases ───────────────────────────────────────────────
   if (phase === 'loading') return <MiniLoader />;
+
+  if (phase === 'guest') {
+    return (
+      <MiniGuestGate
+        tgUser={tgUser}
+        authError={miniAuthError}
+        onCreateAccount={createGuestAccount}
+      />
+    );
+  }
 
   if (phase === 'onboarding') {
     return (

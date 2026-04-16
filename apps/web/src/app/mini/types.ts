@@ -181,7 +181,7 @@ export const ASSISTANT_MINI_PERMISSIONS: MiniPermissions = {
 /* ── Navigation & shell state ─────────────────────────────────────────────── */
 
 export type Tab   = 'profiles' | 'calendar' | 'analytics' | 'more';
-export type Phase = 'loading'  | 'onboarding' | 'shell';
+export type Phase = 'loading' | 'guest' | 'onboarding' | 'shell';
 
 /* ── Entry flow routing ───────────────────────────────────────────────────── */
 

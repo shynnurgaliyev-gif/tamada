@@ -171,7 +171,7 @@ CREATE TYPE actor_type AS ENUM ('web', 'telegram');
 
 CREATE TABLE telegram_accounts (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  provider_id         UUID NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+  provider_id         UUID REFERENCES providers(id) ON DELETE SET NULL,
   account_id          UUID REFERENCES accounts(id) ON DELETE CASCADE,
   telegram_user_id    BIGINT NOT NULL UNIQUE,
   telegram_username   TEXT,

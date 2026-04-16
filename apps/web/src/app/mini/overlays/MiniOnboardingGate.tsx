@@ -123,8 +123,8 @@ export function MiniOnboardingGate({
         </div>
 
         {/* CTA */}
-        <a
-          href="/dashboard/onboarding"
+        <button
+          onClick={onContinue}
           className="mini-tap"
           style={{
             display: 'flex',
@@ -137,12 +137,14 @@ export function MiniOnboardingGate({
             fontSize: 16,
             fontWeight: 700,
             color: '#fff',
-            textDecoration: 'none',
+            border: 'none',
             boxShadow: '0 4px 18px rgba(124,58,237,.38)',
+            width: '100%',
+            fontFamily: 'inherit',
           }}
         >
-          Начать создание профиля →
-        </a>
+          Добавить первый профиль →
+        </button>
         <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--tg-theme-hint-color, #9ca3af)' }}>
           30 дней бесплатно · Без карты
         </div>

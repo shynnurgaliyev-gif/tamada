@@ -51,6 +51,7 @@ export interface MiniAppState {
   tgUser: TgUser | null;
   miniAuthError: string | null;
   permissions: MiniPermissions;
+  createGuestAccount: (input: { full_name: string }) => Promise<boolean>;
   /* Providers */
   providers: Provider[];
   activeIdx: number;
@@ -81,6 +82,7 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
   const [sumLoading, setSumLoading] = useState(false);
   const [miniAuthError, setMiniAuthError] = useState<string | null>(null);
   const [permissions, setPermissions] = useState<MiniPermissions>(OWNER_MINI_PERMISSIONS);
+  const [verifiedInitData, setVerifiedInitData] = useState('');
 
   const activeProvider = providers[activeIdx] ?? null;
   const activeProfileCount = providers.filter(p => !p.archived_at && !p.pending_delete_at).length;
@@ -120,46 +122,63 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
     localStorage.removeItem('mini_tg_user_id');
     if (flow === 'profiles') setTab('profiles');
 
-    const token = localStorage.getItem('session_token');
+    const initData = tg?.initData ?? '';
+    setVerifiedInitData(initData);
 
-    // No token → onboarding
-    if (!token) {
-      const initData = tg?.initData ?? '';
-      if (initData) {
+    if (initData) {
+      localStorage.removeItem('session_token');
+      localStorage.removeItem('mini_auth_token');
+      localStorage.removeItem('mini_auth_expires_at');
+      setProviders([]);
+      setActiveIdx(0);
         fetch(`${API}/telegram/mini/auth`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ init_data: initData }),
         })
           .then(r => r.json())
-          .then((d: { ok: boolean; providers?: Provider[]; role?: string | null; permissions?: MiniPermissions; mini_token?: string | null; expires_at?: string | null; error?: string }) => {
-            if (d.ok && (d.providers?.length || d.mini_token)) {
+          .then((d: { ok: boolean; state?: 'guest' | 'authenticated'; providers?: Provider[]; role?: string | null; permissions?: MiniPermissions; mini_token?: string | null; expires_at?: string | null; error?: string }) => {
+            if (d.ok && d.state === 'authenticated' && d.mini_token) {
               if (d.mini_token) {
                 localStorage.setItem('mini_auth_token', d.mini_token);
                 if (d.expires_at) localStorage.setItem('mini_auth_expires_at', d.expires_at);
               }
+              const nextProviders = d.providers ?? [];
               setPermissions(d.permissions ?? ASSISTANT_MINI_PERMISSIONS);
-              setProviders(d.providers ?? []);
-              setPhase('shell');
+              setProviders(nextProviders);
+              setActiveIdx(0);
+              setPhase(nextProviders.length > 0 ? 'shell' : 'onboarding');
+            } else if (d.ok && d.state === 'guest') {
+              localStorage.removeItem('mini_auth_token');
+              localStorage.removeItem('mini_auth_expires_at');
+              setPermissions(ASSISTANT_MINI_PERMISSIONS);
+              setProviders([]);
+              setActiveIdx(0);
+              setPhase('guest');
             } else {
               localStorage.removeItem('mini_auth_token');
               localStorage.removeItem('mini_auth_expires_at');
               if (d.error) setMiniAuthError(d.error);
-              setPhase('onboarding');
+              setPhase('guest');
             }
           })
           .catch(() => {
             localStorage.removeItem('mini_auth_token');
             localStorage.removeItem('mini_auth_expires_at');
             setMiniAuthError('Не удалось проверить вход через Telegram. Откройте Mini App заново из Telegram.');
-            setPhase('onboarding');
+            setPhase('guest');
           });
         return;
-      }
+    }
+
+    const token = localStorage.getItem('session_token');
+
+    // No verified Telegram data and no web token → onboarding fallback
+    if (!token) {
       if (tg?.initDataUnsafe?.user) {
         setMiniAuthError('Telegram не передал данные для безопасного входа. Откройте Mini App заново из Telegram.');
       }
-      setPhase('onboarding');
+      setPhase('guest');
       return;
     }
 
@@ -176,6 +195,40 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
     fetchProviders().finally(() => setPhase('shell'));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);                          // run once on mount
+
+  const createGuestAccount = useCallback(async (input: { full_name: string }): Promise<boolean> => {
+    if (!verifiedInitData) {
+      setMiniAuthError('Откройте Mini App заново из Telegram, чтобы создать аккаунт.');
+      return false;
+    }
+    const res = await fetch(`${API}/telegram/mini/account`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ init_data: verifiedInitData, full_name: input.full_name }),
+    }).catch(() => null);
+    const data = res ? await res.json() as {
+      ok: boolean;
+      providers?: Provider[];
+      permissions?: MiniPermissions;
+      mini_token?: string | null;
+      expires_at?: string | null;
+      error?: string;
+    } : null;
+    if (!data?.ok || !data.mini_token) {
+      setMiniAuthError(data?.error ?? 'Не удалось создать аккаунт. Попробуйте еще раз.');
+      return false;
+    }
+    localStorage.removeItem('session_token');
+    localStorage.setItem('mini_auth_token', data.mini_token);
+    if (data.expires_at) localStorage.setItem('mini_auth_expires_at', data.expires_at);
+    const nextProviders = data.providers ?? [];
+    setPermissions(data.permissions ?? OWNER_MINI_PERMISSIONS);
+    setProviders(nextProviders);
+    setActiveIdx(0);
+    setMiniAuthError(null);
+    setPhase('onboarding');
+    return true;
+  }, [verifiedInitData]);
 
   /* ── Provider fetcher ─────────────────────────────────────────────────── */
   function fetchProviders(): Promise<void> {
@@ -334,6 +387,7 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
     tgUser,
     miniAuthError,
     permissions,
+    createGuestAccount,
     providers, activeIdx, setActiveIdx: switchActiveIdx,
     activeProvider,
     updateActiveProvider,

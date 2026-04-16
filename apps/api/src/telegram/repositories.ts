@@ -8,7 +8,7 @@ export type ActorType = 'web' | 'telegram';
 
 export type TelegramAccount = {
   id: string;
-  provider_id: string;
+  provider_id: string | null;
   account_id: string | null;
   telegram_user_id: number;
   telegram_username: string | null;
@@ -255,6 +255,50 @@ export async function createTelegramAccount(db: Db, data: {
   `;
   if (!rows[0]) throw new Error('Failed to create telegram account');
   return rows[0];
+}
+
+export async function createOwnerTelegramAccountWithoutProvider(db: Db, data: {
+  accountId: string;
+  telegramUserId: number;
+  telegramUsername?: string | undefined;
+  telegramFirstName?: string | undefined;
+  telegramLastName?: string | undefined;
+}): Promise<TelegramAccount> {
+  const rows = await db<TelegramAccount[]>`
+    INSERT INTO telegram_accounts
+      (provider_id, account_id, telegram_user_id, telegram_username, telegram_first_name, telegram_last_name, telegram_role, is_primary, status, linked_at)
+    VALUES
+      (NULL, ${data.accountId}, ${data.telegramUserId}, ${data.telegramUsername ?? null},
+       ${data.telegramFirstName ?? null}, ${data.telegramLastName ?? null},
+       'owner', TRUE, 'linked', NOW())
+    RETURNING *
+  `;
+  if (!rows[0]) throw new Error('Failed to create telegram account');
+  return rows[0];
+}
+
+export async function relinkOwnerTelegramAccountWithoutProvider(db: Db, id: string, data: {
+  accountId: string;
+  telegramUsername?: string | undefined;
+  telegramFirstName?: string | undefined;
+  telegramLastName?: string | undefined;
+}): Promise<TelegramAccount | null> {
+  const rows = await db<TelegramAccount[]>`
+    UPDATE telegram_accounts SET
+      provider_id = NULL,
+      account_id = ${data.accountId},
+      telegram_username = ${data.telegramUsername ?? null},
+      telegram_first_name = ${data.telegramFirstName ?? null},
+      telegram_last_name = ${data.telegramLastName ?? null},
+      telegram_role = 'owner',
+      is_primary = TRUE,
+      status = 'linked',
+      linked_at = NOW(),
+      unlinked_at = NULL
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  return rows[0] ?? null;
 }
 
 export async function relinkTelegramAccount(db: Db, id: string, data: {
