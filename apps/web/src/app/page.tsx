@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import { OctiMark } from '@/components/OctiLogo';
+import { TELEGRAM_DASHBOARD_LINK } from '@/lib/telegramLinks';
 
 const BRAND  = 'Octiqa';
-const TG_APP = process.env['NEXT_PUBLIC_TG_APP_URL'] ?? 'https://t.me/OctiqaBot';
 
 const CATEGORIES = [
   { icon: '🎤', label: 'Тамада',    q: 'тамада',    grad: 'linear-gradient(135deg,#7c3aed 0%,#4f46e5 100%)' },
@@ -74,7 +74,7 @@ export default function HomePage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Link href="/search"          className="btn btn-ghost btn-sm hide-mobile">Найти</Link>
           <Link href="/for-specialists" className="btn btn-ghost btn-sm hide-mobile">Специалистам</Link>
-          <a href={TG_APP} target="_blank" rel="noopener noreferrer" className="btn btn-brand btn-sm">
+          <a href={TELEGRAM_DASHBOARD_LINK} target="_blank" rel="noopener noreferrer" className="btn btn-brand btn-sm">
             <span className="hide-mobile">Открыть в </span>Telegram
           </a>
         </div>
@@ -217,7 +217,7 @@ export default function HomePage() {
             <div className="footer-land-links">
               <Link href="/search"          className="footer-land-link">Поиск</Link>
               <Link href="/for-specialists" className="footer-land-link">Специалистам</Link>
-              <a href={TG_APP} target="_blank" rel="noopener noreferrer" className="footer-land-link">Открыть в Telegram</a>
+              <a href={TELEGRAM_DASHBOARD_LINK} target="_blank" rel="noopener noreferrer" className="footer-land-link">Открыть в Telegram</a>
               <a href="mailto:octiqa.info@gmail.com" className="footer-land-link">octiqa.info@gmail.com</a>
             </div>
           </div>

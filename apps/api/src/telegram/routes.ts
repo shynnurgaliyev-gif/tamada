@@ -37,7 +37,7 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
 
       const tokenRow = await repo.createLinkToken(db, providerId, 'owner', accountId);
       const rawToken = tokenRow.id; // raw token returned in id field
-      const botUsername = env.TELEGRAM_BOT_USERNAME ?? 'tamada_bot';
+      const botUsername = env.TELEGRAM_BOT_USERNAME ?? 'octiqa_mini_bot';
       const deepLink = `https://t.me/${botUsername}?start=link_${rawToken}`;
 
       return reply.send({ ok: true, deep_link: deepLink, expires_in_minutes: 15 });
@@ -57,7 +57,7 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
 
       const tokenRow = await repo.createLinkToken(db, id, 'assistant', accountId);
       const rawToken = tokenRow.id;
-      const botUsername = env.TELEGRAM_BOT_USERNAME ?? 'tamada_bot';
+      const botUsername = env.TELEGRAM_BOT_USERNAME ?? 'octiqa_mini_bot';
       const deepLink = `https://t.me/${botUsername}?start=link_${rawToken}`;
       await repo.logActivity(db, {
         providerId: id,

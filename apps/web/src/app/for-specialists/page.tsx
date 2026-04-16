@@ -1,18 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { OctiMark } from '@/components/OctiLogo';
+import { TELEGRAM_DASHBOARD_LINK, TELEGRAM_ONBOARDING_LINK } from '@/lib/telegramLinks';
 
 export const metadata: Metadata = {
   title: 'Специалистам — Octiqa в Telegram Mini App',
   description: 'Создайте профиль, ведите календарь и принимайте клиентов через Telegram Mini App. Профиль автоматически появляется на сайте. 30 дней бесплатно.',
 };
-
-const TG_APP        = process.env['NEXT_PUBLIC_TG_APP_URL'] ?? 'https://t.me/OctiqaBot';
-// Onboarding entry — passes start_param so Mini App opens in onboarding flow.
-// Once the Web App short name is registered in BotFather use:
-//   https://t.me/OctiqaBot/<shortname>?startapp=onboarding
-const TG_ONBOARDING = `${TG_APP}?startapp=onboarding`;
-const TG_DASHBOARD  = TG_APP; // opens Mini App at default dashboard screen
 
 const STEPS = [
   {
@@ -59,7 +53,7 @@ const PRICE_FEATURES = [
   'Управление через Telegram Mini App',
   'Telegram-бот — быстрые команды',
   'Аналитика просмотров и конверсии',
-  'До 3 Telegram аккаунтов',
+  'До 3 профилей на аккаунт',
   '30 дней бесплатно',
 ];
 
@@ -75,7 +69,7 @@ export default function ForSpecialistsPage() {
         </a>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Link href="/search" className="btn btn-ghost btn-sm hide-mobile">Найти</Link>
-          <a href={TG_APP} target="_blank" rel="noopener noreferrer" className="btn btn-brand btn-sm">
+          <a href={TELEGRAM_DASHBOARD_LINK} target="_blank" rel="noopener noreferrer" className="btn btn-brand btn-sm">
             <span className="hide-mobile">Открыть в </span>Telegram
           </a>
         </div>
@@ -93,10 +87,10 @@ export default function ForSpecialistsPage() {
             Данные автоматически синхронизируются с сайтом — клиенты видят вас в поиске.
           </p>
           <div className="hero-land-actions">
-            <a href={TG_ONBOARDING} target="_blank" rel="noopener noreferrer" className="btn btn-white btn-lg">
+            <a href={TELEGRAM_ONBOARDING_LINK} target="_blank" rel="noopener noreferrer" className="btn btn-white btn-lg">
               Стать специалистом
             </a>
-            <a href={TG_DASHBOARD} target="_blank" rel="noopener noreferrer" className="btn btn-ghost-inv btn-lg">
+            <a href={TELEGRAM_DASHBOARD_LINK} target="_blank" rel="noopener noreferrer" className="btn btn-ghost-inv btn-lg">
               Уже есть аккаунт →
             </a>
           </div>
@@ -206,7 +200,7 @@ export default function ForSpecialistsPage() {
                 ))}
               </div>
               <div style={{ marginTop: 28 }}>
-                <a href={TG_DASHBOARD} target="_blank" rel="noopener noreferrer" className="btn btn-white btn-lg">
+                <a href={TELEGRAM_DASHBOARD_LINK} target="_blank" rel="noopener noreferrer" className="btn btn-white btn-lg">
                   Открыть в Telegram
                 </a>
               </div>
@@ -241,19 +235,19 @@ export default function ForSpecialistsPage() {
           <div className="land-header">
             <p className="land-eyebrow">Тарифы</p>
             <h2 className="land-title">Прозрачно и честно</h2>
-            <p className="land-sub">Первые 30 дней — бесплатно. Платите только за активный профиль.</p>
+            <p className="land-sub">Первые 30 дней — бесплатно. Одна подписка для аккаунта, первый профиль включен.</p>
           </div>
           <div style={{ maxWidth: 400, margin: '0 auto' }}>
             <div className="price-card price-card-featured">
               <span className="price-tag">Для специалистов</span>
-              <h3 className="price-name">Профиль</h3>
+              <h3 className="price-name">Аккаунт Octiqa</h3>
               <div className="price-amount"><sup>от </sup>9 900<span className="price-period">₸/мес</span></div>
-              <p className="price-desc">Публичный профиль, календарь и бот. Управление через Telegram Mini App. Оплата после пробного периода.</p>
+              <p className="price-desc">Аккаунт владельца, публичный профиль, календарь и бот. Управление через Telegram Mini App. Оплата после пробного периода.</p>
               <ul className="price-features">
                 {PRICE_FEATURES.map(f => <li key={f}>{f}</li>)}
               </ul>
               <div className="price-cta">
-                <a href={TG_ONBOARDING} target="_blank" rel="noopener noreferrer" className="btn btn-brand btn-full">
+                <a href={TELEGRAM_ONBOARDING_LINK} target="_blank" rel="noopener noreferrer" className="btn btn-brand btn-full">
                   Начать 30 дней бесплатно
                 </a>
               </div>
@@ -268,10 +262,10 @@ export default function ForSpecialistsPage() {
           <h2 className="cta-band-title">Начните прямо сейчас</h2>
           <p className="cta-band-sub">Профиль — через Telegram. Клиенты — на сайте.</p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a href={TG_ONBOARDING} target="_blank" rel="noopener noreferrer" className="btn btn-white btn-lg">
+            <a href={TELEGRAM_ONBOARDING_LINK} target="_blank" rel="noopener noreferrer" className="btn btn-white btn-lg">
               Стать специалистом
             </a>
-            <a href={TG_DASHBOARD} target="_blank" rel="noopener noreferrer" className="btn btn-ghost-inv btn-lg">
+            <a href={TELEGRAM_DASHBOARD_LINK} target="_blank" rel="noopener noreferrer" className="btn btn-ghost-inv btn-lg">
               Открыть в Telegram
             </a>
           </div>
@@ -289,7 +283,7 @@ export default function ForSpecialistsPage() {
             <div className="footer-land-links">
               <Link href="/search"          className="footer-land-link">Поиск</Link>
               <Link href="/for-specialists" className="footer-land-link">Специалистам</Link>
-              <a href={TG_APP} target="_blank" rel="noopener noreferrer" className="footer-land-link">Открыть в Telegram</a>
+              <a href={TELEGRAM_DASHBOARD_LINK} target="_blank" rel="noopener noreferrer" className="footer-land-link">Открыть в Telegram</a>
               <a href="mailto:octiqa.info@gmail.com" className="footer-land-link">octiqa.info@gmail.com</a>
             </div>
           </div>
