@@ -28,6 +28,7 @@ const envSchema = z.object({
   // Telegram
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_BOT_USERNAME: z.string().optional(),
+  TELEGRAM_MINIAPP_SHORT_NAME: z.string().optional(),
 
   // Payments
   KASPI_API_KEY: z.string().optional(),

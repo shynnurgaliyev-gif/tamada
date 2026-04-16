@@ -358,6 +358,7 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       const text = msg.text?.trim() ?? '';
       const lower = text.toLowerCase();
       const token = env.TELEGRAM_BOT_TOKEN ?? '';
+      const guestOptions = { replyMarkup: bot.miniAppKeyboard(telegramMiniAppUrl(env)) };
       req.log.info({
         update_id: update.update_id,
         chat_id: chatId,
@@ -371,7 +372,7 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
         const parts = text.split(' ');
         const param = parts[1];
         if (!param) {
-          await bot.sendMessage(token, chatId, bot.startText());
+          await bot.sendMessage(token, chatId, bot.startText(), guestOptions);
           return reply.send({ ok: true });
         }
         if (param?.startsWith('link_')) {
@@ -467,19 +468,17 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
           return reply.send({ ok: true });
         }
 
-        await bot.sendMessage(token, chatId, bot.startText());
-        return reply.send({ ok: true });
-      }
-
-      if (lower === 'помощь' || lower === '/help' || lower === 'help') {
-        await bot.sendMessage(token, chatId, bot.helpText(null, false));
+        await bot.sendMessage(token, chatId, bot.startText(), guestOptions);
         return reply.send({ ok: true });
       }
 
       // All other commands — need linked account
       const tgAccount = await repo.findLinkedAccountByTelegramUserId(db, telegramUserId);
       if (!tgAccount) {
-        await bot.sendMessage(token, chatId, '❌ Ваш Telegram не привязан ни к одному исполнителю.\n\nПолучите ссылку в кабинете на сайте.' + bot.FOOTER);
+        const message = lower === 'помощь' || lower === '/help' || lower === 'help'
+          ? bot.guestHelpText()
+          : bot.guestText();
+        await bot.sendMessage(token, chatId, message, guestOptions);
         return reply.send({ ok: true });
       }
 
@@ -1069,6 +1068,13 @@ function escapeHtml(value: string): string {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+}
+
+function telegramMiniAppUrl(env: AppEnv): string {
+  const username = (env.TELEGRAM_BOT_USERNAME ?? 'octiqa_mini_bot').trim().replace(/^@+/, '') || 'octiqa_mini_bot';
+  const shortName = (env.TELEGRAM_MINIAPP_SHORT_NAME ?? 'octiqa').trim().replace(/^\/+/, '');
+  const base = shortName ? `https://t.me/${username}/${shortName}` : `https://t.me/${username}`;
+  return `${base}?startapp=onboarding`;
 }
 
 async function listMiniAccessibleProviders(db: Db, tgAccount: repo.TelegramAccount): Promise<readonly unknown[]> {

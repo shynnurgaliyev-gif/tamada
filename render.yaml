@@ -45,6 +45,8 @@ services:
         sync: false
       - key: TELEGRAM_BOT_USERNAME
         sync: false
+      - key: TELEGRAM_MINIAPP_SHORT_NAME
+        sync: false
       - key: KASPI_API_KEY
         sync: false
       - key: INTERNAL_JOBS_SECRET

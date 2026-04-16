@@ -1,6 +1,10 @@
 // Telegram Bot API helper — direct HTTP calls, no library needed
 
-export async function sendMessage(token: string, chatId: number, text: string): Promise<boolean> {
+export type SendMessageOptions = {
+  replyMarkup?: unknown;
+};
+
+export async function sendMessage(token: string, chatId: number, text: string, options: SendMessageOptions = {}): Promise<boolean> {
   if (!token) {
     console.error('telegram_send_message_skipped: TELEGRAM_BOT_TOKEN is empty');
     return false;
@@ -9,7 +13,12 @@ export async function sendMessage(token: string, chatId: number, text: string): 
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      parse_mode: 'HTML',
+      ...(options.replyMarkup ? { reply_markup: options.replyMarkup } : {}),
+    }),
   }).catch((err: unknown) => {
     console.error('telegram_send_message_failed', err);
     return null;
@@ -88,14 +97,35 @@ ${profileHelp}
 }
 
 export function startText(): string {
+  return guestText();
+}
+
+export function guestText(): string {
   return [
-    '<b>Octiqa bot работает.</b>',
+    '<b>У вас пока нет аккаунта специалиста в Octiqa.</b>',
     '',
-    'Если у вас уже есть аккаунт или доступ помощника, откройте Mini App в Telegram.',
-    'Если вы новый специалист, создайте аккаунт в Mini App, затем добавьте первый профиль.',
+    'Откройте Mini App, создайте аккаунт владельца и добавьте первый профиль.',
+    'После этого бот сможет быстро добавлять записи в календарь.',
     '',
-    'Для команд напишите: <b>помощь</b>',
+    'Сначала аккаунт, потом профиль.',
   ].join('\n');
+}
+
+export function guestHelpText(): string {
+  return [
+    '<b>Octiqa bot для специалистов.</b>',
+    '',
+    'Сейчас у вас еще нет аккаунта специалиста в Octiqa.',
+    'Откройте Mini App, создайте аккаунт и добавьте первый профиль.',
+    '',
+    'Команды календаря появятся после создания профиля.',
+  ].join('\n');
+}
+
+export function miniAppKeyboard(miniAppUrl: string): { inline_keyboard: Array<Array<{ text: string; url: string }>> } {
+  return {
+    inline_keyboard: [[{ text: 'Открыть Mini App', url: miniAppUrl }]],
+  };
 }
 
 export const FOOTER = '\n\n<i>Для списка команд напишите: помощь</i>';
