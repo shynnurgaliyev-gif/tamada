@@ -12,7 +12,14 @@ import type {
 } from '../types';
 
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
-function auth() { return { Authorization: `Bearer ${localStorage.getItem('session_token') ?? ''}` }; }
+function auth() {
+  const token = localStorage.getItem('session_token') ?? '';
+  const tgUserId = localStorage.getItem('mini_tg_user_id') ?? '';
+  return {
+    Authorization: `Bearer ${token}`,
+    ...(tgUserId ? { 'X-Telegram-User-Id': tgUserId } : {}),
+  };
+}
 
 /* ── Return shape ─────────────────────────────────────────────────────────── */
 

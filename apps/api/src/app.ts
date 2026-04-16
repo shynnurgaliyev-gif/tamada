@@ -97,7 +97,7 @@ export function createApp(env: AppEnv, db: Db, supabase: SupabaseClient, wa: imp
 
   // ── Other routes ───────────────────────────────────────────────────────
   void app.register(createProviderRoutes(db, supabase, env));
-  void app.register(createCalendarRoutes(db));
+  void app.register(createCalendarRoutes(db, env));
   void app.register(createTelegramRoutes(db, env));
   void app.register(createSubscriptionRoutes(db, env));
   void app.register(createJobsRoutes(db, env));

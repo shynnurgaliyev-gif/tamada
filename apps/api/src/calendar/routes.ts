@@ -1,11 +1,35 @@
 import type { FastifyPluginAsync } from 'fastify';
+import type { AppEnv } from '@tamada/config';
 import type { Db } from '../db';
 import { getAuthAccount } from '../auth/middleware';
 import { findProviderById, findProviderBySlug } from '../providers/repositories';
 import { onCalendarChange, publishCalendarChange } from './events';
 import * as repo from './repositories';
+import * as telegramRepo from '../telegram/repositories';
+import * as bot from '../telegram/bot';
 
 type DayInfo = { date: string; status: string; count: number };
+
+async function canAccessProvider(db: Db, req: Parameters<typeof getAuthAccount>[1], providerId: string): Promise<{ ok: boolean; accountId: string | null; telegramAccountId: string | null }> {
+  const provider = await findProviderById(db, providerId);
+  if (!provider) return { ok: false, accountId: null, telegramAccountId: null };
+
+  const account = await getAuthAccount(db, req);
+  if (account && provider.account_id === account.id) {
+    return { ok: true, accountId: account.id, telegramAccountId: null };
+  }
+
+  const tgHeader = req.headers['x-telegram-user-id'];
+  const tgUserId = typeof tgHeader === 'string' ? Number(tgHeader) : 0;
+  if (!tgUserId) return { ok: false, accountId: null, telegramAccountId: null };
+  const tgAccount = await telegramRepo.findLinkedAccountByTelegramUserId(db, tgUserId);
+  if (!tgAccount) return { ok: false, accountId: null, telegramAccountId: null };
+  if (tgAccount.is_primary && tgAccount.account_id === provider.account_id) {
+    return { ok: true, accountId: provider.account_id, telegramAccountId: tgAccount.id };
+  }
+  const access = await telegramRepo.findActiveProfileAccess(db, tgAccount.id, providerId);
+  return { ok: !!access, accountId: provider.account_id, telegramAccountId: tgAccount.id };
+}
 
 function entryRange(entry: Pick<repo.CalendarEntry, 'starts_at' | 'ends_at'>) {
   return {
@@ -47,18 +71,29 @@ function computeMonthDays(entries: repo.CalendarEntry[], year: number, month: nu
   return result;
 }
 
-export function createCalendarRoutes(db: Db) {
+async function notifyCalendarChangeByAssistant(db: Db, env: AppEnv, providerId: string, telegramAccountId: string | null, text: string): Promise<void> {
+  const token = env.TELEGRAM_BOT_TOKEN ?? '';
+  if (!token || !telegramAccountId) return;
+  const accounts = await telegramRepo.findLinkedAccountsByProvider(db, providerId);
+  const actor = accounts.find(a => a.id === telegramAccountId);
+  if (actor?.is_primary) return;
+  const actorName = actor ? `${actor.telegram_first_name ?? ''} ${actor.telegram_username ? '@' + actor.telegram_username : ''}`.trim() : 'Помощник';
+  for (const account of accounts) {
+    if (!account.is_primary || account.id === telegramAccountId) continue;
+    await bot.sendMessage(token, account.telegram_user_id, `👤 ${actorName}\n${text}` + bot.FOOTER).catch(() => null);
+  }
+}
+
+export function createCalendarRoutes(db: Db, env: AppEnv) {
   const plugin: FastifyPluginAsync = async (app) => {
 
     // GET /providers/:id/calendar?from=&to=
     app.get('/providers/:id/calendar', async (req, reply) => {
-      const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
-
       const { id } = req.params as { id: string };
+      const access = await canAccessProvider(db, req, id);
+      if (!access.ok) return reply.code(403).send({ ok: false, error: 'Forbidden' });
       const provider = await findProviderById(db, id);
       if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
-      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
 
       const query = req.query as Record<string, string>;
       const from = query['from'] ? new Date(query['from']) : new Date(Date.now() - 30 * 86400000);
@@ -75,13 +110,11 @@ export function createCalendarRoutes(db: Db) {
 
     // POST /providers/:id/calendar
     app.post('/providers/:id/calendar', async (req, reply) => {
-      const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
-
       const { id } = req.params as { id: string };
+      const access = await canAccessProvider(db, req, id);
+      if (!access.ok) return reply.code(403).send({ ok: false, error: 'Forbidden' });
       const provider = await findProviderById(db, id);
       if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
-      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
 
       const body = req.body as Record<string, unknown>;
       const startsAt = new Date(body['starts_at'] as string);
@@ -112,7 +145,7 @@ export function createCalendarRoutes(db: Db) {
         status,
         title: typeof body['title'] === 'string' ? body['title'] : undefined,
         notes: typeof body['notes'] === 'string' ? body['notes'] : undefined,
-        createdByAccountId: account.id,
+        createdByAccountId: access.accountId ?? provider.account_id,
       });
 
       let client = null;
@@ -135,25 +168,24 @@ export function createCalendarRoutes(db: Db) {
         entry_id: entry.id,
         ranges: [entryRange(entry)],
       });
+      await notifyCalendarChangeByAssistant(db, env, id, access.telegramAccountId, `добавил запись в календарь профиля ${provider.display_name}.`);
 
       return reply.code(201).send({ ok: true, entry: { ...entry, client } });
     });
 
     // PATCH /providers/:id/calendar/:entryId
     app.patch('/providers/:id/calendar/:entryId', async (req, reply) => {
-      const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
-
       const { id, entryId } = req.params as { id: string; entryId: string };
+      const access = await canAccessProvider(db, req, id);
+      if (!access.ok) return reply.code(403).send({ ok: false, error: 'Forbidden' });
       const provider = await findProviderById(db, id);
       if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
-      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
 
       const entry = await repo.findEntryById(db, entryId);
       if (!entry || entry.provider_id !== id) return reply.code(404).send({ ok: false, error: 'Entry not found' });
 
       const body = req.body as Record<string, unknown>;
-      const updates: Record<string, unknown> = { updated_by_account_id: account.id };
+      const updates: Record<string, unknown> = { updated_by_account_id: access.accountId ?? provider.account_id };
 
       if (body['starts_at'] !== undefined) updates['starts_at'] = new Date(body['starts_at'] as string);
       if (body['ends_at'] !== undefined) updates['ends_at'] = new Date(body['ends_at'] as string);
@@ -196,6 +228,7 @@ export function createCalendarRoutes(db: Db) {
           entry_id: entryId,
           ranges: [entryRange(entry), entryRange(updated)],
         });
+        await notifyCalendarChangeByAssistant(db, env, id, access.telegramAccountId, `изменил запись в календаре профиля ${provider.display_name}.`);
       }
 
       return reply.send({ ok: true, entry: { ...updated, client } });
@@ -203,13 +236,11 @@ export function createCalendarRoutes(db: Db) {
 
     // DELETE /providers/:id/calendar/:entryId
     app.delete('/providers/:id/calendar/:entryId', async (req, reply) => {
-      const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
-
       const { id, entryId } = req.params as { id: string; entryId: string };
+      const access = await canAccessProvider(db, req, id);
+      if (!access.ok) return reply.code(403).send({ ok: false, error: 'Forbidden' });
       const provider = await findProviderById(db, id);
       if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
-      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
 
       const entry = await repo.findEntryById(db, entryId);
       if (!entry || entry.provider_id !== id) return reply.code(404).send({ ok: false, error: 'Entry not found' });
@@ -221,18 +252,17 @@ export function createCalendarRoutes(db: Db) {
         entry_id: entryId,
         ranges: [entryRange(entry)],
       });
+      await notifyCalendarChangeByAssistant(db, env, id, access.telegramAccountId, `удалил запись из календаря профиля ${provider.display_name}.`);
       return reply.send({ ok: true });
     });
 
     // GET /providers/:id/calendar/month?year=&month=
     app.get('/providers/:id/calendar/month', async (req, reply) => {
-      const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
-
       const { id } = req.params as { id: string };
+      const access = await canAccessProvider(db, req, id);
+      if (!access.ok) return reply.code(403).send({ ok: false, error: 'Forbidden' });
       const provider = await findProviderById(db, id);
       if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
-      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
 
       const q = req.query as Record<string, string>;
       const year = parseInt(q['year'] ?? String(new Date().getFullYear()), 10);

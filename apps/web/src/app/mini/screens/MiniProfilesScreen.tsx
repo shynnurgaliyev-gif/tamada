@@ -134,6 +134,7 @@ export function MiniProfilesScreen({
               photos={photos}
               links={links}
               loading={loading}
+              canManage={canManageProfiles}
               onEdit={() => setSubView('edit')}
               onPhotos={() => setSubView('photos')}
               onLinks={() => setSubView('links')}

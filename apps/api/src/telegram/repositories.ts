@@ -27,6 +27,8 @@ export type TelegramLinkToken = {
   id: string;
   provider_id: string;
   token_hash: string;
+  invite_role: TelegramRole;
+  created_by_account_id: string | null;
   expires_at: Date;
   used_at: Date | null;
   created_at: Date;
@@ -55,13 +57,18 @@ export function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-export async function createLinkToken(db: Db, providerId: string): Promise<TelegramLinkToken> {
+export async function createLinkToken(
+  db: Db,
+  providerId: string,
+  role: TelegramRole = 'owner',
+  createdByAccountId?: string,
+): Promise<TelegramLinkToken> {
   const token = generateLinkToken();
   const tokenHash = hashToken(token);
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 min
   const rows = await db<TelegramLinkToken[]>`
-    INSERT INTO telegram_link_tokens (provider_id, token_hash, expires_at)
-    VALUES (${providerId}, ${tokenHash}, ${expiresAt})
+    INSERT INTO telegram_link_tokens (provider_id, token_hash, invite_role, created_by_account_id, expires_at)
+    VALUES (${providerId}, ${tokenHash}, ${role}, ${createdByAccountId ?? null}, ${expiresAt})
     RETURNING *
   `;
   if (!rows[0]) throw new Error('Failed to create link token');
@@ -88,17 +95,32 @@ export async function markTokenUsed(db: Db, tokenHash: string): Promise<void> {
 
 export async function findLinkedAccountsByProvider(db: Db, providerId: string): Promise<TelegramAccount[]> {
   return db<TelegramAccount[]>`
-    SELECT * FROM telegram_accounts
-    WHERE provider_id = ${providerId} AND status = 'linked'
-    ORDER BY created_at ASC
+    SELECT DISTINCT ta.* FROM telegram_accounts ta
+    JOIN providers p ON p.id = ${providerId}
+    LEFT JOIN telegram_profile_access tpa
+      ON tpa.telegram_account_id = ta.id
+      AND tpa.provider_id = ${providerId}
+      AND tpa.status = 'active'
+    WHERE ta.status = 'linked'
+      AND (
+        tpa.id IS NOT NULL
+        OR (ta.account_id = p.account_id AND ta.is_primary = TRUE AND ta.telegram_role = 'owner')
+      )
+    ORDER BY ta.created_at ASC
   `;
 }
 
 export async function findAllAccountsByProvider(db: Db, providerId: string): Promise<TelegramAccount[]> {
   return db<TelegramAccount[]>`
-    SELECT * FROM telegram_accounts
-    WHERE provider_id = ${providerId}
-    ORDER BY created_at ASC
+    SELECT DISTINCT ta.* FROM telegram_accounts ta
+    JOIN providers p ON p.id = ${providerId}
+    LEFT JOIN telegram_profile_access tpa
+      ON tpa.telegram_account_id = ta.id
+      AND tpa.provider_id = ${providerId}
+      AND tpa.status = 'active'
+    WHERE tpa.id IS NOT NULL
+      OR (ta.account_id = p.account_id AND ta.is_primary = TRUE AND ta.telegram_role = 'owner')
+    ORDER BY ta.created_at ASC
   `;
 }
 
@@ -237,6 +259,16 @@ export async function findActiveProfileAccess(
     LIMIT 1
   `;
   return rows[0] ?? null;
+}
+
+export async function revokeProfileAccess(db: Db, telegramAccountId: string, providerId: string): Promise<void> {
+  await db`
+    UPDATE telegram_profile_access
+    SET status = 'revoked', revoked_at = NOW()
+    WHERE telegram_account_id = ${telegramAccountId}
+      AND provider_id = ${providerId}
+      AND status = 'active'
+  `;
 }
 
 // ---- Activity Logs ----

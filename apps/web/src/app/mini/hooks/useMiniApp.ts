@@ -63,10 +63,11 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
   const [activeIdx,  setActiveIdx]  = useState(0);
   const [summary,    setSummary]    = useState<AnalyticsSummary | null>(null);
   const [sumLoading, setSumLoading] = useState(false);
+  const [miniRole,   setMiniRole]   = useState<string | null>('owner');
 
   const activeProvider = providers[activeIdx] ?? null;
   const activeProfileCount = providers.filter(p => !p.archived_at && !p.pending_delete_at).length;
-  const canManageProfiles = true;
+  const canManageProfiles = miniRole !== 'assistant';
   const switchActiveIdx = useCallback((i: number) => {
     setSummary(null);
     setActiveIdx(i);
@@ -84,13 +85,35 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
                         : isValidFlow(startFlow) ? startFlow
                         : 'dashboard';
 
-    if (tg?.initDataUnsafe?.user) setTgUser(tg.initDataUnsafe.user);
+    if (tg?.initDataUnsafe?.user) {
+      setTgUser(tg.initDataUnsafe.user);
+      localStorage.setItem('mini_tg_user_id', String(tg.initDataUnsafe.user.id));
+    }
     if (flow === 'profiles') setTab('profiles');
 
     const token = localStorage.getItem('session_token');
 
     // No token → onboarding
-    if (!token) { setPhase('onboarding'); return; }
+    if (!token) {
+      const tgUserId = tg?.initDataUnsafe?.user?.id;
+      if (tgUserId) {
+        fetch(`${API}/telegram/mini/providers?telegram_user_id=${tgUserId}`)
+          .then(r => r.json())
+          .then((d: { ok: boolean; providers?: Provider[]; role?: string | null }) => {
+            if (d.ok && d.providers?.length) {
+              setMiniRole(d.role ?? 'assistant');
+              setProviders(d.providers);
+              setPhase('shell');
+            } else {
+              setPhase('onboarding');
+            }
+          })
+          .catch(() => setPhase('onboarding'));
+        return;
+      }
+      setPhase('onboarding');
+      return;
+    }
 
     // onboarding flow → show gate, but silently load providers
     if (flow === 'onboarding') {

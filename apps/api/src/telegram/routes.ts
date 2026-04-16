@@ -27,11 +27,28 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       const count = await repo.countLinkedAccounts(db, providerId);
       if (count >= 3) return reply.code(400).send({ ok: false, error: 'Maximum 3 Telegram accounts per provider' });
 
-      const tokenRow = await repo.createLinkToken(db, providerId);
+      const tokenRow = await repo.createLinkToken(db, providerId, 'owner', account.id);
       const rawToken = tokenRow.id; // raw token returned in id field
       const botUsername = env.TELEGRAM_BOT_USERNAME ?? 'tamada_bot';
       const deepLink = `https://t.me/${botUsername}?start=link_${rawToken}`;
 
+      return reply.send({ ok: true, deep_link: deepLink, expires_in_minutes: 15 });
+    });
+
+    // POST /providers/:id/assistant-invite
+    app.post('/providers/:id/assistant-invite', async (req, reply) => {
+      const account = await getAuthAccount(db, req);
+      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+
+      const { id } = req.params as { id: string };
+      const provider = await findProviderById(db, id);
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+
+      const tokenRow = await repo.createLinkToken(db, id, 'assistant', account.id);
+      const rawToken = tokenRow.id;
+      const botUsername = env.TELEGRAM_BOT_USERNAME ?? 'tamada_bot';
+      const deepLink = `https://t.me/${botUsername}?start=link_${rawToken}`;
       return reply.send({ ok: true, deep_link: deepLink, expires_in_minutes: 15 });
     });
 
@@ -88,9 +105,12 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
 
           await repo.markTokenUsed(db, repo.hashToken(rawToken));
 
+          const inviteRole = tokenRow.invite_role ?? 'owner';
           const hasPrimary = await repo.hasPrimaryTelegramOwner(db, tokenProvider.account_id);
-          const isPrimary = existing?.is_primary === true || !hasPrimary;
-          const role: repo.TelegramRole = isPrimary ? 'owner' : (existing?.telegram_role ?? 'other');
+          const isPrimary = inviteRole === 'owner' && (existing?.is_primary === true || !hasPrimary);
+          const role: repo.TelegramRole = inviteRole === 'assistant'
+            ? 'assistant'
+            : isPrimary ? 'owner' : (existing?.telegram_role ?? 'other');
 
           let tgAccount: repo.TelegramAccount;
           if (existing) {
@@ -341,6 +361,83 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
 
       const accounts = await repo.findAllAccountsByProvider(db, id);
       return reply.send({ ok: true, accounts });
+    });
+
+    // GET /providers/:id/team  (auth required)
+    app.get('/providers/:id/team', async (req, reply) => {
+      const account = await getAuthAccount(db, req);
+      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+
+      const { id } = req.params as { id: string };
+      const provider = await findProviderById(db, id);
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+
+      const rows = await db<Array<repo.TelegramAccount & { access_role: repo.TelegramRole | null; access_status: string | null; access_granted_at: Date | null }>>`
+        SELECT ta.*, tpa.role AS access_role, tpa.status AS access_status, tpa.granted_at AS access_granted_at
+        FROM telegram_accounts ta
+        LEFT JOIN telegram_profile_access tpa
+          ON tpa.telegram_account_id = ta.id
+          AND tpa.provider_id = ${id}
+          AND tpa.status = 'active'
+        WHERE ta.status = 'linked'
+          AND (
+            tpa.id IS NOT NULL
+            OR (ta.account_id = ${provider.account_id} AND ta.is_primary = TRUE AND ta.telegram_role = 'owner')
+          )
+        ORDER BY ta.is_primary DESC, tpa.granted_at ASC NULLS FIRST, ta.created_at ASC
+      `;
+
+      return reply.send({ ok: true, team: rows });
+    });
+
+    // POST /providers/:id/team/:telegramAccountId/revoke
+    app.post('/providers/:id/team/:telegramAccountId/revoke', async (req, reply) => {
+      const account = await getAuthAccount(db, req);
+      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+
+      const { id, telegramAccountId } = req.params as { id: string; telegramAccountId: string };
+      const provider = await findProviderById(db, id);
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+
+      const rows = await db<repo.TelegramAccount[]>`SELECT * FROM telegram_accounts WHERE id = ${telegramAccountId} LIMIT 1`;
+      const tgAccount = rows[0];
+      if (!tgAccount) return reply.code(404).send({ ok: false, error: 'Telegram account not found' });
+      if (tgAccount.is_primary) return reply.code(400).send({ ok: false, error: 'Primary owner cannot be revoked' });
+
+      await repo.revokeProfileAccess(db, telegramAccountId, id);
+      return reply.send({ ok: true });
+    });
+
+    // GET /telegram/mini/providers?telegram_user_id=
+    app.get('/telegram/mini/providers', async (req, reply) => {
+      const query = req.query as Record<string, string>;
+      const telegramUserId = Number(query['telegram_user_id']);
+      if (!telegramUserId) return reply.code(400).send({ ok: false, error: 'telegram_user_id required' });
+
+      const tgAccount = await repo.findLinkedAccountByTelegramUserId(db, telegramUserId);
+      if (!tgAccount) return reply.send({ ok: true, providers: [], role: null });
+
+      const providers = tgAccount.is_primary && tgAccount.account_id
+        ? await db`
+            SELECT p.* FROM providers p
+            WHERE p.account_id = ${tgAccount.account_id}
+              AND p.archived_at IS NULL
+              AND p.pending_delete_at IS NULL
+            ORDER BY p.created_at ASC
+          `
+        : await db`
+            SELECT p.* FROM providers p
+            JOIN telegram_profile_access tpa ON tpa.provider_id = p.id
+            WHERE tpa.telegram_account_id = ${tgAccount.id}
+              AND tpa.status = 'active'
+              AND p.archived_at IS NULL
+              AND p.pending_delete_at IS NULL
+            ORDER BY p.created_at ASC
+          `;
+
+      return reply.send({ ok: true, providers, role: tgAccount.telegram_role });
     });
   };
 

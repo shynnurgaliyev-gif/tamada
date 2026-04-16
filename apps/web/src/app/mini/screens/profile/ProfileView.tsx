@@ -3,7 +3,23 @@
    links. Entry point for navigation into edit / photos / links sub-views.
 ────────────────────────────────────────────────────────────────────────────── */
 
+import { useEffect, useState } from 'react';
 import type { Provider, ProviderPhoto, ProviderLink } from '../../types';
+
+const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
+function token() { return localStorage.getItem('session_token') ?? ''; }
+
+type TeamMember = {
+  id: string;
+  telegram_username: string | null;
+  telegram_first_name: string | null;
+  telegram_last_name: string | null;
+  telegram_role: string;
+  is_primary: boolean;
+  status: string;
+  linked_at: string | null;
+  access_granted_at?: string | null;
+};
 
 const LINK_ICONS: Record<string, string> = {
   instagram: '📸', whatsapp: '💬', telegram: '✈️', tiktok: '🎵',
@@ -20,6 +36,7 @@ export function ProfileView({
   photos,
   links,
   loading,
+  canManage = true,
   onEdit,
   onPhotos,
   onLinks,
@@ -28,12 +45,57 @@ export function ProfileView({
   photos:   ProviderPhoto[];
   links:    ProviderLink[];
   loading:  boolean;
+  canManage?: boolean;
   onEdit:   () => void;
   onPhotos: () => void;
   onLinks:  () => void;
 }) {
   const cover  = photos.find(p => p.is_cover) ?? photos[0] ?? null;
   const isActive = provider.provider_status === 'active';
+  const [team, setTeam] = useState<TeamMember[]>([]);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [teamBusy, setTeamBusy] = useState(false);
+
+  useEffect(() => {
+    const session = token();
+    if (!session) return;
+    fetch(`${API}/providers/${provider.id}/team`, { headers: { Authorization: `Bearer ${session}` } })
+      .then(r => r.json())
+      .then((d: { ok: boolean; team?: TeamMember[] }) => { if (d.ok) setTeam(d.team ?? []); })
+      .catch(() => null);
+  }, [provider.id]);
+
+  async function createAssistantInvite() {
+    const session = token();
+    if (!session || teamBusy) return;
+    setTeamBusy(true);
+    try {
+      const res = await fetch(`${API}/providers/${provider.id}/assistant-invite`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session}` },
+      });
+      const data = await res.json() as { ok: boolean; deep_link?: string };
+      if (data.ok && data.deep_link) setInviteLink(data.deep_link);
+    } finally {
+      setTeamBusy(false);
+    }
+  }
+
+  async function revokeAssistant(id: string) {
+    const session = token();
+    if (!session || teamBusy) return;
+    setTeamBusy(true);
+    try {
+      const res = await fetch(`${API}/providers/${provider.id}/team/${id}/revoke`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session}` },
+      });
+      const data = await res.json() as { ok: boolean };
+      if (data.ok) setTeam(prev => prev.filter(m => m.id !== id || m.is_primary));
+    } finally {
+      setTeamBusy(false);
+    }
+  }
 
   return (
     <div>
@@ -103,10 +165,12 @@ export function ProfileView({
       </div>
 
       {/* Actions */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
-        <button className="mini-btn mini-btn-primary mini-tap" onClick={onEdit} style={{ fontSize: 13 }}>
-          ✏️ Редактировать
-        </button>
+      <div style={{ display: 'grid', gridTemplateColumns: canManage ? '1fr 1fr' : '1fr', gap: 8, marginBottom: 16 }}>
+        {canManage && (
+          <button className="mini-btn mini-btn-primary mini-tap" onClick={onEdit} style={{ fontSize: 13 }}>
+            ✏️ Редактировать
+          </button>
+        )}
         <a
           href={`/p/${provider.slug}`}
           target="_blank"
@@ -116,6 +180,52 @@ export function ProfileView({
         >
           👁 Просмотр
         </a>
+      </div>
+
+      <div className="mini-card" style={{ marginBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 10 }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 14 }}>Команда профиля</div>
+            <div style={{ fontSize: 12, color: 'var(--tg-theme-hint-color, #6b7280)', marginTop: 2 }}>
+              Владелец и помощники этого профиля
+            </div>
+          </div>
+          {canManage && token() && (
+            <button className="mini-tap" onClick={() => void createAssistantInvite()} disabled={teamBusy} style={{ border: 'none', borderRadius: 8, padding: '8px 10px', background: 'rgba(124,58,237,.1)', color: '#6d28d9', fontWeight: 800, fontSize: 12 }}>
+              Пригласить
+            </button>
+          )}
+        </div>
+
+        {inviteLink && (
+          <div style={{ padding: 10, borderRadius: 8, background: 'rgba(34,197,94,.08)', color: '#166534', fontSize: 12, fontWeight: 700, marginBottom: 10, wordBreak: 'break-all' }}>
+            Ссылка для помощника: <a href={inviteLink} target="_blank" rel="noopener noreferrer" style={{ color: '#166534' }}>{inviteLink}</a>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {team.length === 0 ? (
+            <div style={{ fontSize: 12, color: 'var(--tg-theme-hint-color, #6b7280)' }}>Telegram-команда пока не привязана.</div>
+          ) : team.map(member => {
+            const name = [member.telegram_first_name, member.telegram_last_name].filter(Boolean).join(' ') || member.telegram_username || 'Telegram';
+            return (
+              <div key={member.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, borderRadius: 8, background: 'rgba(0,0,0,.04)' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 800, fontSize: 13 }}>{name}{member.telegram_username ? ` · @${member.telegram_username}` : ''}</div>
+                  <div style={{ fontSize: 11, color: 'var(--tg-theme-hint-color, #6b7280)', marginTop: 2 }}>
+                    {member.is_primary ? 'Генеральный owner' : member.telegram_role === 'assistant' ? 'Помощник' : member.telegram_role}
+                    {member.linked_at ? ` · ${new Date(member.linked_at).toLocaleDateString('ru-RU')}` : ''}
+                  </div>
+                </div>
+                {canManage && !member.is_primary && token() && (
+                  <button className="mini-tap" onClick={() => void revokeAssistant(member.id)} disabled={teamBusy} style={{ border: 'none', borderRadius: 8, padding: '7px 9px', background: 'rgba(239,68,68,.08)', color: '#dc2626', fontWeight: 800, fontSize: 11 }}>
+                    Отозвать
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Photos section */}
