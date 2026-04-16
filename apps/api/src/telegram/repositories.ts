@@ -84,6 +84,31 @@ export type TransferRequestView = OwnershipTransferRequest & {
   to_phone_account: string | null;
 };
 
+export type ActivityLogView = {
+  id: string;
+  provider_id: string;
+  actor_type: ActorType;
+  actor_account_id: string | null;
+  telegram_account_id: string | null;
+  action_type: string;
+  target_type: string | null;
+  target_id: string | null;
+  payload_json: Record<string, unknown> | null;
+  created_at: Date;
+  actor_name: string | null;
+  actor_role: TelegramRole | null;
+  actor_telegram_username: string | null;
+};
+
+export type TelegramBotSession = {
+  telegram_account_id: string;
+  active_provider_id: string | null;
+  pending_booking: Record<string, unknown> | null;
+  pending_expires_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+};
+
 // ---- Link Tokens ----
 
 export function generateLinkToken(): string {
@@ -309,6 +334,34 @@ export async function findActiveProfileAccess(
     LIMIT 1
   `;
   return rows[0] ?? null;
+}
+
+export async function findAccessibleProviderIdsForTelegramAccount(
+  db: Db,
+  tgAccount: TelegramAccount,
+): Promise<string[]> {
+  if (tgAccount.is_primary && tgAccount.account_id) {
+    const rows = await db<Array<{ id: string }>>`
+      SELECT id FROM providers
+      WHERE account_id = ${tgAccount.account_id}
+        AND archived_at IS NULL
+        AND pending_delete_at IS NULL
+      ORDER BY created_at ASC
+    `;
+    return rows.map(row => row.id);
+  }
+
+  const rows = await db<Array<{ id: string }>>`
+    SELECT p.id
+    FROM providers p
+    JOIN telegram_profile_access tpa ON tpa.provider_id = p.id
+    WHERE tpa.telegram_account_id = ${tgAccount.id}
+      AND tpa.status = 'active'
+      AND p.archived_at IS NULL
+      AND p.pending_delete_at IS NULL
+    ORDER BY p.created_at ASC
+  `;
+  return rows.map(row => row.id);
 }
 
 export async function revokeProfileAccess(db: Db, telegramAccountId: string, providerId: string): Promise<void> {
@@ -584,5 +637,103 @@ export async function logActivity(db: Db, data: {
        ${data.telegramAccountId ?? null}, ${data.actionType},
        ${data.targetType ?? null}, ${data.targetId ?? null},
        ${data.payloadJson ? JSON.stringify(data.payloadJson) : null})
+  `;
+}
+
+export async function findActivityLogsByProvider(
+  db: Db,
+  providerId: string,
+  category?: 'calendar' | 'team' | 'profile',
+  limit = 50,
+): Promise<ActivityLogView[]> {
+  const calendarActions = ['calendar_created', 'calendar_updated', 'calendar_deleted'];
+  const teamActions = [
+    'assistant_invited',
+    'assistant_revoked',
+    'telegram_linked',
+    'telegram_unlinked',
+    'primary_telegram_changed',
+  ];
+  const profileActions = [
+    'profile_archived',
+    'profile_unarchived',
+    'profile_pending_delete',
+    'ownership_transfer_created',
+    'ownership_transfer_accepted',
+    'ownership_transfer_rejected',
+  ];
+  const actions = category === 'calendar'
+    ? calendarActions
+    : category === 'team'
+      ? teamActions
+      : category === 'profile'
+        ? profileActions
+        : null;
+
+  return db<ActivityLogView[]>`
+    SELECT al.*,
+           COALESCE(
+             NULLIF(CONCAT_WS(' ', ta.telegram_first_name, ta.telegram_last_name), ''),
+             ta.telegram_username,
+             actor_acc.username
+           ) AS actor_name,
+           ta.telegram_role AS actor_role,
+           ta.telegram_username AS actor_telegram_username
+    FROM activity_logs al
+    LEFT JOIN telegram_accounts ta ON ta.id = al.telegram_account_id
+    LEFT JOIN accounts actor_acc ON actor_acc.id = al.actor_account_id
+    WHERE al.provider_id = ${providerId}
+      ${actions ? db`AND al.action_type = ANY(${actions}::text[])` : db``}
+    ORDER BY al.created_at DESC
+    LIMIT ${Math.max(1, Math.min(limit, 100))}
+  `;
+}
+
+export async function findBotSession(db: Db, telegramAccountId: string): Promise<TelegramBotSession | null> {
+  const rows = await db<TelegramBotSession[]>`
+    SELECT * FROM telegram_bot_sessions
+    WHERE telegram_account_id = ${telegramAccountId}
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+export async function setBotActiveProvider(
+  db: Db,
+  telegramAccountId: string,
+  providerId: string,
+): Promise<void> {
+  await db`
+    INSERT INTO telegram_bot_sessions (telegram_account_id, active_provider_id)
+    VALUES (${telegramAccountId}, ${providerId})
+    ON CONFLICT (telegram_account_id) DO UPDATE SET
+      active_provider_id = EXCLUDED.active_provider_id,
+      updated_at = NOW()
+  `;
+}
+
+export async function setBotPendingBooking(
+  db: Db,
+  telegramAccountId: string,
+  pendingBooking: object,
+  expiresAt: Date,
+): Promise<void> {
+  await db`
+    INSERT INTO telegram_bot_sessions (telegram_account_id, pending_booking, pending_expires_at)
+    VALUES (${telegramAccountId}, ${JSON.stringify(pendingBooking)}, ${expiresAt})
+    ON CONFLICT (telegram_account_id) DO UPDATE SET
+      pending_booking = EXCLUDED.pending_booking,
+      pending_expires_at = EXCLUDED.pending_expires_at,
+      updated_at = NOW()
+  `;
+}
+
+export async function clearBotPendingBooking(db: Db, telegramAccountId: string): Promise<void> {
+  await db`
+    UPDATE telegram_bot_sessions
+    SET pending_booking = NULL,
+        pending_expires_at = NULL,
+        updated_at = NOW()
+    WHERE telegram_account_id = ${telegramAccountId}
   `;
 }

@@ -174,6 +174,16 @@ export function createCalendarRoutes(db: Db, env: AppEnv) {
         entry_id: entry.id,
         ranges: [entryRange(entry)],
       });
+      await telegramRepo.logActivity(db, {
+        providerId: id,
+        actorType: access.telegramAccountId ? 'telegram' : 'web',
+        actorAccountId: access.accountId ?? provider.account_id,
+        telegramAccountId: access.telegramAccountId ?? undefined,
+        actionType: 'calendar_created',
+        targetType: 'calendar_entry',
+        targetId: entry.id,
+        payloadJson: { status: entry.status, ...entryRange(entry) },
+      });
       await notifyCalendarChangeByAssistant(db, env, id, access.telegramAccountId, `добавил запись в календарь профиля ${provider.display_name}.`);
 
       return reply.code(201).send({ ok: true, entry: { ...entry, client } });
@@ -234,6 +244,16 @@ export function createCalendarRoutes(db: Db, env: AppEnv) {
           entry_id: entryId,
           ranges: [entryRange(entry), entryRange(updated)],
         });
+        await telegramRepo.logActivity(db, {
+          providerId: id,
+          actorType: access.telegramAccountId ? 'telegram' : 'web',
+          actorAccountId: access.accountId ?? provider.account_id,
+          telegramAccountId: access.telegramAccountId ?? undefined,
+          actionType: 'calendar_updated',
+          targetType: 'calendar_entry',
+          targetId: entryId,
+          payloadJson: { previous: entryRange(entry), next: entryRange(updated), status: updated.status },
+        });
         await notifyCalendarChangeByAssistant(db, env, id, access.telegramAccountId, `изменил запись в календаре профиля ${provider.display_name}.`);
       }
 
@@ -257,6 +277,16 @@ export function createCalendarRoutes(db: Db, env: AppEnv) {
         action: 'delete',
         entry_id: entryId,
         ranges: [entryRange(entry)],
+      });
+      await telegramRepo.logActivity(db, {
+        providerId: id,
+        actorType: access.telegramAccountId ? 'telegram' : 'web',
+        actorAccountId: access.accountId ?? provider.account_id,
+        telegramAccountId: access.telegramAccountId ?? undefined,
+        actionType: 'calendar_deleted',
+        targetType: 'calendar_entry',
+        targetId: entryId,
+        payloadJson: { status: entry.status, ...entryRange(entry) },
       });
       await notifyCalendarChangeByAssistant(db, env, id, access.telegramAccountId, `удалил запись из календаря профиля ${provider.display_name}.`);
       return reply.send({ ok: true });

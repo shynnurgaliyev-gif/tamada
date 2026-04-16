@@ -27,7 +27,8 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
       const account = await getAuthAccount(db, req);
       const mini = account ? null : await getMiniSessionContext(db, req, permission);
       const accountId = account?.id ?? mini?.accountId ?? null;
-      return { accountId };
+      const telegramAccountId = mini?.telegramAccount.id ?? null;
+      return { accountId, telegramAccountId };
     }
 
     // POST /providers
@@ -131,7 +132,7 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
 
     // POST /providers/:id/archive
     app.post('/providers/:id/archive', async (req, reply) => {
-      const { accountId } = await getOwnerContext(req, 'can_archive_profile');
+      const { accountId, telegramAccountId } = await getOwnerContext(req, 'can_archive_profile');
       if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const { id } = req.params as { id: string };
@@ -143,12 +144,22 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
       const reason = typeof body['reason'] === 'string' ? body['reason'] : undefined;
       const archived = await repo.archiveProvider(db, id, accountId, reason);
       await telegramRepo.revokeLinkTokensForProvider(db, id);
+      await telegramRepo.logActivity(db, {
+        providerId: id,
+        actorType: telegramAccountId ? 'telegram' : 'web',
+        actorAccountId: accountId,
+        telegramAccountId: telegramAccountId ?? undefined,
+        actionType: 'profile_archived',
+        targetType: 'provider',
+        targetId: id,
+        payloadJson: { reason: reason ?? null },
+      });
       return reply.send({ ok: true, provider: archived });
     });
 
     // POST /providers/:id/unarchive
     app.post('/providers/:id/unarchive', async (req, reply) => {
-      const { accountId } = await getOwnerContext(req, 'can_archive_profile');
+      const { accountId, telegramAccountId } = await getOwnerContext(req, 'can_archive_profile');
       if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const { id } = req.params as { id: string };
@@ -157,13 +168,22 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
       if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
 
       const restored = await repo.unarchiveProvider(db, id);
+      await telegramRepo.logActivity(db, {
+        providerId: id,
+        actorType: telegramAccountId ? 'telegram' : 'web',
+        actorAccountId: accountId,
+        telegramAccountId: telegramAccountId ?? undefined,
+        actionType: 'profile_unarchived',
+        targetType: 'provider',
+        targetId: id,
+      });
       return reply.send({ ok: true, provider: restored });
     });
 
     // POST /providers/:id/hard-delete
     // Safety step: finalizes as hidden + pending_delete, revokes profile-scoped access/invites.
     app.post('/providers/:id/hard-delete', async (req, reply) => {
-      const { accountId } = await getOwnerContext(req, 'can_archive_profile');
+      const { accountId, telegramAccountId } = await getOwnerContext(req, 'can_archive_profile');
       if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const { id } = req.params as { id: string };
@@ -180,12 +200,21 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
       await telegramRepo.revokeAssistantAccessForProvider(db, id);
       await telegramRepo.revokeLinkTokensForProvider(db, id);
       const deleted = await repo.markProviderPendingDelete(db, id, accountId);
+      await telegramRepo.logActivity(db, {
+        providerId: id,
+        actorType: telegramAccountId ? 'telegram' : 'web',
+        actorAccountId: accountId,
+        telegramAccountId: telegramAccountId ?? undefined,
+        actionType: 'profile_pending_delete',
+        targetType: 'provider',
+        targetId: id,
+      });
       return reply.send({ ok: true, provider: deleted });
     });
 
     // POST /providers/:id/transfer-request
     app.post('/providers/:id/transfer-request', async (req, reply) => {
-      const { accountId } = await getOwnerContext(req, 'can_archive_profile');
+      const { accountId, telegramAccountId } = await getOwnerContext(req, 'can_archive_profile');
       if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const { id } = req.params as { id: string };
@@ -206,6 +235,16 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
         toPhone: toPhone || undefined,
       });
       await telegramRepo.revokeLinkTokensForProvider(db, id);
+      await telegramRepo.logActivity(db, {
+        providerId: id,
+        actorType: telegramAccountId ? 'telegram' : 'web',
+        actorAccountId: accountId,
+        telegramAccountId: telegramAccountId ?? undefined,
+        actionType: 'ownership_transfer_created',
+        targetType: 'ownership_transfer_request',
+        targetId: request.id,
+        payloadJson: { to_account_id: toAccountId ?? null, to_phone: toPhone || null },
+      });
       return reply.code(201).send({ ok: true, transfer_request: request });
     });
 

@@ -44,6 +44,10 @@ const envSchema = z.object({
   AI_SEARCH_ENABLED: z.string().default('false'),
   OPENAI_API_KEY: z.string().optional(),
   AI_SEARCH_MODEL: z.string().default('gpt-4o-mini'),
+
+  // Speech-to-text
+  SPEECH_TO_TEXT_PROVIDER: z.enum(['openai']).default('openai'),
+  SPEECH_TO_TEXT_MODEL: z.string().default('gpt-4o-mini-transcribe'),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

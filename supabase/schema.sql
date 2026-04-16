@@ -242,6 +242,17 @@ CREATE INDEX idx_telegram_mini_sessions_expires
   ON telegram_mini_sessions(expires_at)
   WHERE revoked_at IS NULL;
 
+CREATE TABLE telegram_bot_sessions (
+  telegram_account_id UUID PRIMARY KEY REFERENCES telegram_accounts(id) ON DELETE CASCADE,
+  active_provider_id  UUID REFERENCES providers(id) ON DELETE SET NULL,
+  pending_booking     JSONB,
+  pending_expires_at  TIMESTAMPTZ,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_telegram_bot_sessions_provider ON telegram_bot_sessions(active_provider_id);
+
 CREATE TABLE activity_logs (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   provider_id         UUID NOT NULL REFERENCES providers(id) ON DELETE CASCADE,

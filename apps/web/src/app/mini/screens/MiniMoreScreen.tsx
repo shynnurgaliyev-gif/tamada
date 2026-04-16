@@ -6,7 +6,7 @@ import type { MiniPermissions, Provider, TgUser } from '../types';
 
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
-type MoreView = 'main' | 'subscription' | 'integrations' | 'team' | 'settings' | 'transfers';
+type MoreView = 'main' | 'subscription' | 'integrations' | 'team' | 'settings' | 'transfers' | 'activity';
 
 type Account = { id: string; username: string; phone: string; show_related_profiles: boolean };
 type Subscription = {
@@ -61,6 +61,18 @@ type TransferRequest = {
   to_username: string | null;
   to_phone_account: string | null;
 };
+type ActivityLog = {
+  id: string;
+  action_type: string;
+  actor_type: string;
+  actor_name: string | null;
+  actor_role: string | null;
+  actor_telegram_username: string | null;
+  target_type: string | null;
+  target_id: string | null;
+  payload_json: Record<string, unknown> | null;
+  created_at: string;
+};
 
 const statusLabel: Record<string, string> = {
   trial: 'Пробный период',
@@ -82,6 +94,22 @@ const roleLabel: Record<string, string> = {
   assistant: 'Помощник',
   manager: 'Менеджер',
   other: 'Другое',
+};
+const activityLabel: Record<string, string> = {
+  calendar_created: 'Запись создана',
+  calendar_updated: 'Запись изменена',
+  calendar_deleted: 'Запись удалена',
+  assistant_invited: 'Помощник приглашен',
+  assistant_revoked: 'Доступ помощника отозван',
+  telegram_linked: 'Telegram подключен',
+  telegram_unlinked: 'Telegram отключен',
+  profile_archived: 'Профиль архивирован',
+  profile_unarchived: 'Профиль восстановлен',
+  profile_pending_delete: 'Профиль помечен на удаление',
+  ownership_transfer_created: 'Передача создана',
+  ownership_transfer_accepted: 'Передача принята',
+  ownership_transfer_rejected: 'Передача отклонена',
+  primary_telegram_changed: 'Главный Telegram изменен',
 };
 
 function token() { return localStorage.getItem('session_token') ?? ''; }
@@ -121,6 +149,7 @@ export function MiniMoreScreen({
         {view === 'subscription' && permissions.can_manage_subscription && <SubscriptionTool />}
         {view === 'integrations' && permissions.can_manage_integrations && <IntegrationsTool provider={activeProvider} />}
         {view === 'team' && permissions.can_manage_team && <TeamTool provider={activeProvider} />}
+        {view === 'activity' && permissions.can_manage_team && <ActivityTool provider={activeProvider} />}
         {view === 'transfers' && permissions.can_archive_profile && <TransfersTool provider={activeProvider} onProvidersChanged={onProvidersChanged} />}
         {view === 'settings' && (permissions.can_manage_subscription || permissions.can_manage_integrations) && (
           <SettingsTool tgUser={tgUser} provider={activeProvider} />
@@ -153,6 +182,14 @@ export function MiniMoreScreen({
       color: '#c2410c',
       label: 'Передачи',
       sub: 'Входящие и исходящие запросы передачи профиля',
+    },
+    permissions.can_manage_team && {
+      id: 'activity' as const,
+      icon: 'Ж',
+      bg: '#eef2ff',
+      color: '#4338ca',
+      label: 'История действий',
+      sub: 'Кто и что менял по активному профилю',
     },
     permissions.can_manage_team && {
       id: 'team' as const,
@@ -497,6 +534,64 @@ function TeamTool({ provider }: { provider: Provider | null }) {
   );
 }
 
+function ActivityTool({ provider }: { provider: Provider | null }) {
+  const [items, setItems] = useState<ActivityLog[]>([]);
+  const [filter, setFilter] = useState<'all' | 'calendar' | 'team' | 'profile'>('all');
+  const [loading, setLoading] = useState(false);
+
+  const load = () => {
+    if (!provider) return;
+    setLoading(true);
+    const query = filter === 'all' ? '?limit=50' : `?limit=50&category=${filter}`;
+    fetch(`${API}/providers/${provider.id}/activity${query}`, { headers: auth() })
+      .then(r => r.json())
+      .then((d: { ok: boolean; activity?: ActivityLog[] }) => { if (d.ok) setItems(d.activity ?? []); })
+      .catch(() => null)
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, [provider?.id, filter]);
+
+  return (
+    <div>
+      <ToolTitle title="История действий" subtitle={provider ? provider.display_name : 'Выберите профиль'} />
+      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 10 }}>
+        {[
+          ['all', 'Все'],
+          ['calendar', 'Календарь'],
+          ['team', 'Команда'],
+          ['profile', 'Профиль'],
+        ].map(([id, label]) => (
+          <button
+            key={id}
+            className="mini-tap"
+            onClick={() => setFilter(id as typeof filter)}
+            style={{
+              border: 'none',
+              borderRadius: 8,
+              padding: '8px 10px',
+              background: filter === id ? '#111827' : 'rgba(0,0,0,.06)',
+              color: filter === id ? '#fff' : 'var(--tg-theme-text-color, #111827)',
+              fontWeight: 900,
+              fontSize: 12,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="mini-card">
+        {loading ? (
+          <div className="mini-skeleton" style={{ height: 72 }} />
+        ) : items.length === 0 ? (
+          <div style={{ fontSize: 13, color: 'var(--tg-theme-hint-color, #6b7280)' }}>Действий пока нет.</div>
+        ) : items.map(item => <ActivityRow key={item.id} item={item} />)}
+      </div>
+    </div>
+  );
+}
+
 function TransfersTool({ provider, onProvidersChanged }: { provider: Provider | null; onProvidersChanged: () => Promise<void> }) {
   const [incoming, setIncoming] = useState<TransferRequest[]>([]);
   const [outgoing, setOutgoing] = useState<TransferRequest[]>([]);
@@ -802,6 +897,48 @@ function TransferRow({ request, mode, action }: { request: TransferRequest; mode
         Действует до {new Date(request.expires_at).toLocaleString('ru-RU')}
       </div>
       {action}
+    </div>
+  );
+}
+
+function ActivityRow({ item }: { item: ActivityLog }) {
+  const actor = item.actor_name || item.actor_telegram_username || (item.actor_type === 'telegram' ? 'Telegram' : 'Account');
+  const startsAt = typeof item.payload_json?.['starts_at'] === 'string' ? item.payload_json['starts_at'] : null;
+  const endsAt = typeof item.payload_json?.['ends_at'] === 'string' ? item.payload_json['ends_at'] : null;
+  const next = item.payload_json?.['next'];
+  const nextStartsAt = next && typeof next === 'object' && 'starts_at' in next && typeof next.starts_at === 'string'
+    ? next.starts_at
+    : null;
+  const nextEndsAt = next && typeof next === 'object' && 'ends_at' in next && typeof next.ends_at === 'string'
+    ? next.ends_at
+    : null;
+  const rangeStart = nextStartsAt ?? startsAt;
+  const rangeEnd = nextEndsAt ?? endsAt;
+  const summary = rangeStart && rangeEnd
+    ? `${new Date(rangeStart).toLocaleString('ru-RU')} - ${new Date(rangeEnd).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`
+    : item.target_type ?? '';
+
+  return (
+    <div style={{ display: 'flex', gap: 10, padding: '12px 0', borderTop: '1px solid rgba(0,0,0,.06)' }}>
+      <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(67,56,202,.1)', color: '#4338ca', display: 'grid', placeItems: 'center', fontWeight: 900, flex: '0 0 auto' }}>
+        {actor.slice(0, 1).toUpperCase()}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+          <div style={{ fontWeight: 900, fontSize: 14 }}>{activityLabel[item.action_type] ?? item.action_type}</div>
+          <div style={{ fontSize: 11, color: 'var(--tg-theme-hint-color, #6b7280)', whiteSpace: 'nowrap' }}>
+            {new Date(item.created_at).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}
+          </div>
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--tg-theme-hint-color, #6b7280)', marginTop: 3 }}>
+          {actor}{item.actor_role ? ` · ${roleLabel[item.actor_role] ?? item.actor_role}` : ''}
+        </div>
+        {summary && (
+          <div style={{ fontSize: 12, color: 'var(--tg-theme-hint-color, #6b7280)', marginTop: 4, lineHeight: 1.35 }}>
+            {summary}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

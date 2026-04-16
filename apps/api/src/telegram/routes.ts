@@ -2,17 +2,20 @@ import type { FastifyPluginAsync } from 'fastify';
 import type { Db } from '../db';
 import type { AppEnv } from '@tamada/config';
 import { getAuthAccount } from '../auth/middleware';
-import { countActiveProvidersByAccountId, findProviderById, transferProviderToAccount } from '../providers/repositories';
-import { findEntriesByRange, createEntry, CalendarEntryStatus } from '../calendar/repositories';
+import { countActiveProvidersByAccountId, findProviderById, transferProviderToAccount, type Provider } from '../providers/repositories';
+import { findEntriesByRange, createEntry, checkOverlap, upsertClient, CalendarEntryStatus } from '../calendar/repositories';
+import { publishCalendarChange } from '../calendar/events';
 import { getSubscriptionStatus } from '../subscription/routes';
 import * as repo from './repositories';
 import * as bot from './bot';
 import { verifyTelegramInitData } from './mini-auth';
 import { permissionsForTelegramRole } from './permissions';
 import { getMiniSessionContext } from './mini-session';
+import { createSpeechToTextProvider } from './speech-to-text';
 
 export function createTelegramRoutes(db: Db, env: AppEnv) {
   const plugin: FastifyPluginAsync = async (app) => {
+    const speechToText = createSpeechToTextProvider(env);
 
     // POST /telegram/link-token  (auth required)
     app.post('/telegram/link-token', async (req, reply) => {
@@ -56,6 +59,16 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       const rawToken = tokenRow.id;
       const botUsername = env.TELEGRAM_BOT_USERNAME ?? 'tamada_bot';
       const deepLink = `https://t.me/${botUsername}?start=link_${rawToken}`;
+      await repo.logActivity(db, {
+        providerId: id,
+        actorType: mini ? 'telegram' : 'web',
+        actorAccountId: accountId,
+        telegramAccountId: mini?.telegramAccount.id,
+        actionType: 'assistant_invited',
+        targetType: 'telegram_link_token',
+        targetId: tokenRow.token_hash,
+        payloadJson: { expires_at: tokenRow.expires_at.toISOString() },
+      });
       return reply.send({ ok: true, deep_link: deepLink, expires_in_minutes: 15 });
     });
 
@@ -125,6 +138,26 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       return reply.send({ ok: true, transfer_requests: requests });
     });
 
+    // GET /providers/:id/activity
+    app.get('/providers/:id/activity', async (req, reply) => {
+      const mini = await getMiniSessionContext(db, req, 'can_manage_team');
+      if (!mini) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+
+      const { id } = req.params as { id: string };
+      const provider = await findProviderById(db, id);
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+      if (provider.account_id !== mini.accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+
+      const query = req.query as Record<string, string | undefined>;
+      const categoryRaw = query['category'];
+      const category = categoryRaw === 'calendar' || categoryRaw === 'team' || categoryRaw === 'profile'
+        ? categoryRaw
+        : undefined;
+      const limitRaw = Number(query['limit'] ?? 50);
+      const logs = await repo.findActivityLogsByProvider(db, id, category, Number.isFinite(limitRaw) ? limitRaw : 50);
+      return reply.send({ ok: true, activity: logs });
+    });
+
     // POST /telegram/mini/transfers/:requestId/accept
     app.post('/telegram/mini/transfers/:requestId/accept', async (req, reply) => {
       const mini = await getMiniSessionContext(db, req, 'can_create_profile');
@@ -190,6 +223,16 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
 
       const rejected = await repo.rejectOwnershipTransferRequest(db, requestId, mini.accountId);
       if (!rejected) return reply.code(409).send({ ok: false, error: 'Transfer request is no longer active' });
+      await repo.logActivity(db, {
+        providerId: request.provider_id,
+        actorType: 'telegram',
+        actorAccountId: mini.accountId,
+        telegramAccountId: mini.telegramAccount.id,
+        actionType: 'ownership_transfer_rejected',
+        targetType: 'ownership_transfer_request',
+        targetId: requestId,
+        payloadJson: { from_account_id: request.from_account_id },
+      });
       return reply.send({ ok: true, transfer_request: rejected });
     });
 
@@ -197,11 +240,11 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
     app.post('/telegram/webhook', async (req, reply) => {
       const update = req.body as bot.TelegramUpdate;
       const msg = update.message;
-      if (!msg?.text || !msg.from) return reply.send({ ok: true });
+      if (!msg?.from) return reply.send({ ok: true });
 
       const chatId = msg.chat.id;
       const telegramUserId = msg.from.id;
-      const text = msg.text.trim();
+      const text = msg.text?.trim() ?? '';
       const lower = text.toLowerCase();
       const token = env.TELEGRAM_BOT_TOKEN ?? '';
 
@@ -313,10 +356,188 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
         return reply.send({ ok: true });
       }
 
-      const providerId = tgAccount.provider_id;
-      const provider = await findProviderById(db, providerId);
-      const tz = provider?.timezone ?? 'Asia/Almaty';
-      const actorAccountId = provider?.account_id ?? tgAccount.id;
+      const accessibleProviders = await listBotAccessibleProviders(db, tgAccount);
+      if (accessibleProviders.length === 0) {
+        await bot.sendMessage(token, chatId, 'Нет доступных активных профилей.');
+        return reply.send({ ok: true });
+      }
+
+      const botSession = await repo.findBotSession(db, tgAccount.id);
+      const selectedProvider = resolveBotActiveProvider(accessibleProviders, botSession?.active_provider_id ?? tgAccount.provider_id);
+
+      const profileMatch = /^(?:профиль|profile)\s+(\d+)$/i.exec(lower) ?? /^(\d+)$/.exec(lower);
+      if (profileMatch && accessibleProviders.length > 1) {
+        const idx = Number(profileMatch[1]) - 1;
+        const nextProvider = accessibleProviders[idx];
+        if (!nextProvider) {
+          await bot.sendMessage(token, chatId, profileListMessage(accessibleProviders));
+          return reply.send({ ok: true });
+        }
+        await repo.setBotActiveProvider(db, tgAccount.id, nextProvider.id);
+        await bot.sendMessage(token, chatId, `Активный профиль: <b>${nextProvider.display_name}</b>`);
+        return reply.send({ ok: true });
+      }
+
+      if (lower === 'профили' || lower === 'профиль' || lower === 'profiles') {
+        await bot.sendMessage(token, chatId, profileListMessage(accessibleProviders, selectedProvider?.id));
+        return reply.send({ ok: true });
+      }
+
+      if (!selectedProvider && accessibleProviders.length > 1) {
+        await bot.sendMessage(token, chatId, profileListMessage(accessibleProviders));
+        return reply.send({ ok: true });
+      }
+      if (!selectedProvider) {
+        await repo.setBotActiveProvider(db, tgAccount.id, accessibleProviders[0]!.id);
+      }
+
+      const provider = selectedProvider ?? accessibleProviders[0]!;
+      const providerId = provider.id;
+      const tz = provider.timezone ?? 'Asia/Almaty';
+      const actorAccountId = provider.account_id ?? tgAccount.id;
+
+      if (lower === 'отмена' || lower === 'cancel') {
+        await repo.clearBotPendingBooking(db, tgAccount.id);
+        await bot.sendMessage(token, chatId, 'Ок, черновик записи отменен.');
+        return reply.send({ ok: true });
+      }
+
+      if (lower === 'изменить') {
+        await bot.sendMessage(token, chatId, 'Пришлите запись заново одним сообщением. Например: 14 апреля с 10 до 20 кыз узату');
+        return reply.send({ ok: true });
+      }
+
+      if (lower === 'подтвердить' || lower === 'confirm') {
+        const pending = botSession?.pending_booking as bot.QuickBookingDraft | null | undefined;
+        if (!pending || !botSession?.pending_expires_at || new Date(botSession.pending_expires_at).getTime() <= Date.now()) {
+          await repo.clearBotPendingBooking(db, tgAccount.id);
+          await bot.sendMessage(token, chatId, 'Нет активного черновика. Пришлите запись заново.');
+          return reply.send({ ok: true });
+        }
+
+        const pendingProviderId = typeof (pending as unknown as { provider_id?: unknown }).provider_id === 'string'
+          ? (pending as unknown as { provider_id: string }).provider_id
+          : providerId;
+        const pendingProvider = accessibleProviders.find(p => p.id === pendingProviderId) ?? provider;
+        const { startsAt, endsAt } = bot.draftToDates(pending);
+        if (startsAt >= endsAt) {
+          await bot.sendMessage(token, chatId, 'Время начала должно быть раньше времени конца. Пришлите запись заново.');
+          return reply.send({ ok: true });
+        }
+        if (['busy', 'blocked', 'tentative'].includes(pending.status)) {
+          const overlap = await checkOverlap(db, pendingProvider.id, startsAt, endsAt);
+          if (overlap) {
+            await bot.sendMessage(token, chatId, 'Это время пересекается с другой записью. Пришлите другой интервал.');
+            return reply.send({ ok: true });
+          }
+        }
+
+        const entry = await createEntry(db, {
+          providerId: pendingProvider.id,
+          startsAt,
+          endsAt,
+          status: pending.status,
+          title: pending.event_type ?? undefined,
+          notes: pending.note ?? undefined,
+          createdByAccountId: actorAccountId,
+        });
+        if (pending.client_name || pending.event_type || pending.note) {
+          await upsertClient(db, entry.id, {
+            clientName: pending.client_name ?? undefined,
+            eventType: pending.event_type ?? undefined,
+            notes: pending.note ?? undefined,
+          });
+        }
+        publishCalendarChange({
+          provider_id: pendingProvider.id,
+          action: 'create',
+          entry_id: entry.id,
+          ranges: [{ starts_at: entry.starts_at.toISOString(), ends_at: entry.ends_at.toISOString() }],
+        });
+        await repo.logActivity(db, {
+          providerId: pendingProvider.id,
+          actorType: 'telegram',
+          actorAccountId,
+          telegramAccountId: tgAccount.id,
+          actionType: 'calendar_created',
+          targetType: 'calendar_entry',
+          targetId: entry.id,
+          payloadJson: {
+            source: typeof (pending as unknown as { source?: unknown }).source === 'string'
+              ? (pending as unknown as { source: string }).source
+              : 'telegram_quick_booking',
+            status: entry.status,
+            starts_at: entry.starts_at.toISOString(),
+            ends_at: entry.ends_at.toISOString(),
+          },
+        });
+        await repo.clearBotPendingBooking(db, tgAccount.id);
+        await bot.sendMessage(token, chatId, `Запись сохранена.\nАктивный профиль: <b>${pendingProvider.display_name}</b>`);
+        await notifyAll(db, token, pendingProvider.id, tgAccount.id,
+          `${msg.from.first_name ?? 'Помощник'} добавил запись через Telegram bot: ${pending.date} ${pending.all_day ? 'весь день' : `${pending.time_from}-${pending.time_to}`}.`
+        );
+        return reply.send({ ok: true });
+      }
+
+      const audioMessage = msg.voice ?? msg.audio ?? null;
+      if (audioMessage) {
+        if (!token) {
+          await bot.sendMessage(token, chatId, 'Голосовое распознавание сейчас недоступно. Напишите запись текстом.');
+          return reply.send({ ok: true });
+        }
+
+        const tgFile = await bot.getFile(token, audioMessage.file_id);
+        if (!tgFile) {
+          await bot.sendMessage(token, chatId, 'Не удалось получить голосовое сообщение. Отправьте голос еще раз или напишите текстом.');
+          return reply.send({ ok: true });
+        }
+
+        const data = await bot.downloadFile(token, tgFile.file_path);
+        if (!data) {
+          await bot.sendMessage(token, chatId, 'Не удалось скачать голосовое сообщение. Отправьте голос еще раз или напишите текстом.');
+          return reply.send({ ok: true });
+        }
+
+        let transcript = '';
+        try {
+          transcript = await speechToText.transcribeAudio({
+            data,
+            filename: audioFilename(msg.audio?.file_name, tgFile.file_path),
+            mimeType: audioMessage.mime_type ?? 'audio/ogg',
+          });
+        } catch {
+          await bot.sendMessage(token, chatId, 'Не удалось распознать голос. Отправьте голос еще раз или напишите запись текстом.');
+          return reply.send({ ok: true });
+        }
+
+        const voiceDraft = bot.parseQuickBookingText(transcript);
+        if (!voiceDraft) {
+          await bot.sendMessage(token, chatId, [
+            '<b>Не удалось разобрать запись.</b>',
+            `Распознанный текст: <b>${escapeHtml(transcript)}</b>`,
+            '',
+            'Попробуйте отправить голос короче или напишите текстом: 14 апреля с 10 до 20 кыз узату',
+          ].join('\n'));
+          return reply.send({ ok: true });
+        }
+
+        const pending = { ...voiceDraft, provider_id: providerId, source: 'telegram_voice_booking' };
+        await repo.setBotPendingBooking(db, tgAccount.id, pending, new Date(Date.now() + 10 * 60 * 1000));
+        await bot.sendMessage(token, chatId, [
+          `Распознанный текст: <b>${escapeHtml(transcript)}</b>`,
+          '',
+          bot.bookingPreview(provider.display_name, voiceDraft),
+        ].join('\n'));
+        return reply.send({ ok: true });
+      }
+
+      const quickDraft = bot.parseQuickBookingText(text);
+      if (quickDraft) {
+        const pending = { ...quickDraft, provider_id: providerId };
+        await repo.setBotPendingBooking(db, tgAccount.id, pending, new Date(Date.now() + 10 * 60 * 1000));
+        await bot.sendMessage(token, chatId, bot.bookingPreview(provider.display_name, quickDraft));
+        return reply.send({ ok: true });
+      }
 
       // помощь
       if (lower === 'помощь' || lower === '/help') {
@@ -559,6 +780,16 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
 
       await repo.revokeProfileAccess(db, telegramAccountId, id);
       await repo.revokeMiniSessionsForTelegramAccount(db, telegramAccountId);
+      await repo.logActivity(db, {
+        providerId: id,
+        actorType: mini ? 'telegram' : 'web',
+        actorAccountId: accountId,
+        telegramAccountId: mini?.telegramAccount.id,
+        actionType: 'assistant_revoked',
+        targetType: 'telegram_account',
+        targetId: telegramAccountId,
+        payloadJson: { revoked_telegram_user_id: tgAccount.telegram_user_id },
+      });
       return reply.send({ ok: true });
     });
 
@@ -592,6 +823,16 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       const updated = await repo.replacePrimaryTelegramOwner(db, accountId, telegramAccountId);
       if (!updated) return reply.code(400).send({ ok: false, error: 'Cannot replace primary owner' });
       await repo.upsertProfileAccess(db, { telegramAccountId, providerId: id, role: 'owner', grantedByAccountId: accountId });
+      await repo.logActivity(db, {
+        providerId: id,
+        actorType: mini ? 'telegram' : 'web',
+        actorAccountId: accountId,
+        telegramAccountId: mini?.telegramAccount.id,
+        actionType: 'primary_telegram_changed',
+        targetType: 'telegram_account',
+        targetId: telegramAccountId,
+        payloadJson: { primary_telegram_user_id: updated.telegram_user_id },
+      });
       return reply.send({ ok: true, telegram_account: updated });
     });
   };
@@ -606,6 +847,48 @@ async function notifyAll(db: Db, token: string, providerId: string, excludeId: s
     if (a.id === excludeId) continue;
     await bot.sendMessage(token, a.telegram_user_id, text);
   }
+}
+
+async function listBotAccessibleProviders(db: Db, tgAccount: repo.TelegramAccount): Promise<Provider[]> {
+  const ids = await repo.findAccessibleProviderIdsForTelegramAccount(db, tgAccount);
+  const providers: Provider[] = [];
+  for (const id of ids) {
+    const provider = await findProviderById(db, id);
+    if (provider && !provider.archived_at && !provider.pending_delete_at) providers.push(provider);
+  }
+  return providers;
+}
+
+function resolveBotActiveProvider(providers: Provider[], activeProviderId: string | null | undefined): Provider | null {
+  if (!activeProviderId) return providers.length === 1 ? providers[0]! : null;
+  return providers.find(provider => provider.id === activeProviderId) ?? (providers.length === 1 ? providers[0]! : null);
+}
+
+function profileListMessage(providers: Provider[], activeProviderId?: string): string {
+  const lines = providers.map((provider, index) => {
+    const active = provider.id === activeProviderId ? ' · активный' : '';
+    const city = provider.city ? ` · ${provider.city}` : '';
+    return `${index + 1}. <b>${provider.display_name}</b>${city}${active}`;
+  });
+  return [
+    '<b>Выберите профиль для Telegram bot</b>',
+    ...lines,
+    '',
+    'Напишите номер или: <b>Профиль 1</b>',
+  ].join('\n');
+}
+
+function audioFilename(fileName: string | undefined, filePath: string): string {
+  if (fileName) return fileName;
+  const fromPath = filePath.split('/').pop();
+  return fromPath || 'telegram-voice.ogg';
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 async function listMiniAccessibleProviders(db: Db, tgAccount: repo.TelegramAccount): Promise<readonly unknown[]> {
