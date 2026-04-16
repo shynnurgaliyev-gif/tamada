@@ -30,6 +30,7 @@ export function MiniProfilesScreen({
   onSwitchProfile,
   onCreateProfile,
   onArchiveProfile,
+  onUnarchiveProfile,
   onProviderUpdated,
 }: {
   providers: Provider[];
@@ -40,6 +41,7 @@ export function MiniProfilesScreen({
   onSwitchProfile: (idx: number) => void;
   onCreateProfile: (input: CreateProfileInput) => Promise<Provider | null>;
   onArchiveProfile: (providerId: string) => Promise<boolean>;
+  onUnarchiveProfile: (providerId: string) => Promise<boolean>;
   onProviderUpdated: (updated: Provider) => void;
 }) {
   const provider = providers[activeIdx] ?? null;
@@ -129,6 +131,7 @@ export function MiniProfilesScreen({
             onSwitch={onSwitchProfile}
             onCreate={() => setSubView('create')}
             onArchive={archiveProvider}
+            onUnarchive={onUnarchiveProfile}
           />
 
           {provider && !provider.archived_at && !provider.pending_delete_at && (
@@ -197,6 +200,7 @@ function ProfilesOverview(props: {
   onSwitch: (idx: number) => void;
   onCreate: () => void;
   onArchive: (id: string) => void;
+  onUnarchive: (id: string) => Promise<boolean>;
 }) {
   const indexById = new Map(props.providers.map((p, i) => [p.id, i]));
 
@@ -249,7 +253,16 @@ function ProfilesOverview(props: {
           {props.archiveOpen && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
               {props.archivedProfiles.map(p => (
-                <ProfileListCard key={p.id} provider={p} isActive={false} canManage={false} archived archiving={false} onSwitch={() => undefined} onArchive={() => undefined} />
+                <ProfileListCard
+                  key={p.id}
+                  provider={p}
+                  isActive={false}
+                  canManage={props.canArchiveProfile}
+                  archived
+                  archiving={false}
+                  onSwitch={() => undefined}
+                  onArchive={() => { void props.onUnarchive(p.id); }}
+                />
               ))}
             </div>
           )}
@@ -288,9 +301,9 @@ function ProfileListCard({ provider, isActive, canManage, archived, archiving, o
           </div>
         </div>
       </button>
-      {canManage && !archived && (
+      {canManage && (
         <button className="mini-tap" onClick={onArchive} disabled={archiving} style={{ marginTop: 10, border: '1px solid rgba(239,68,68,.18)', background: 'rgba(239,68,68,.06)', color: '#dc2626', borderRadius: 8, padding: '8px 10px', fontSize: 12, fontWeight: 800, width: '100%' }}>
-          {archiving ? '...' : 'Архивировать профиль'}
+          {archiving ? '...' : archived ? 'Восстановить профиль' : 'Архивировать профиль'}
         </button>
       )}
     </div>

@@ -295,6 +295,74 @@ export async function revokeProfileAccess(db: Db, telegramAccountId: string, pro
   `;
 }
 
+export async function revokeAssistantAccessForProvider(db: Db, providerId: string): Promise<void> {
+  await db`
+    UPDATE telegram_profile_access
+    SET status = 'revoked', revoked_at = NOW()
+    WHERE provider_id = ${providerId}
+      AND status = 'active'
+      AND role <> 'owner'
+  `;
+}
+
+export async function revokeLinkTokensForProvider(db: Db, providerId: string): Promise<void> {
+  await db`
+    UPDATE telegram_link_tokens
+    SET used_at = NOW()
+    WHERE provider_id = ${providerId}
+      AND used_at IS NULL
+  `;
+}
+
+export async function replacePrimaryTelegramOwner(db: Db, accountId: string, telegramAccountId: string): Promise<TelegramAccount | null> {
+  await db`
+    UPDATE telegram_accounts
+    SET is_primary = FALSE
+    WHERE account_id = ${accountId}
+      AND is_primary = TRUE
+      AND id <> ${telegramAccountId}
+  `;
+  const rows = await db<TelegramAccount[]>`
+    UPDATE telegram_accounts
+    SET is_primary = TRUE,
+        telegram_role = 'owner',
+        status = 'linked',
+        linked_at = COALESCE(linked_at, NOW()),
+        unlinked_at = NULL
+    WHERE id = ${telegramAccountId}
+      AND account_id = ${accountId}
+      AND status = 'linked'
+    RETURNING *
+  `;
+  return rows[0] ?? null;
+}
+
+export async function createOwnershipTransferRequest(db: Db, data: {
+  providerId: string;
+  fromAccountId: string;
+  requestedByAccountId: string;
+  toAccountId?: string | undefined;
+  toPhone?: string | undefined;
+}): Promise<{ id: string; expires_at: Date; status: string }> {
+  await db`
+    UPDATE provider_ownership_transfer_requests
+    SET status = 'cancelled', cancelled_at = NOW()
+    WHERE provider_id = ${data.providerId}
+      AND status = 'pending'
+  `;
+  const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+  const rows = await db<Array<{ id: string; expires_at: Date; status: string }>>`
+    INSERT INTO provider_ownership_transfer_requests
+      (provider_id, from_account_id, to_account_id, to_phone, requested_by_account_id, expires_at)
+    VALUES
+      (${data.providerId}, ${data.fromAccountId}, ${data.toAccountId ?? null},
+       ${data.toPhone ?? null}, ${data.requestedByAccountId}, ${expiresAt})
+    RETURNING id, expires_at, status
+  `;
+  if (!rows[0]) throw new Error('Failed to create ownership transfer request');
+  return rows[0];
+}
+
 // ---- Mini App Sessions ----
 
 export async function createMiniSession(db: Db, data: {

@@ -22,6 +22,15 @@ import {
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 const MAX_PROFILES_PER_ACCOUNT = 3;
 
+function miniHeaders(): Record<string, string> {
+  const token = localStorage.getItem('session_token') ?? '';
+  const miniToken = localStorage.getItem('mini_auth_token') ?? '';
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(miniToken ? { 'X-Mini-Auth': miniToken } : {}),
+  };
+}
+
 export type CreateProfileInput = {
   display_name: string;
   category: string;
@@ -52,6 +61,7 @@ export interface MiniAppState {
   maxProfiles: number;
   createProfile: (input: CreateProfileInput) => Promise<Provider | null>;
   archiveProfile: (providerId: string) => Promise<boolean>;
+  unarchiveProfile: (providerId: string) => Promise<boolean>;
   /* Analytics */
   summary: AnalyticsSummary | null;
   sumLoading: boolean;
@@ -157,7 +167,7 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
   /* ── Provider fetcher ─────────────────────────────────────────────────── */
   function fetchProviders(token: string): Promise<void> {
     return fetch(`${API}/providers/me?include_archived=1`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: miniHeaders(),
     })
       .then(r => r.json())
       .then((d: { ok: boolean; providers?: Provider[] }) => {
@@ -214,7 +224,8 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
 
   const createProfile = useCallback(async (input: CreateProfileInput): Promise<Provider | null> => {
     const token = localStorage.getItem('session_token');
-    if (!permissions.can_create_profile || !token || activeProfileCount >= MAX_PROFILES_PER_ACCOUNT) return null;
+    const miniToken = localStorage.getItem('mini_auth_token');
+    if (!permissions.can_create_profile || (!token && !miniToken) || activeProfileCount >= MAX_PROFILES_PER_ACCOUNT) return null;
 
     const slugBase = input.display_name
       .trim()
@@ -226,7 +237,7 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
 
     const res = await fetch(`${API}/providers`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: { ...miniHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({
         display_name: input.display_name.trim(),
         slug,
@@ -239,7 +250,7 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
     if (input.category.trim()) {
       await fetch(`${API}/providers/${data.provider.id}/services`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        headers: { ...miniHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
           category: input.category.trim(),
           subcategory: input.subcategory?.trim() || undefined,
@@ -265,10 +276,11 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
 
   const archiveProfile = useCallback(async (providerId: string): Promise<boolean> => {
     const token = localStorage.getItem('session_token');
-    if (!permissions.can_archive_profile || !token) return false;
+    const miniToken = localStorage.getItem('mini_auth_token');
+    if (!permissions.can_archive_profile || (!token && !miniToken)) return false;
     const res = await fetch(`${API}/providers/${providerId}/archive`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: { ...miniHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason: 'mini_app_archive' }),
     }).catch(() => null);
     const data = res ? await res.json() as { ok: boolean; provider?: Provider } : null;
@@ -286,6 +298,21 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
     return true;
   }, [activeIdx, permissions.can_archive_profile]);
 
+  const unarchiveProfile = useCallback(async (providerId: string): Promise<boolean> => {
+    const token = localStorage.getItem('session_token');
+    const miniToken = localStorage.getItem('mini_auth_token');
+    if (!permissions.can_archive_profile || (!token && !miniToken)) return false;
+    const res = await fetch(`${API}/providers/${providerId}/unarchive`, {
+      method: 'POST',
+      headers: { ...miniHeaders(), 'Content-Type': 'application/json' },
+    }).catch(() => null);
+    const data = res ? await res.json() as { ok: boolean; provider?: Provider } : null;
+    if (!data?.ok || !data.provider) return false;
+
+    setProviders(prev => prev.map(p => p.id === providerId ? data.provider! : p));
+    return true;
+  }, [permissions.can_archive_profile]);
+
   return {
     phase, setPhase,
     tab, handleTab,
@@ -299,6 +326,7 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
     maxProfiles: MAX_PROFILES_PER_ACCOUNT,
     createProfile,
     archiveProfile,
+    unarchiveProfile,
     summary, sumLoading, loadAnalytics,
   };
 }

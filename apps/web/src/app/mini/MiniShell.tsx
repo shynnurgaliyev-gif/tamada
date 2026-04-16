@@ -32,7 +32,7 @@ export default function MiniShell() {
     tab, handleTab,
     tgUser, miniAuthError, permissions,
     providers, activeIdx, setActiveIdx, activeProvider,
-    updateActiveProvider, canManageProfiles, maxProfiles, createProfile, archiveProfile,
+    updateActiveProvider, canManageProfiles, maxProfiles, createProfile, archiveProfile, unarchiveProfile,
     summary, sumLoading, loadAnalytics,
   } = useMiniApp(tgFlow);
 
@@ -79,6 +79,7 @@ export default function MiniShell() {
               onSwitchProfile={setActiveIdx}
               onCreateProfile={createProfile}
               onArchiveProfile={archiveProfile}
+              onUnarchiveProfile={unarchiveProfile}
               onProviderUpdated={updateActiveProvider}
             />
           )}

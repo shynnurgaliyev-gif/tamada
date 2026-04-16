@@ -5,6 +5,9 @@ import type { Db } from '../db';
 import type { SupabaseClient } from '../supabase';
 import { PHOTOS_BUCKET, photoPublicUrl } from '../supabase';
 import { getAuthAccount } from '../auth/middleware';
+import { getMiniSessionContext } from '../telegram/mini-session';
+import type { MiniPermissionKey } from '../telegram/permissions';
+import * as telegramRepo from '../telegram/repositories';
 import * as repo from './repositories';
 
 const MAX_PHOTOS = 5;
@@ -20,11 +23,19 @@ function withPhotoUrls(
 
 export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppEnv) {
   return async (app: FastifyInstance) => {
+    async function getOwnerContext(req: Parameters<typeof getAuthAccount>[1], permission: MiniPermissionKey) {
+      const account = await getAuthAccount(db, req);
+      const mini = account ? null : await getMiniSessionContext(db, req, permission);
+      const accountId = account?.id ?? mini?.accountId ?? null;
+      return { accountId };
+    }
 
     // POST /providers
     app.post('/providers', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      const mini = account ? null : await getMiniSessionContext(db, req, 'can_create_profile');
+      const accountId = account?.id ?? mini?.accountId;
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const body = req.body as Record<string, unknown>;
       const displayName = typeof body['display_name'] === 'string' ? body['display_name'] : null;
@@ -39,7 +50,7 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
       const existing = await repo.findProviderBySlug(db, slug);
       if (existing) return reply.code(400).send({ ok: false, error: 'slug already taken' });
 
-      const profileCount = await repo.countActiveProvidersByAccountId(db, account.id);
+      const profileCount = await repo.countActiveProvidersByAccountId(db, accountId);
       if (profileCount >= MAX_PROFILES_PER_ACCOUNT) {
         return reply.code(400).send({
           ok: false,
@@ -48,7 +59,7 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
       }
 
       const provider = await repo.createProvider(db, {
-        accountId: account.id,
+        accountId,
         displayName,
         slug,
         bio: typeof body['bio'] === 'string' ? body['bio'] : undefined,
@@ -65,10 +76,10 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
       const trialEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       await db`
         INSERT INTO subscriptions (account_id, provider_id, plan_code, status, starts_at, expires_at, trial_ends_at)
-        SELECT ${account.id}, ${provider.id}, 'trial', 'trial', NOW(), ${trialEnd}, ${trialEnd}
+        SELECT ${accountId}, ${provider.id}, 'trial', 'trial', NOW(), ${trialEnd}, ${trialEnd}
         WHERE NOT EXISTS (
           SELECT 1 FROM subscriptions
-          WHERE account_id = ${account.id}
+          WHERE account_id = ${accountId}
             AND status NOT IN ('cancelled', 'expired', 'blocked')
             AND expires_at > NOW()
         )
@@ -80,13 +91,15 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
     // GET /providers/me
     app.get('/providers/me', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      const mini = account ? null : await getMiniSessionContext(db, req, 'can_view_profile');
+      const accountId = account?.id ?? mini?.accountId;
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const query = req.query as Record<string, string>;
       const includeArchived = query['include_archived'] === '1' || query['include_archived'] === 'true';
       const providers = includeArchived
-        ? await repo.findAllProvidersByAccountId(db, account.id)
-        : await repo.findProvidersByAccountId(db, account.id);
+        ? await repo.findAllProvidersByAccountId(db, accountId)
+        : await repo.findProvidersByAccountId(db, accountId);
       return reply.send({ ok: true, providers });
     });
 
@@ -118,18 +131,82 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
 
     // POST /providers/:id/archive
     app.post('/providers/:id/archive', async (req, reply) => {
-      const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      const { accountId } = await getOwnerContext(req, 'can_archive_profile');
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const { id } = req.params as { id: string };
       const provider = await repo.findProviderById(db, id);
       if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
-      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
 
       const body = req.body as Record<string, unknown>;
       const reason = typeof body['reason'] === 'string' ? body['reason'] : undefined;
-      const archived = await repo.archiveProvider(db, id, account.id, reason);
+      const archived = await repo.archiveProvider(db, id, accountId, reason);
+      await telegramRepo.revokeLinkTokensForProvider(db, id);
       return reply.send({ ok: true, provider: archived });
+    });
+
+    // POST /providers/:id/unarchive
+    app.post('/providers/:id/unarchive', async (req, reply) => {
+      const { accountId } = await getOwnerContext(req, 'can_archive_profile');
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+
+      const { id } = req.params as { id: string };
+      const provider = await repo.findProviderById(db, id);
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+
+      const restored = await repo.unarchiveProvider(db, id);
+      return reply.send({ ok: true, provider: restored });
+    });
+
+    // POST /providers/:id/hard-delete
+    // Safety step: finalizes as hidden + pending_delete, revokes profile-scoped access/invites.
+    app.post('/providers/:id/hard-delete', async (req, reply) => {
+      const { accountId } = await getOwnerContext(req, 'can_archive_profile');
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+
+      const { id } = req.params as { id: string };
+      const provider = await repo.findProviderById(db, id);
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+
+      const body = req.body as Record<string, unknown>;
+      const confirm = typeof body['confirm_text'] === 'string' ? body['confirm_text'].trim() : '';
+      if (confirm !== provider.display_name) {
+        return reply.code(400).send({ ok: false, error: 'confirm_text must match profile display_name' });
+      }
+
+      await telegramRepo.revokeAssistantAccessForProvider(db, id);
+      await telegramRepo.revokeLinkTokensForProvider(db, id);
+      const deleted = await repo.markProviderPendingDelete(db, id, accountId);
+      return reply.send({ ok: true, provider: deleted });
+    });
+
+    // POST /providers/:id/transfer-request
+    app.post('/providers/:id/transfer-request', async (req, reply) => {
+      const { accountId } = await getOwnerContext(req, 'can_archive_profile');
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+
+      const { id } = req.params as { id: string };
+      const provider = await repo.findProviderById(db, id);
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+
+      const body = req.body as Record<string, unknown>;
+      const toPhone = typeof body['to_phone'] === 'string' ? body['to_phone'].trim() : '';
+      const toAccountId = typeof body['to_account_id'] === 'string' ? body['to_account_id'] : undefined;
+      if (!toPhone && !toAccountId) return reply.code(400).send({ ok: false, error: 'to_phone or to_account_id required' });
+
+      const request = await telegramRepo.createOwnershipTransferRequest(db, {
+        providerId: id,
+        fromAccountId: accountId,
+        requestedByAccountId: accountId,
+        toAccountId,
+        toPhone: toPhone || undefined,
+      });
+      await telegramRepo.revokeLinkTokensForProvider(db, id);
+      return reply.code(201).send({ ok: true, transfer_request: request });
     });
 
     // DELETE /providers/:id
@@ -172,12 +249,14 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
     // POST /providers/:id/services
     app.post('/providers/:id/services', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      const mini = account ? null : await getMiniSessionContext(db, req, 'can_edit_profile');
+      const accountId = account?.id ?? mini?.accountId;
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const { id } = req.params as { id: string };
       const provider = await repo.findProviderById(db, id);
       if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
-      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
 
       const body = req.body as Record<string, unknown>;
       const category = typeof body['category'] === 'string' ? body['category'] : null;

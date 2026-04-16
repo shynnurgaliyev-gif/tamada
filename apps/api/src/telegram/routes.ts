@@ -469,6 +469,39 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       await repo.revokeMiniSessionsForTelegramAccount(db, telegramAccountId);
       return reply.send({ ok: true });
     });
+
+    // POST /providers/:id/team/:telegramAccountId/make-primary
+    app.post('/providers/:id/team/:telegramAccountId/make-primary', async (req, reply) => {
+      const account = await getAuthAccount(db, req);
+      const mini = account ? null : await getMiniSessionContext(db, req, 'can_manage_team');
+      const accountId = account?.id ?? mini?.accountId;
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+
+      const { id, telegramAccountId } = req.params as { id: string; telegramAccountId: string };
+      const provider = await findProviderById(db, id);
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+
+      const rows = await db<repo.TelegramAccount[]>`
+        SELECT ta.* FROM telegram_accounts ta
+        LEFT JOIN telegram_profile_access tpa
+          ON tpa.telegram_account_id = ta.id
+          AND tpa.provider_id = ${id}
+          AND tpa.status = 'active'
+        WHERE ta.id = ${telegramAccountId}
+          AND ta.account_id = ${accountId}
+          AND ta.status = 'linked'
+          AND (ta.telegram_role = 'owner' OR tpa.id IS NOT NULL)
+        LIMIT 1
+      `;
+      const target = rows[0];
+      if (!target) return reply.code(404).send({ ok: false, error: 'Telegram account not found' });
+
+      const updated = await repo.replacePrimaryTelegramOwner(db, accountId, telegramAccountId);
+      if (!updated) return reply.code(400).send({ ok: false, error: 'Cannot replace primary owner' });
+      await repo.upsertProfileAccess(db, { telegramAccountId, providerId: id, role: 'owner', grantedByAccountId: accountId });
+      return reply.send({ ok: true, telegram_account: updated });
+    });
   };
 
   return plugin;

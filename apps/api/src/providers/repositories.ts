@@ -161,6 +161,34 @@ export async function archiveProvider(db: Db, id: string, archivedByAccountId: s
   return rows[0] ?? null;
 }
 
+export async function unarchiveProvider(db: Db, id: string): Promise<Provider | null> {
+  const rows = await db<Provider[]>`
+    UPDATE providers SET
+      archived_at = NULL,
+      archived_by_account_id = NULL,
+      archive_reason = NULL,
+      pending_delete_at = NULL,
+      publication_status = 'draft'
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  return rows[0] ?? null;
+}
+
+export async function markProviderPendingDelete(db: Db, id: string, accountId: string): Promise<Provider | null> {
+  const rows = await db<Provider[]>`
+    UPDATE providers SET
+      pending_delete_at = NOW(),
+      archived_at = COALESCE(archived_at, NOW()),
+      archived_by_account_id = ${accountId},
+      archive_reason = 'hard_delete_requested',
+      publication_status = 'hidden'
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  return rows[0] ?? null;
+}
+
 // ---- Services ----
 
 export async function findServicesByProviderId(db: Db, providerId: string): Promise<ProviderService[]> {
