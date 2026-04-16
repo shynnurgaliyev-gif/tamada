@@ -24,6 +24,7 @@ export type Provider = {
   archived_by_account_id: string | null;
   archive_reason: string | null;
   pending_delete_at: Date | null;
+  show_related_profiles?: boolean;
   primary_category?: string | null;
   primary_subcategory?: string | null;
   created_at: Date;
@@ -115,8 +116,48 @@ export async function findProviderById(db: Db, id: string): Promise<Provider | n
 }
 
 export async function findProviderBySlug(db: Db, slug: string): Promise<Provider | null> {
-  const rows = await db<Provider[]>`SELECT * FROM providers WHERE slug = ${slug} LIMIT 1`;
+  const rows = await db<Provider[]>`
+    SELECT p.*, a.show_related_profiles
+    FROM providers p
+    JOIN accounts a ON a.id = p.account_id
+    WHERE p.slug = ${slug}
+    LIMIT 1
+  `;
   return rows[0] ?? null;
+}
+
+export type RelatedPublicProvider = {
+  id: string;
+  display_name: string;
+  slug: string;
+  city: string | null;
+  primary_category: string | null;
+  primary_subcategory: string | null;
+};
+
+export async function findRelatedPublicProviders(db: Db, provider: Provider): Promise<RelatedPublicProvider[]> {
+  if (!provider.show_related_profiles) return [];
+  return db<RelatedPublicProvider[]>`
+    SELECT p.id, p.display_name, p.slug, p.city,
+           ps.category AS primary_category,
+           ps.subcategory AS primary_subcategory
+    FROM providers p
+    LEFT JOIN LATERAL (
+      SELECT category, subcategory
+      FROM provider_services
+      WHERE provider_id = p.id AND is_active = TRUE
+      ORDER BY created_at ASC
+      LIMIT 1
+    ) ps ON TRUE
+    WHERE p.account_id = ${provider.account_id}
+      AND p.id <> ${provider.id}
+      AND p.publication_status = 'visible'
+      AND p.provider_status = 'active'
+      AND p.archived_at IS NULL
+      AND p.pending_delete_at IS NULL
+    ORDER BY p.created_at ASC
+    LIMIT 6
+  `;
 }
 
 export async function createProvider(db: Db, data: {

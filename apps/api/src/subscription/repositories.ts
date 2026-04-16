@@ -6,13 +6,17 @@ export type PaymentProviderType = 'kaspi' | 'other';
 
 export type Subscription = {
   id: string;
-  provider_id: string;
+  account_id: string | null;
+  provider_id: string | null;
   plan_code: string;
   status: SubscriptionStatus;
   starts_at: Date;
   expires_at: Date;
   trial_ends_at: Date | null;
   grace_until: Date | null;
+  included_profile_count: number;
+  extra_profile_slots: number;
+  max_active_profiles: number;
   created_at: Date;
   updated_at: Date;
 };
@@ -39,6 +43,22 @@ export const VISIBLE_STATUSES: SubscriptionStatus[] = ['trial', 'active', 'expir
 export const TRIAL_DAYS = 30;
 export const EXPIRING_WARN_DAYS = 3;
 export const SUBSCRIPTION_PRICE = 9900; // KZT per month
+export const BASE_INCLUDED_PROFILE_COUNT = 1;
+export const PRODUCT_MAX_ACTIVE_PROFILES = 3;
+
+export type PlanLimits = {
+  included_profile_count: number;
+  extra_profile_slots: number;
+  max_active_profiles: number;
+};
+
+export function planLimits(sub: Subscription | null): PlanLimits {
+  return {
+    included_profile_count: sub?.included_profile_count ?? BASE_INCLUDED_PROFILE_COUNT,
+    extra_profile_slots: sub?.extra_profile_slots ?? 0,
+    max_active_profiles: sub?.max_active_profiles ?? PRODUCT_MAX_ACTIVE_PROFILES,
+  };
+}
 
 // ---- Subscriptions ----
 

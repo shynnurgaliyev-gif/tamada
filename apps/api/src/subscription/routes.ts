@@ -22,7 +22,7 @@ export function createSubscriptionRoutes(db: Db, env: AppEnv) {
       if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const sub = await repo.findActiveSubscriptionByAccount(db, accountId);
-      if (!sub) return reply.send({ ok: true, subscription: null });
+      if (!sub) return reply.send({ ok: true, subscription: null, plan_limits: repo.planLimits(null) });
 
       const computed = repo.computeStatus(sub);
       if (computed !== sub.status) {
@@ -31,7 +31,7 @@ export function createSubscriptionRoutes(db: Db, env: AppEnv) {
       }
 
       const payments = await repo.findPaymentsByAccount(db, accountId, 10);
-      return reply.send({ ok: true, subscription: { ...sub, status: computed }, days_left: repo.daysLeft(sub), payments });
+      return reply.send({ ok: true, subscription: { ...sub, status: computed }, days_left: repo.daysLeft(sub), payments, plan_limits: repo.planLimits(sub) });
     });
 
     // POST /account/subscription/start-trial
@@ -46,7 +46,7 @@ export function createSubscriptionRoutes(db: Db, env: AppEnv) {
 
       const sub = await repo.startTrial(db, accountId);
       await repo.logEvent(db, { accountId, subscriptionId: sub.id, eventType: 'trial_started' });
-      return reply.code(201).send({ ok: true, subscription: sub, days_left: repo.daysLeft(sub) });
+      return reply.code(201).send({ ok: true, subscription: sub, days_left: repo.daysLeft(sub), plan_limits: repo.planLimits(sub) });
     });
 
     // POST /account/payments/create-invoice (provider_id in body for payment description)
@@ -113,7 +113,7 @@ export function createSubscriptionRoutes(db: Db, env: AppEnv) {
 
       // Subscription is at account level
       const sub = await repo.findActiveSubscriptionByAccount(db, account.id);
-      if (!sub) return reply.send({ ok: true, subscription: null });
+      if (!sub) return reply.send({ ok: true, subscription: null, plan_limits: repo.planLimits(null) });
 
       const computed = repo.computeStatus(sub);
       if (computed !== sub.status) {
@@ -122,7 +122,7 @@ export function createSubscriptionRoutes(db: Db, env: AppEnv) {
       }
 
       const payments = await repo.findPaymentsByAccount(db, account.id, 5);
-      return reply.send({ ok: true, subscription: { ...sub, status: computed }, days_left: repo.daysLeft(sub), payments });
+      return reply.send({ ok: true, subscription: { ...sub, status: computed }, days_left: repo.daysLeft(sub), payments, plan_limits: repo.planLimits(sub) });
     });
 
     // POST /providers/:id/subscription/start-trial
@@ -140,7 +140,7 @@ export function createSubscriptionRoutes(db: Db, env: AppEnv) {
 
       const sub = await repo.startTrial(db, account.id);
       await repo.logEvent(db, { accountId: account.id, subscriptionId: sub.id, eventType: 'trial_started' });
-      return reply.code(201).send({ ok: true, subscription: sub, days_left: repo.daysLeft(sub) });
+      return reply.code(201).send({ ok: true, subscription: sub, days_left: repo.daysLeft(sub), plan_limits: repo.planLimits(sub) });
     });
 
     // GET /providers/:id/subscription/days-left

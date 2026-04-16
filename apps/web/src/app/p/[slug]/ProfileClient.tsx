@@ -10,6 +10,14 @@ type Provider = {
   city: string | null; region: string | null; is_verified: boolean;
   provider_status: string;
 };
+type RelatedProfile = {
+  id: string;
+  display_name: string;
+  slug: string;
+  city: string | null;
+  primary_category: string | null;
+  primary_subcategory: string | null;
+};
 type Service = { id: string; category: string; title: string; description: string | null; price_from: string | null; price_to: string | null; currency: string; };
 type Photo = { id: string; url: string; is_cover: boolean; };
 type Link = { id: string; link_type: string; url: string; label: string | null; };
@@ -203,6 +211,7 @@ export default function ProfileClient({ slug }: { slug: string }) {
   const [provider, setProvider] = useState<Provider | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [relatedProfiles, setRelatedProfiles] = useState<RelatedProfile[]>([]);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const now = new Date();
   const [calYear, setCalYear] = useState(now.getFullYear());
@@ -293,12 +302,13 @@ export default function ProfileClient({ slug }: { slug: string }) {
 
     async function load() {
       const res = await fetch(`${API}/public/providers/${slug}`).catch(() => null);
-      const d = res ? await res.json() as { ok: boolean; provider?: Provider; services?: Service[]; photos?: Photo[] } : null;
+      const d = res ? await res.json() as { ok: boolean; provider?: Provider; services?: Service[]; photos?: Photo[]; related_profiles?: RelatedProfile[] } : null;
 
       if (d?.ok) {
         setProvider(d.provider ?? null);
         setServices(d.services ?? []);
         setPhotos(d.photos ?? []);
+        setRelatedProfiles(d.related_profiles ?? []);
         const yr = new Date().getFullYear();
         const mo = new Date().getMonth() + 1;
         void refreshCalendarMonth(yr, mo);
@@ -593,6 +603,55 @@ export default function ProfileClient({ slug }: { slug: string }) {
                   )}
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {relatedProfiles.length > 0 && (
+          <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+            <h2 style={{ margin: '0 0 14px', fontSize: 17, fontWeight: 800 }}>Другие направления</h2>
+            <div style={{ display: 'grid', gap: 10 }}>
+              {relatedProfiles.map(profile => {
+                const category = [profile.primary_category, profile.primary_subcategory].filter(Boolean).join(' · ');
+                return (
+                  <a
+                    key={profile.id}
+                    href={`/p/${profile.slug}`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: 12,
+                      border: '1px solid var(--border)',
+                      borderRadius: 10,
+                      textDecoration: 'none',
+                      color: 'var(--ink)',
+                    }}
+                  >
+                    <div style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 8,
+                      background: nameToGradient(profile.display_name),
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 900,
+                      flexShrink: 0,
+                    }}>
+                      {profile.display_name[0]?.toUpperCase() ?? '?'}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 800 }}>{profile.display_name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>
+                        {[category, profile.city].filter(Boolean).join(' · ') || 'Профиль'}
+                      </div>
+                    </div>
+                    <span style={{ color: 'var(--ink-4)', fontSize: 18 }}>›</span>
+                  </a>
+                );
+              })}
             </div>
           </div>
         )}

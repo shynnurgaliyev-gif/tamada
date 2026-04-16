@@ -4,7 +4,7 @@ import type { WhatsAppProvider } from './whatsapp';
 import type { SupabaseClient } from '../supabase';
 import * as service from './service';
 import { hashToken } from './repositories';
-import { findAccountById } from './repositories';
+import { findAccountById, updateAccountPublicSettings } from './repositories';
 import { getAuthAccount } from './middleware';
 import { getMiniSessionContext } from '../telegram/mini-session';
 
@@ -111,6 +111,25 @@ export function createAuthRoutes(db: Db, wa: WhatsAppProvider, supabase: Supabas
 
       const result = await service.getMe(db, hashToken(token));
       return reply.code(result.ok ? 200 : 401).send(result);
+    });
+
+    // PATCH /auth/account/public-settings
+    app.patch('/auth/account/public-settings', async (req, reply) => {
+      const account = await getAuthAccount(db, req);
+      const mini = account ? null : await getMiniSessionContext(db, req, 'can_manage_subscription');
+      const accountId = account?.id ?? mini?.accountId;
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+
+      const body = req.body as Record<string, unknown>;
+      const showRelatedProfiles = typeof body['show_related_profiles'] === 'boolean'
+        ? body['show_related_profiles']
+        : undefined;
+      if (showRelatedProfiles === undefined) {
+        return reply.code(400).send({ ok: false, error: 'show_related_profiles required' });
+      }
+
+      const updated = await updateAccountPublicSettings(db, accountId, { showRelatedProfiles });
+      return reply.send({ ok: true, account: updated });
     });
 
     // DELETE /auth/account  — permanently delete account + all data

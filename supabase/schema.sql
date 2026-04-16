@@ -33,6 +33,7 @@ CREATE TABLE accounts (
   phone_verified_at TIMESTAMPTZ,
   password_hash     TEXT NOT NULL,
   status            account_status NOT NULL DEFAULT 'pending_verification',
+  show_related_profiles BOOLEAN NOT NULL DEFAULT FALSE,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -285,23 +286,29 @@ CREATE TYPE payment_status AS ENUM ('pending', 'paid', 'failed', 'expired', 'can
 
 CREATE TABLE subscriptions (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  provider_id    UUID NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+  account_id     UUID REFERENCES accounts(id) ON DELETE CASCADE,
+  provider_id    UUID REFERENCES providers(id) ON DELETE CASCADE,
   plan_code      TEXT NOT NULL DEFAULT 'basic',
   status         subscription_status NOT NULL DEFAULT 'trial',
   starts_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   expires_at     TIMESTAMPTZ NOT NULL,
   trial_ends_at  TIMESTAMPTZ,
   grace_until    TIMESTAMPTZ,
+  included_profile_count INT NOT NULL DEFAULT 1,
+  extra_profile_slots INT NOT NULL DEFAULT 0,
+  max_active_profiles INT NOT NULL DEFAULT 3,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE INDEX idx_subscriptions_account ON subscriptions(account_id);
 CREATE INDEX idx_subscriptions_provider ON subscriptions(provider_id);
 CREATE INDEX idx_subscriptions_expires ON subscriptions(expires_at);
 
 CREATE TABLE payments (
   id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  provider_id        UUID NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+  account_id         UUID REFERENCES accounts(id) ON DELETE CASCADE,
+  provider_id        UUID REFERENCES providers(id) ON DELETE CASCADE,
   subscription_id    UUID REFERENCES subscriptions(id) ON DELETE SET NULL,
   payment_provider   payment_provider_type NOT NULL DEFAULT 'kaspi',
   invoice_id         TEXT,
@@ -316,18 +323,21 @@ CREATE TABLE payments (
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE INDEX idx_payments_account ON payments(account_id);
 CREATE INDEX idx_payments_provider ON payments(provider_id);
 CREATE INDEX idx_payments_subscription ON payments(subscription_id);
 CREATE INDEX idx_payments_invoice ON payments(invoice_id);
 
 CREATE TABLE subscription_events (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  provider_id     UUID NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+  account_id      UUID REFERENCES accounts(id) ON DELETE CASCADE,
+  provider_id     UUID REFERENCES providers(id) ON DELETE CASCADE,
   subscription_id UUID REFERENCES subscriptions(id) ON DELETE SET NULL,
   event_type      TEXT NOT NULL,
   payload_json    JSONB,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE INDEX idx_sub_events_account ON subscription_events(account_id);
 CREATE INDEX idx_subscription_events_provider ON subscription_events(provider_id);
 CREATE INDEX idx_subscription_events_subscription ON subscription_events(subscription_id);

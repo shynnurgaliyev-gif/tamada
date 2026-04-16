@@ -407,7 +407,13 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
       const { slug } = req.params as { slug: string };
       const provider = await repo.findProviderBySlug(db, slug);
 
-      if (!provider || provider.publication_status !== 'visible') {
+      if (
+        !provider ||
+        provider.publication_status !== 'visible' ||
+        provider.provider_status !== 'active' ||
+        provider.archived_at ||
+        provider.pending_delete_at
+      ) {
         return reply.code(404).send({ ok: false, error: 'Provider not found' });
       }
 
@@ -426,16 +432,22 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
         repo.findServicesByProviderId(db, provider.id),
         repo.findPhotosByProviderId(db, provider.id),
       ]);
+      const relatedProfiles = await repo.findRelatedPublicProviders(db, provider);
 
       // Strip private fields before sending public response
       // Links are NOT included here — returned only via POST reveal-contacts
-      const { account_id: _a, ...publicProvider } = provider as typeof provider & { account_id: unknown };
+      const {
+        account_id: _a,
+        show_related_profiles: _showRelated,
+        ...publicProvider
+      } = provider as typeof provider & { account_id: unknown; show_related_profiles?: unknown };
 
       return reply.send({
         ok: true,
         provider: publicProvider,
         services: services.filter(s => s.is_active),
         photos: withPhotoUrls(env, photos),
+        related_profiles: relatedProfiles,
       });
     });
   };

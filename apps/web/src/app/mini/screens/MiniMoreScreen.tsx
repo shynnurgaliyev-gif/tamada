@@ -8,7 +8,7 @@ const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
 type MoreView = 'main' | 'subscription' | 'integrations' | 'team' | 'settings';
 
-type Account = { id: string; username: string; phone: string };
+type Account = { id: string; username: string; phone: string; show_related_profiles: boolean };
 type Subscription = {
   id: string;
   status: string;
@@ -16,6 +16,11 @@ type Subscription = {
   starts_at: string;
   expires_at: string;
   trial_ends_at: string | null;
+};
+type PlanLimits = {
+  included_profile_count: number;
+  extra_profile_slots: number;
+  max_active_profiles: number;
 };
 type Payment = {
   id: string;
@@ -187,6 +192,7 @@ function SubscriptionTool() {
   const [sub, setSub] = useState<Subscription | null>(null);
   const [daysLeft, setDaysLeft] = useState(0);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [planLimits, setPlanLimits] = useState<PlanLimits | null>(null);
   const [loading, setLoading] = useState(true);
   const [phone, setPhone] = useState('');
   const [busy, setBusy] = useState(false);
@@ -196,11 +202,12 @@ function SubscriptionTool() {
     setLoading(true);
     fetch(`${API}/account/subscription`, { headers: auth() })
       .then(r => r.json())
-      .then((d: { ok: boolean; subscription?: Subscription | null; days_left?: number; payments?: Payment[] }) => {
+      .then((d: { ok: boolean; subscription?: Subscription | null; days_left?: number; payments?: Payment[]; plan_limits?: PlanLimits }) => {
         if (d.ok) {
           setSub(d.subscription ?? null);
           setDaysLeft(d.days_left ?? 0);
           setPayments(d.payments ?? []);
+          setPlanLimits(d.plan_limits ?? null);
         }
       })
       .catch(() => null)
@@ -263,6 +270,13 @@ function SubscriptionTool() {
             {sub.trial_ends_at && <InfoRow label="Пробный до" value={new Date(sub.trial_ends_at).toLocaleDateString('ru-RU')} />}
           </>
         )}
+      </div>
+
+      <div className="mini-card">
+        <div style={{ fontWeight: 800, marginBottom: 8 }}>Профили в подписке</div>
+        <InfoRow label="Включено в базу" value={`${planLimits?.included_profile_count ?? 1}`} />
+        <InfoRow label="Доп. слоты" value={`${planLimits?.extra_profile_slots ?? 0}`} />
+        <InfoRow label="Текущий лимит продукта" value={`${planLimits?.max_active_profiles ?? 3}`} />
       </div>
 
       <div className="mini-card">
@@ -536,6 +550,19 @@ function SettingsTool({ tgUser, provider }: { tgUser: TgUser | null; provider: P
     window.location.href = '/mini';
   }
 
+  async function updateRelatedProfiles(next: boolean) {
+    const previous = account;
+    if (account) setAccount({ ...account, show_related_profiles: next });
+    const res = await fetch(`${API}/auth/account/public-settings`, {
+      method: 'PATCH',
+      headers: { ...auth(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ show_related_profiles: next }),
+    }).catch(() => null);
+    const data = res ? await res.json() as { ok: boolean; account?: Account } : null;
+    if (data?.ok && data.account) setAccount(data.account);
+    else if (previous) setAccount(previous);
+  }
+
   return (
     <div>
       <ToolTitle title="Настройки" subtitle="Аккаунт и поддержка" />
@@ -544,6 +571,21 @@ function SettingsTool({ tgUser, provider }: { tgUser: TgUser | null; provider: P
         <InfoRow label="Логин" value={account?.username ?? '...'} />
         <InfoRow label="Телефон" value={account?.phone ?? '...'} />
         <InfoRow label="Активный профиль" value={provider?.display_name ?? 'Не выбран'} />
+      </div>
+      <div className="mini-card">
+        <div style={{ fontWeight: 900, marginBottom: 8 }}>Публичная страница</div>
+        <div style={{ fontSize: 13, color: 'var(--tg-theme-hint-color, #6b7280)', lineHeight: 1.45, marginBottom: 10 }}>
+          Показывать на публичных профилях блок с другими видимыми профилями этого аккаунта.
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, fontSize: 14, fontWeight: 800 }}>
+          Связанные профили
+          <input
+            type="checkbox"
+            checked={!!account?.show_related_profiles}
+            onChange={e => void updateRelatedProfiles(e.target.checked)}
+            style={{ width: 22, height: 22 }}
+          />
+        </label>
       </div>
       <div className="mini-card">
         <div style={{ fontWeight: 900, marginBottom: 10 }}>Telegram</div>

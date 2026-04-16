@@ -26,6 +26,7 @@ export type Account = {
   phone_verified_at: Date | null;
   password_hash: string;
   status: AccountStatus;
+  show_related_profiles: boolean;
   created_at: Date;
   updated_at: Date;
 };
@@ -61,6 +62,18 @@ export async function createAccount(db: Db, data: {
 
 export async function updateAccountPassword(db: Db, id: string, passwordHash: string): Promise<void> {
   await db`UPDATE accounts SET password_hash = ${passwordHash} WHERE id = ${id}`;
+}
+
+export async function updateAccountPublicSettings(db: Db, id: string, data: {
+  showRelatedProfiles?: boolean | undefined;
+}): Promise<Account | null> {
+  const rows = await db<Account[]>`
+    UPDATE accounts SET
+      show_related_profiles = ${data.showRelatedProfiles ?? false}
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  return rows[0] ?? null;
 }
 
 // ---- Verification Codes ----
