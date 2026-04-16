@@ -37,6 +37,7 @@ export interface MiniAppState {
   handleTab: (next: Tab) => void;
   /* User */
   tgUser: TgUser | null;
+  miniAuthError: string | null;
   /* Providers */
   providers: Provider[];
   activeIdx: number;
@@ -64,6 +65,7 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
   const [summary,    setSummary]    = useState<AnalyticsSummary | null>(null);
   const [sumLoading, setSumLoading] = useState(false);
   const [miniRole,   setMiniRole]   = useState<string | null>('owner');
+  const [miniAuthError, setMiniAuthError] = useState<string | null>(null);
 
   const activeProvider = providers[activeIdx] ?? null;
   const activeProfileCount = providers.filter(p => !p.archived_at && !p.pending_delete_at).length;
@@ -87,29 +89,48 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
 
     if (tg?.initDataUnsafe?.user) {
       setTgUser(tg.initDataUnsafe.user);
-      localStorage.setItem('mini_tg_user_id', String(tg.initDataUnsafe.user.id));
     }
+    localStorage.removeItem('mini_tg_user_id');
     if (flow === 'profiles') setTab('profiles');
 
     const token = localStorage.getItem('session_token');
 
     // No token → onboarding
     if (!token) {
-      const tgUserId = tg?.initDataUnsafe?.user?.id;
-      if (tgUserId) {
-        fetch(`${API}/telegram/mini/providers?telegram_user_id=${tgUserId}`)
+      const initData = tg?.initData ?? '';
+      if (initData) {
+        fetch(`${API}/telegram/mini/auth`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ init_data: initData }),
+        })
           .then(r => r.json())
-          .then((d: { ok: boolean; providers?: Provider[]; role?: string | null }) => {
+          .then((d: { ok: boolean; providers?: Provider[]; role?: string | null; mini_token?: string | null; expires_at?: string | null; error?: string }) => {
             if (d.ok && d.providers?.length) {
+              if (d.mini_token) {
+                localStorage.setItem('mini_auth_token', d.mini_token);
+                if (d.expires_at) localStorage.setItem('mini_auth_expires_at', d.expires_at);
+              }
               setMiniRole(d.role ?? 'assistant');
               setProviders(d.providers);
               setPhase('shell');
             } else {
+              localStorage.removeItem('mini_auth_token');
+              localStorage.removeItem('mini_auth_expires_at');
+              if (d.error) setMiniAuthError(d.error);
               setPhase('onboarding');
             }
           })
-          .catch(() => setPhase('onboarding'));
+          .catch(() => {
+            localStorage.removeItem('mini_auth_token');
+            localStorage.removeItem('mini_auth_expires_at');
+            setMiniAuthError('Не удалось проверить вход через Telegram. Откройте Mini App заново из Telegram.');
+            setPhase('onboarding');
+          });
         return;
+      }
+      if (tg?.initDataUnsafe?.user) {
+        setMiniAuthError('Telegram не передал данные для безопасного входа. Откройте Mini App заново из Telegram.');
       }
       setPhase('onboarding');
       return;
@@ -260,6 +281,7 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
     phase, setPhase,
     tab, handleTab,
     tgUser,
+    miniAuthError,
     providers, activeIdx, setActiveIdx: switchActiveIdx,
     activeProvider,
     updateActiveProvider,

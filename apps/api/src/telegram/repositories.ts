@@ -47,10 +47,25 @@ export type TelegramProfileAccess = {
   updated_at: Date;
 };
 
+export type TelegramMiniSession = {
+  id: string;
+  telegram_account_id: string;
+  session_token_hash: string;
+  telegram_user_id: number;
+  role: TelegramRole;
+  expires_at: Date;
+  revoked_at: Date | null;
+  created_at: Date;
+};
+
 // ---- Link Tokens ----
 
 export function generateLinkToken(): string {
   return crypto.randomBytes(24).toString('base64url');
+}
+
+export function generateMiniSessionToken(): string {
+  return crypto.randomBytes(32).toString('base64url');
 }
 
 export function hashToken(token: string): string {
@@ -135,6 +150,15 @@ export async function findLinkedAccountByTelegramUserId(db: Db, telegramUserId: 
   const rows = await db<TelegramAccount[]>`
     SELECT * FROM telegram_accounts
     WHERE telegram_user_id = ${telegramUserId} AND status = 'linked'
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+export async function findTelegramAccountById(db: Db, id: string): Promise<TelegramAccount | null> {
+  const rows = await db<TelegramAccount[]>`
+    SELECT * FROM telegram_accounts
+    WHERE id = ${id} AND status = 'linked'
     LIMIT 1
   `;
   return rows[0] ?? null;
@@ -268,6 +292,43 @@ export async function revokeProfileAccess(db: Db, telegramAccountId: string, pro
     WHERE telegram_account_id = ${telegramAccountId}
       AND provider_id = ${providerId}
       AND status = 'active'
+  `;
+}
+
+// ---- Mini App Sessions ----
+
+export async function createMiniSession(db: Db, data: {
+  telegramAccountId: string;
+  telegramUserId: number;
+  role: TelegramRole;
+  tokenHash: string;
+  expiresAt: Date;
+}): Promise<void> {
+  await db`
+    INSERT INTO telegram_mini_sessions
+      (telegram_account_id, session_token_hash, telegram_user_id, role, expires_at)
+    VALUES
+      (${data.telegramAccountId}, ${data.tokenHash}, ${data.telegramUserId}, ${data.role}, ${data.expiresAt})
+  `;
+}
+
+export async function findValidMiniSession(db: Db, tokenHash: string): Promise<TelegramMiniSession | null> {
+  const rows = await db<TelegramMiniSession[]>`
+    SELECT * FROM telegram_mini_sessions
+    WHERE session_token_hash = ${tokenHash}
+      AND revoked_at IS NULL
+      AND expires_at > NOW()
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+export async function revokeMiniSessionsForTelegramAccount(db: Db, telegramAccountId: string): Promise<void> {
+  await db`
+    UPDATE telegram_mini_sessions
+    SET revoked_at = NOW()
+    WHERE telegram_account_id = ${telegramAccountId}
+      AND revoked_at IS NULL
   `;
 }
 

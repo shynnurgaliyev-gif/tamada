@@ -11,9 +11,11 @@ const STEPS = [
 
 export function MiniOnboardingGate({
   tgUser,
+  authError,
   onContinue,
 }: {
   tgUser: TgUser | null;
+  authError?: string | null;
   onContinue: () => void;
 }) {
   return (
@@ -65,6 +67,21 @@ export function MiniOnboardingGate({
             Создайте профиль — и клиенты со всего Казахстана найдут вас на сайте.
           </div>
         </div>
+
+        {authError && (
+          <div style={{
+            marginBottom: 18,
+            padding: '12px 14px',
+            borderRadius: 12,
+            border: '1px solid rgba(239,68,68,.24)',
+            background: 'rgba(239,68,68,.08)',
+            color: '#b91c1c',
+            fontSize: 13,
+            lineHeight: 1.45,
+          }}>
+            {authError}
+          </div>
+        )}
 
         {/* Step preview */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28 }}>

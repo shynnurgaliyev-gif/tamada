@@ -7,6 +7,7 @@ export interface TelegramWebApp {
   ready(): void;
   expand(): void;
   colorScheme: 'light' | 'dark';
+  initData: string;
   initDataUnsafe: {
     start_param?: string;
     user?: TgUser;

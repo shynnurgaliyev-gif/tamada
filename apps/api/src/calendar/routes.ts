@@ -19,10 +19,14 @@ async function canAccessProvider(db: Db, req: Parameters<typeof getAuthAccount>[
     return { ok: true, accountId: account.id, telegramAccountId: null };
   }
 
-  const tgHeader = req.headers['x-telegram-user-id'];
-  const tgUserId = typeof tgHeader === 'string' ? Number(tgHeader) : 0;
-  if (!tgUserId) return { ok: false, accountId: null, telegramAccountId: null };
-  const tgAccount = await telegramRepo.findLinkedAccountByTelegramUserId(db, tgUserId);
+  const miniAuthHeader = req.headers['x-mini-auth'];
+  const miniAuthToken = Array.isArray(miniAuthHeader) ? miniAuthHeader[0] : miniAuthHeader;
+  if (!miniAuthToken) return { ok: false, accountId: null, telegramAccountId: null };
+
+  const miniSession = await telegramRepo.findValidMiniSession(db, telegramRepo.hashToken(miniAuthToken));
+  if (!miniSession) return { ok: false, accountId: null, telegramAccountId: null };
+
+  const tgAccount = await telegramRepo.findTelegramAccountById(db, miniSession.telegram_account_id);
   if (!tgAccount) return { ok: false, accountId: null, telegramAccountId: null };
   if (tgAccount.is_primary && tgAccount.account_id === provider.account_id) {
     return { ok: true, accountId: provider.account_id, telegramAccountId: tgAccount.id };

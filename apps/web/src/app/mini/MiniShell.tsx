@@ -30,7 +30,7 @@ export default function MiniShell() {
   const {
     phase, setPhase,
     tab, handleTab,
-    tgUser,
+    tgUser, miniAuthError,
     providers, activeIdx, setActiveIdx, activeProvider,
     updateActiveProvider, canManageProfiles, maxProfiles, createProfile, archiveProfile,
     summary, sumLoading, loadAnalytics,
@@ -50,6 +50,7 @@ export default function MiniShell() {
     return (
       <MiniOnboardingGate
         tgUser={tgUser}
+        authError={miniAuthError}
         onContinue={() => setPhase('shell')}
       />
     );

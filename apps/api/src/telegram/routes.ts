@@ -7,6 +7,7 @@ import { findEntriesByRange, createEntry, CalendarEntryStatus } from '../calenda
 import { getSubscriptionStatus } from '../subscription/routes';
 import * as repo from './repositories';
 import * as bot from './bot';
+import { verifyTelegramInitData } from './mini-auth';
 
 export function createTelegramRoutes(db: Db, env: AppEnv) {
   const plugin: FastifyPluginAsync = async (app) => {
@@ -50,6 +51,47 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       const botUsername = env.TELEGRAM_BOT_USERNAME ?? 'tamada_bot';
       const deepLink = `https://t.me/${botUsername}?start=link_${rawToken}`;
       return reply.send({ ok: true, deep_link: deepLink, expires_in_minutes: 15 });
+    });
+
+    // POST /telegram/mini/auth
+    app.post('/telegram/mini/auth', async (req, reply) => {
+      const body = req.body as Record<string, unknown>;
+      const initData = typeof body['init_data'] === 'string'
+        ? body['init_data']
+        : typeof body['initData'] === 'string' ? body['initData'] : '';
+      if (!initData) return reply.code(400).send({ ok: false, error: 'init_data required' });
+
+      const token = env.TELEGRAM_BOT_TOKEN ?? '';
+      if (!token) return reply.code(503).send({ ok: false, error: 'Telegram Mini App auth is not configured' });
+
+      const verified = verifyTelegramInitData(initData, token);
+      if (!verified) return reply.code(401).send({ ok: false, error: 'Invalid Telegram Mini App auth data' });
+
+      const tgAccount = await repo.findLinkedAccountByTelegramUserId(db, verified.user.id);
+      if (!tgAccount) return reply.send({ ok: true, providers: [], role: null, mini_token: null, expires_at: null });
+
+      const providers = await listMiniAccessibleProviders(db, tgAccount);
+      if (providers.length === 0) {
+        return reply.send({ ok: true, providers: [], role: tgAccount.telegram_role, mini_token: null, expires_at: null });
+      }
+
+      const rawSessionToken = repo.generateMiniSessionToken();
+      const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000);
+      await repo.createMiniSession(db, {
+        telegramAccountId: tgAccount.id,
+        telegramUserId: verified.user.id,
+        role: tgAccount.telegram_role,
+        tokenHash: repo.hashToken(rawSessionToken),
+        expiresAt,
+      });
+
+      return reply.send({
+        ok: true,
+        providers,
+        role: tgAccount.telegram_role,
+        mini_token: rawSessionToken,
+        expires_at: expiresAt.toISOString(),
+      });
     });
 
     // POST /telegram/webhook  (called by Telegram)
@@ -186,6 +228,7 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       // отвязать
       if (lower === 'отвязать') {
         await repo.unlinkTelegramAccount(db, tgAccount.id);
+        await repo.revokeMiniSessionsForTelegramAccount(db, tgAccount.id);
         await repo.logActivity(db, { providerId, actorType: 'telegram', telegramAccountId: tgAccount.id, actionType: 'telegram_unlinked' });
         await bot.sendMessage(token, chatId, '🔓 Telegram отвязан от профиля.' + bot.FOOTER);
         await notifyAll(db, token, providerId, tgAccount.id,
@@ -339,6 +382,7 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       if (!provider || provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
 
       await repo.unlinkTelegramAccount(db, telegramAccountId);
+      await repo.revokeMiniSessionsForTelegramAccount(db, telegramAccountId);
       await repo.logActivity(db, { providerId: ta.provider_id, actorType: 'web', actorAccountId: account.id, telegramAccountId, actionType: 'telegram_unlinked' });
 
       const token = env.TELEGRAM_BOT_TOKEN ?? '';
@@ -407,37 +451,8 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       if (tgAccount.is_primary) return reply.code(400).send({ ok: false, error: 'Primary owner cannot be revoked' });
 
       await repo.revokeProfileAccess(db, telegramAccountId, id);
+      await repo.revokeMiniSessionsForTelegramAccount(db, telegramAccountId);
       return reply.send({ ok: true });
-    });
-
-    // GET /telegram/mini/providers?telegram_user_id=
-    app.get('/telegram/mini/providers', async (req, reply) => {
-      const query = req.query as Record<string, string>;
-      const telegramUserId = Number(query['telegram_user_id']);
-      if (!telegramUserId) return reply.code(400).send({ ok: false, error: 'telegram_user_id required' });
-
-      const tgAccount = await repo.findLinkedAccountByTelegramUserId(db, telegramUserId);
-      if (!tgAccount) return reply.send({ ok: true, providers: [], role: null });
-
-      const providers = tgAccount.is_primary && tgAccount.account_id
-        ? await db`
-            SELECT p.* FROM providers p
-            WHERE p.account_id = ${tgAccount.account_id}
-              AND p.archived_at IS NULL
-              AND p.pending_delete_at IS NULL
-            ORDER BY p.created_at ASC
-          `
-        : await db`
-            SELECT p.* FROM providers p
-            JOIN telegram_profile_access tpa ON tpa.provider_id = p.id
-            WHERE tpa.telegram_account_id = ${tgAccount.id}
-              AND tpa.status = 'active'
-              AND p.archived_at IS NULL
-              AND p.pending_delete_at IS NULL
-            ORDER BY p.created_at ASC
-          `;
-
-      return reply.send({ ok: true, providers, role: tgAccount.telegram_role });
     });
   };
 
@@ -451,4 +466,26 @@ async function notifyAll(db: Db, token: string, providerId: string, excludeId: s
     if (a.id === excludeId) continue;
     await bot.sendMessage(token, a.telegram_user_id, text);
   }
+}
+
+async function listMiniAccessibleProviders(db: Db, tgAccount: repo.TelegramAccount): Promise<readonly unknown[]> {
+  if (tgAccount.is_primary && tgAccount.account_id) {
+    return db`
+      SELECT p.* FROM providers p
+      WHERE p.account_id = ${tgAccount.account_id}
+        AND p.archived_at IS NULL
+        AND p.pending_delete_at IS NULL
+      ORDER BY p.created_at ASC
+    `;
+  }
+
+  return db`
+    SELECT p.* FROM providers p
+    JOIN telegram_profile_access tpa ON tpa.provider_id = p.id
+    WHERE tpa.telegram_account_id = ${tgAccount.id}
+      AND tpa.status = 'active'
+      AND p.archived_at IS NULL
+      AND p.pending_delete_at IS NULL
+    ORDER BY p.created_at ASC
+  `;
 }

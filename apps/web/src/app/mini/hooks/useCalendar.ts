@@ -14,10 +14,10 @@ import type {
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 function auth() {
   const token = localStorage.getItem('session_token') ?? '';
-  const tgUserId = localStorage.getItem('mini_tg_user_id') ?? '';
+  const miniAuthToken = localStorage.getItem('mini_auth_token') ?? '';
   return {
     Authorization: `Bearer ${token}`,
-    ...(tgUserId ? { 'X-Telegram-User-Id': tgUserId } : {}),
+    ...(miniAuthToken ? { 'X-Mini-Auth': miniAuthToken } : {}),
   };
 }
 
