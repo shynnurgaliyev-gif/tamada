@@ -14,6 +14,12 @@ type Service = { id: string; category: string; title: string; description: strin
 type Photo = { id: string; url: string; is_cover: boolean; };
 type Link = { id: string; link_type: string; url: string; label: string | null; };
 type DayInfo = { date: string; status: string; count: number };
+type PublicCalendarEntry = {
+  id: string;
+  starts_at: string;
+  ends_at: string;
+  status: 'busy' | 'free' | 'tentative' | 'blocked';
+};
 type CalendarChangeEvent = {
   provider_id: string;
   action: 'create' | 'update' | 'delete';
@@ -30,6 +36,12 @@ const CAL_ST: Record<string, { bg: string; color: string; border: string; label:
   partial:  { bg: '#fff7ed', color: '#ea580c', border: '#fed7aa', label: 'Частично'     },
   tentative:{ bg: '#fefce8', color: '#ca8a04', border: '#fde68a', label: 'Под вопросом' },
   past:     { bg: '#f8fafc', color: '#94a3b8', border: '#e2e8f0', label: 'Прошлое'     },
+};
+const TIMELINE_ST: Record<string, { bg: string; color: string; border: string; label: string }> = {
+  free:      { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0', label: 'Свободно' },
+  busy:      { bg: '#fff1f2', color: '#be123c', border: '#fecdd3', label: 'Занято' },
+  tentative: { bg: '#fefce8', color: '#a16207', border: '#fde68a', label: 'Под вопросом' },
+  blocked:   { bg: '#f1f5f9', color: '#475569', border: '#cbd5e1', label: 'Недоступно' },
 };
 
 import type { IconType } from 'react-icons';
@@ -95,6 +107,98 @@ function rangeTouchesMonth(range: { starts_at: string; ends_at: string }, year: 
   return startsAt.getTime() < monthEnd.getTime() && endsAt.getTime() > monthStart.getTime();
 }
 
+function dayBounds(date: string): { start: Date; end: Date; from: string; to: string } {
+  const start = new Date(`${date}T00:00:00`);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  return { start, end, from: start.toISOString(), to: end.toISOString() };
+}
+
+function rangeTouchesDate(range: { starts_at: string; ends_at: string }, date: string): boolean {
+  const startsAt = new Date(range.starts_at);
+  const endsAt = new Date(range.ends_at);
+  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) return true;
+  const { start, end } = dayBounds(date);
+  return startsAt.getTime() < end.getTime() && endsAt.getTime() > start.getTime();
+}
+
+function calendarEntriesEqual(a: PublicCalendarEntry[], b: PublicCalendarEntry[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const left = a[i]!;
+    const right = b[i]!;
+    if (
+      left.id !== right.id ||
+      left.starts_at !== right.starts_at ||
+      left.ends_at !== right.ends_at ||
+      left.status !== right.status
+    ) return false;
+  }
+  return true;
+}
+
+function minutesInDay(date: Date): number {
+  return date.getHours() * 60 + date.getMinutes();
+}
+
+function formatMinutes(total: number): string {
+  const clamped = Math.max(0, Math.min(24 * 60, total));
+  return `${String(Math.floor(clamped / 60)).padStart(2, '0')}:${String(clamped % 60).padStart(2, '0')}`;
+}
+
+function isAllDayEntry(entry: PublicCalendarEntry, date: string): boolean {
+  const { start, end } = dayBounds(date);
+  const startsAt = new Date(entry.starts_at);
+  const endsAt = new Date(entry.ends_at);
+  return startsAt.getTime() <= start.getTime() && endsAt.getTime() >= end.getTime() - 60000;
+}
+
+type TimelineSegment = {
+  key: string;
+  status: 'free' | 'busy' | 'tentative' | 'blocked';
+  fromMin: number;
+  toMin: number;
+};
+
+function buildTimelineSegments(entries: PublicCalendarEntry[], date: string): TimelineSegment[] {
+  const { start, end } = dayBounds(date);
+  const timedEntries = entries
+    .filter(entry => !isAllDayEntry(entry, date))
+    .map(entry => {
+      const startsAt = new Date(entry.starts_at);
+      const endsAt = new Date(entry.ends_at);
+      const clippedStart = new Date(Math.max(startsAt.getTime(), start.getTime()));
+      const clippedEnd = new Date(Math.min(endsAt.getTime(), end.getTime()));
+      return {
+        ...entry,
+        fromMin: minutesInDay(clippedStart),
+        toMin: clippedEnd.getTime() >= end.getTime() ? 24 * 60 : minutesInDay(clippedEnd),
+      };
+    })
+    .filter(entry => entry.toMin > entry.fromMin)
+    .sort((a, b) => a.fromMin - b.fromMin || a.toMin - b.toMin);
+
+  const segments: TimelineSegment[] = [];
+  let cursor = 0;
+
+  for (const entry of timedEntries) {
+    if (entry.fromMin > cursor) {
+      segments.push({ key: `free-${cursor}-${entry.fromMin}`, status: 'free', fromMin: cursor, toMin: entry.fromMin });
+    }
+    const fromMin = Math.max(cursor, entry.fromMin);
+    if (entry.toMin > fromMin) {
+      segments.push({ key: entry.id, status: entry.status === 'free' ? 'free' : entry.status, fromMin, toMin: entry.toMin });
+      cursor = Math.max(cursor, entry.toMin);
+    }
+  }
+
+  if (cursor < 24 * 60) {
+    segments.push({ key: `free-${cursor}-1440`, status: 'free', fromMin: cursor, toMin: 24 * 60 });
+  }
+
+  return segments.filter(segment => segment.toMin - segment.fromMin >= 15);
+}
+
 export default function ProfileClient({ slug }: { slug: string }) {
   const [provider, setProvider] = useState<Provider | null>(null);
   const [services, setServices] = useState<Service[]>([]);
@@ -106,6 +210,8 @@ export default function ProfileClient({ slug }: { slug: string }) {
   const [calDays, setCalDays] = useState<DayInfo[]>([]);
   const [calTimezone, setCalTimezone] = useState('Asia/Almaty');
   const [selectedCalDate, setSelectedCalDate] = useState<string | null>(null);
+  const [selectedDayEntries, setSelectedDayEntries] = useState<PublicCalendarEntry[]>([]);
+  const [selectedDayLoading, setSelectedDayLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
@@ -118,12 +224,18 @@ export default function ProfileClient({ slug }: { slug: string }) {
   const calendarTrackRef = useRef<HTMLDivElement>(null);
   const calendarTracked = useRef(false);
   const calendarRequestId = useRef(0);
+  const dayRequestId = useRef(0);
   const visibleCalendarRef = useRef({ year: calYear, month: calMonth });
+  const selectedDayRef = useRef<string | null>(selectedCalDate);
   const [calendarRealtimeConnected, setCalendarRealtimeConnected] = useState(false);
 
   useEffect(() => {
     visibleCalendarRef.current = { year: calYear, month: calMonth };
   }, [calYear, calMonth]);
+
+  useEffect(() => {
+    selectedDayRef.current = selectedCalDate;
+  }, [selectedCalDate]);
 
   const refreshCalendarMonth = useCallback(async (year: number, month: number): Promise<boolean> => {
     if (!slug) return false;
@@ -146,6 +258,33 @@ export default function ProfileClient({ slug }: { slug: string }) {
       return changed;
     } catch {
       return false;
+    }
+  }, [slug]);
+
+  const refreshSelectedDay = useCallback(async (date: string): Promise<boolean> => {
+    if (!slug) return false;
+    const { from, to } = dayBounds(date);
+    const requestId = ++dayRequestId.current;
+    setSelectedDayLoading(true);
+    try {
+      const res = await fetch(`${API}/public/providers/${slug}/calendar?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, {
+        cache: 'no-store',
+      });
+      const d = await res.json() as { ok: boolean; entries?: PublicCalendarEntry[]; timezone?: string };
+      if (!d.ok || requestId !== dayRequestId.current || selectedDayRef.current !== date) return false;
+      let changed = false;
+      const nextEntries = (d.entries ?? []).sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
+      setSelectedDayEntries(prev => {
+        if (calendarEntriesEqual(prev, nextEntries)) return prev;
+        changed = true;
+        return nextEntries;
+      });
+      if (d.timezone) setCalTimezone(d.timezone);
+      return changed;
+    } catch {
+      return false;
+    } finally {
+      if (requestId === dayRequestId.current) setSelectedDayLoading(false);
     }
   }, [slug]);
 
@@ -199,6 +338,16 @@ export default function ProfileClient({ slug }: { slug: string }) {
   }, [calYear, calMonth, slug, provider, refreshCalendarMonth]);
 
   useEffect(() => {
+    if (!provider || !slug || !selectedCalDate) {
+      setSelectedDayEntries([]);
+      setSelectedDayLoading(false);
+      dayRequestId.current += 1;
+      return;
+    }
+    void refreshSelectedDay(selectedCalDate);
+  }, [provider, slug, selectedCalDate, refreshSelectedDay]);
+
+  useEffect(() => {
     if (!provider || !slug || isPreview || typeof EventSource === 'undefined') return;
 
     const stream = new EventSource(`${API}/public/providers/${slug}/calendar/stream`);
@@ -206,10 +355,16 @@ export default function ProfileClient({ slug }: { slug: string }) {
     stream.addEventListener('calendar-change', event => {
       try {
         const payload = JSON.parse((event as MessageEvent<string>).data) as CalendarChangeEvent;
-        if (!payload.ranges.some(range => rangeTouchesMonth(range, calYear, calMonth))) return;
-        void refreshCalendarMonth(calYear, calMonth);
+        if (payload.ranges.some(range => rangeTouchesMonth(range, calYear, calMonth))) {
+          void refreshCalendarMonth(calYear, calMonth);
+        }
+        const selectedDay = selectedDayRef.current;
+        if (selectedDay && payload.ranges.some(range => rangeTouchesDate(range, selectedDay))) {
+          void refreshSelectedDay(selectedDay);
+        }
       } catch {
         void refreshCalendarMonth(calYear, calMonth);
+        if (selectedDayRef.current) void refreshSelectedDay(selectedDayRef.current);
       }
     });
     stream.onerror = () => setCalendarRealtimeConnected(false);
@@ -218,16 +373,17 @@ export default function ProfileClient({ slug }: { slug: string }) {
       stream.close();
       setCalendarRealtimeConnected(false);
     };
-  }, [provider, slug, isPreview, calYear, calMonth, refreshCalendarMonth]);
+  }, [provider, slug, isPreview, calYear, calMonth, refreshCalendarMonth, refreshSelectedDay]);
 
   useEffect(() => {
     if (!provider || !slug || isPreview || calendarRealtimeConnected) return;
 
     const timer = setInterval(() => {
       void refreshCalendarMonth(calYear, calMonth);
+      if (selectedDayRef.current) void refreshSelectedDay(selectedDayRef.current);
     }, 30000);
     return () => clearInterval(timer);
-  }, [provider, slug, isPreview, calendarRealtimeConnected, calYear, calMonth, refreshCalendarMonth]);
+  }, [provider, slug, isPreview, calendarRealtimeConnected, calYear, calMonth, refreshCalendarMonth, refreshSelectedDay]);
 
   void calTimezone;
 
@@ -283,11 +439,13 @@ export default function ProfileClient({ slug }: { slug: string }) {
 
   function calPrev() {
     setSelectedCalDate(null);
+    setSelectedDayEntries([]);
     if (calMonth === 1) { setCalYear(y => y - 1); setCalMonth(12); }
     else setCalMonth(m => m - 1);
   }
   function calNext() {
     setSelectedCalDate(null);
+    setSelectedDayEntries([]);
     if (calMonth === 12) { setCalYear(y => y + 1); setCalMonth(1); }
     else setCalMonth(m => m + 1);
   }
@@ -500,7 +658,10 @@ export default function ProfileClient({ slug }: { slug: string }) {
               return (
                 <button
                   key={cell.date}
-                  onClick={() => setSelectedCalDate(isSel ? null : cell.date)}
+                  onClick={() => {
+                    setSelectedDayEntries([]);
+                    setSelectedCalDate(isSel ? null : cell.date);
+                  }}
                   style={{
                     minHeight: 48,
                     border: `1.5px solid ${isSel ? '#6d28d9' : isToday ? '#6d28d9' : st.border}`,
@@ -522,22 +683,31 @@ export default function ProfileClient({ slug }: { slug: string }) {
           </div>
 
           {/* Selected day info */}
-          {selectedCalDate && (
-            <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--surface-2)', borderRadius: 10, fontSize: 14, border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
+          {selectedCalDate && selectedDayInfo && false && (
+            <div style={{ display: 'none' }}>
               {selectedDayInfo ? (
                 <>
-                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: CAL_ST[selectedDayInfo.status]?.color ?? 'var(--ink-3)', flexShrink: 0 }} />
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: CAL_ST[selectedDayInfo!.status]?.color ?? 'var(--ink-3)', flexShrink: 0 }} />
                   <span style={{ color: 'var(--ink)', fontWeight: 600 }}>
                     {new Date(selectedCalDate + 'T12:00:00Z').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
                   </span>
-                  <span style={{ color: CAL_ST[selectedDayInfo.status]?.color ?? 'var(--ink-3)', fontWeight: 700, fontSize: 13 }}>
-                    — {CAL_ST[selectedDayInfo.status]?.label ?? selectedDayInfo.status}
+                  <span style={{ color: CAL_ST[selectedDayInfo!.status]?.color ?? 'var(--ink-3)', fontWeight: 700, fontSize: 13 }}>
+                    — {CAL_ST[selectedDayInfo!.status]?.label ?? selectedDayInfo!.status}
                   </span>
                 </>
               ) : (
                 <span style={{ color: 'var(--ink-3)' }}>Нет данных на эту дату</span>
               )}
             </div>
+          )}
+
+          {selectedCalDate && selectedDayInfo && (
+            <DayTimeline
+              date={selectedCalDate}
+              dayInfo={selectedDayInfo}
+              entries={selectedDayEntries}
+              loading={selectedDayLoading}
+            />
           )}
 
           {/* Legend */}
@@ -647,6 +817,99 @@ export default function ProfileClient({ slug }: { slug: string }) {
         </div>
 
       </div>
+    </div>
+  );
+}
+
+function DayTimeline({
+  date,
+  dayInfo,
+  entries,
+  loading,
+}: {
+  date: string;
+  dayInfo: DayInfo;
+  entries: PublicCalendarEntry[];
+  loading: boolean;
+}) {
+  const allDayEntries = entries.filter(entry => isAllDayEntry(entry, date));
+  const segments = buildTimelineSegments(entries, date);
+  const dateLabel = new Date(date + 'T12:00:00Z').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+  const dayStatus = CAL_ST[dayInfo.status] ?? CAL_ST.free!;
+
+  if (loading && entries.length === 0) {
+    return (
+      <div style={{ marginTop: 10, padding: 12, border: '1px solid var(--border)', borderRadius: 10, background: '#fff' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+          <span style={{ width: 10, height: 10, borderRadius: '50%', background: dayStatus.color, flexShrink: 0 }} />
+          <span style={{ color: 'var(--ink)', fontWeight: 800, fontSize: 14 }}>{dateLabel}</span>
+          <span style={{ color: dayStatus.color, fontWeight: 800, fontSize: 13 }}>{dayStatus.label}</span>
+        </div>
+        <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--surface-2)', color: 'var(--ink-3)', fontSize: 13, fontWeight: 700 }}>
+          Р—Р°РіСЂСѓР¶Р°РµРј Р·Р°РЅСЏС‚РѕСЃС‚СЊ РЅР° РґРµРЅСЊ...
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: 10, padding: 12, border: '1px solid var(--border)', borderRadius: 10, background: '#fff' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+        <span style={{ width: 10, height: 10, borderRadius: '50%', background: dayStatus.color, flexShrink: 0 }} />
+        <span style={{ color: 'var(--ink)', fontWeight: 800, fontSize: 14 }}>{dateLabel}</span>
+        <span style={{ color: dayStatus.color, fontWeight: 800, fontSize: 13 }}>{dayStatus.label}</span>
+        {loading && <span style={{ color: 'var(--ink-4)', fontSize: 12 }}>Обновление...</span>}
+      </div>
+
+      {allDayEntries.map(entry => {
+        const st = TIMELINE_ST[entry.status] ?? TIMELINE_ST.busy!;
+        return (
+          <div key={entry.id} style={{ padding: '10px 12px', marginBottom: 10, borderRadius: 8, border: `1px solid ${st.border}`, background: st.bg, color: st.color, fontWeight: 800, fontSize: 13 }}>
+            Весь день: {st.label}
+          </div>
+        );
+      })}
+
+      {allDayEntries.length === 0 && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', color: 'var(--ink-4)', fontSize: 11, fontWeight: 700, margin: '0 0 6px 58px' }}>
+            {['00', '06', '12', '18', '24'].map(h => <span key={h}>{h}:00</span>)}
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {segments.map(segment => {
+              const st = TIMELINE_ST[segment.status] ?? TIMELINE_ST.free!;
+              const isFree = segment.status === 'free';
+              return (
+                <div key={segment.key} style={{ display: 'grid', gridTemplateColumns: '50px 1fr', gap: 8, alignItems: 'stretch' }}>
+                  <div style={{ color: 'var(--ink-3)', fontSize: 12, fontWeight: 800, lineHeight: '18px', paddingTop: 4 }}>
+                    {formatMinutes(segment.fromMin)}
+                  </div>
+                  <div style={{
+                    minHeight: isFree ? 30 : 42,
+                    borderRadius: 8,
+                    border: `1px solid ${st.border}`,
+                    background: isFree ? 'linear-gradient(90deg,#f8fafc,#f0fdf4)' : st.bg,
+                    color: st.color,
+                    padding: '7px 10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 8,
+                    fontSize: 13,
+                    fontWeight: isFree ? 700 : 800,
+                  }}>
+                    <span>{st.label}</span>
+                    <span style={{ color: isFree ? 'var(--ink-3)' : st.color, fontWeight: 800, whiteSpace: 'nowrap' }}>
+                      {formatMinutes(segment.fromMin)}-{formatMinutes(segment.toMin)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 }

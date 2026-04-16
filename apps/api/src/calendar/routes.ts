@@ -309,7 +309,6 @@ export function createCalendarRoutes(db: Db) {
         starts_at: e.starts_at,
         ends_at: e.ends_at,
         status: e.status,
-        title: e.status !== 'busy' && e.status !== 'blocked' ? e.title : null,
       }));
 
       return reply.send({ ok: true, entries: publicEntries, timezone: provider.timezone });
