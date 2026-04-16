@@ -8,6 +8,7 @@ import { getAuthAccount } from '../auth/middleware';
 import * as repo from './repositories';
 
 const MAX_PHOTOS = 5;
+const MAX_PROFILES_PER_ACCOUNT = 3;
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp'];
 
 function withPhotoUrls(
@@ -37,6 +38,14 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
 
       const existing = await repo.findProviderBySlug(db, slug);
       if (existing) return reply.code(400).send({ ok: false, error: 'slug already taken' });
+
+      const profileCount = await repo.countActiveProvidersByAccountId(db, account.id);
+      if (profileCount >= MAX_PROFILES_PER_ACCOUNT) {
+        return reply.code(400).send({
+          ok: false,
+          error: `Maximum ${MAX_PROFILES_PER_ACCOUNT} profiles per account`,
+        });
+      }
 
       const provider = await repo.createProvider(db, {
         accountId: account.id,
@@ -332,4 +341,3 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
     });
   };
 }
-

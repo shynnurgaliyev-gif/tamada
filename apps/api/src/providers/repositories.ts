@@ -20,6 +20,10 @@ export type Provider = {
   publication_status: PublicationStatus;
   is_featured: boolean;
   is_verified: boolean;
+  archived_at: Date | null;
+  archived_by_account_id: string | null;
+  archive_reason: string | null;
+  pending_delete_at: Date | null;
   created_at: Date;
   updated_at: Date;
 };
@@ -60,7 +64,23 @@ export type ProviderLink = {
 // ---- Providers ----
 
 export async function findProvidersByAccountId(db: Db, accountId: string): Promise<Provider[]> {
-  return db<Provider[]>`SELECT * FROM providers WHERE account_id = ${accountId} ORDER BY created_at ASC`;
+  return db<Provider[]>`
+    SELECT * FROM providers
+    WHERE account_id = ${accountId}
+      AND archived_at IS NULL
+      AND pending_delete_at IS NULL
+    ORDER BY created_at ASC
+  `;
+}
+
+export async function countActiveProvidersByAccountId(db: Db, accountId: string): Promise<number> {
+  const rows = await db<{ count: string }[]>`
+    SELECT COUNT(*) as count FROM providers
+    WHERE account_id = ${accountId}
+      AND archived_at IS NULL
+      AND pending_delete_at IS NULL
+  `;
+  return parseInt(rows[0]?.count ?? '0', 10);
 }
 
 export async function findProviderById(db: Db, id: string): Promise<Provider | null> {
@@ -100,6 +120,19 @@ export async function updateProvider(db: Db, id: string, data: Record<string, un
 
 export async function deleteProvider(db: Db, id: string): Promise<void> {
   await db`DELETE FROM providers WHERE id = ${id}`;
+}
+
+export async function archiveProvider(db: Db, id: string, archivedByAccountId: string, reason?: string): Promise<Provider | null> {
+  const rows = await db<Provider[]>`
+    UPDATE providers SET
+      archived_at = NOW(),
+      archived_by_account_id = ${archivedByAccountId},
+      archive_reason = ${reason ?? null},
+      publication_status = 'hidden'
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  return rows[0] ?? null;
 }
 
 // ---- Services ----

@@ -81,6 +81,10 @@ CREATE TABLE providers (
   publication_status publication_status NOT NULL DEFAULT 'draft',
   is_featured        BOOLEAN NOT NULL DEFAULT FALSE,
   is_verified        BOOLEAN NOT NULL DEFAULT FALSE,
+  archived_at        TIMESTAMPTZ,
+  archived_by_account_id UUID REFERENCES accounts(id) ON DELETE SET NULL,
+  archive_reason     TEXT,
+  pending_delete_at  TIMESTAMPTZ,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -159,27 +163,52 @@ CREATE INDEX idx_calendar_entry_clients_entry ON calendar_entry_clients(calendar
 
 -- ---- Migration 005: Telegram Bot Core ----
 
-CREATE TYPE telegram_role AS ENUM ('owner', 'assistant', 'spouse', 'child', 'partner', 'other');
+CREATE TYPE telegram_role AS ENUM ('owner', 'assistant', 'manager', 'spouse', 'child', 'partner', 'other');
 CREATE TYPE telegram_account_status AS ENUM ('pending', 'linked', 'unlinked', 'blocked');
+CREATE TYPE telegram_profile_access_status AS ENUM ('active', 'revoked', 'expired');
 CREATE TYPE actor_type AS ENUM ('web', 'telegram');
 
 CREATE TABLE telegram_accounts (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   provider_id         UUID NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+  account_id          UUID REFERENCES accounts(id) ON DELETE CASCADE,
   telegram_user_id    BIGINT NOT NULL UNIQUE,
   telegram_username   TEXT,
   telegram_first_name TEXT,
   telegram_last_name  TEXT,
   telegram_role       telegram_role NOT NULL DEFAULT 'other',
+  is_primary          BOOLEAN NOT NULL DEFAULT FALSE,
   status              telegram_account_status NOT NULL DEFAULT 'pending',
   linked_at           TIMESTAMPTZ,
   unlinked_at         TIMESTAMPTZ,
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT chk_telegram_primary_owner CHECK (is_primary = FALSE OR telegram_role = 'owner')
 );
 
 CREATE INDEX idx_telegram_accounts_provider ON telegram_accounts(provider_id);
+CREATE INDEX idx_telegram_accounts_account ON telegram_accounts(account_id);
 CREATE INDEX idx_telegram_accounts_user_id ON telegram_accounts(telegram_user_id);
+CREATE UNIQUE INDEX idx_telegram_accounts_primary_owner
+  ON telegram_accounts(account_id)
+  WHERE is_primary = TRUE AND status = 'linked';
+
+CREATE TABLE telegram_profile_access (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  telegram_account_id   UUID NOT NULL REFERENCES telegram_accounts(id) ON DELETE CASCADE,
+  provider_id           UUID NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+  role                  telegram_role NOT NULL DEFAULT 'assistant',
+  status                telegram_profile_access_status NOT NULL DEFAULT 'active',
+  granted_by_account_id UUID REFERENCES accounts(id) ON DELETE SET NULL,
+  granted_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  revoked_at            TIMESTAMPTZ,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (telegram_account_id, provider_id)
+);
+
+CREATE INDEX idx_telegram_profile_access_provider ON telegram_profile_access(provider_id, status);
+CREATE INDEX idx_telegram_profile_access_account ON telegram_profile_access(telegram_account_id, status);
 
 CREATE TABLE telegram_link_tokens (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -208,6 +237,26 @@ CREATE TABLE activity_logs (
 
 CREATE INDEX idx_activity_logs_provider ON activity_logs(provider_id);
 CREATE INDEX idx_activity_logs_created_at ON activity_logs(created_at);
+
+CREATE TYPE ownership_transfer_status AS ENUM ('pending', 'accepted', 'cancelled', 'expired');
+
+CREATE TABLE provider_ownership_transfer_requests (
+  id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  provider_id              UUID NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+  from_account_id          UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  to_account_id            UUID REFERENCES accounts(id) ON DELETE SET NULL,
+  to_phone                 TEXT,
+  status                   ownership_transfer_status NOT NULL DEFAULT 'pending',
+  requested_by_account_id  UUID REFERENCES accounts(id) ON DELETE SET NULL,
+  accepted_at              TIMESTAMPTZ,
+  cancelled_at             TIMESTAMPTZ,
+  expires_at               TIMESTAMPTZ NOT NULL,
+  created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_provider_transfer_provider_status ON provider_ownership_transfer_requests(provider_id, status);
+CREATE INDEX idx_provider_transfer_to_account ON provider_ownership_transfer_requests(to_account_id, status);
 
 -- ---- Migration 006: Subscription + Payment Core ----
 

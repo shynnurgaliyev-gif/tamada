@@ -1,18 +1,21 @@
 import type { Db } from '../db';
 import crypto from 'crypto';
 
-export type TelegramRole = 'owner' | 'assistant' | 'spouse' | 'child' | 'partner' | 'other';
+export type TelegramRole = 'owner' | 'assistant' | 'manager' | 'spouse' | 'child' | 'partner' | 'other';
 export type TelegramAccountStatus = 'pending' | 'linked' | 'unlinked' | 'blocked';
+export type TelegramProfileAccessStatus = 'active' | 'revoked' | 'expired';
 export type ActorType = 'web' | 'telegram';
 
 export type TelegramAccount = {
   id: string;
   provider_id: string;
+  account_id: string | null;
   telegram_user_id: number;
   telegram_username: string | null;
   telegram_first_name: string | null;
   telegram_last_name: string | null;
   telegram_role: TelegramRole;
+  is_primary: boolean;
   status: TelegramAccountStatus;
   linked_at: Date | null;
   unlinked_at: Date | null;
@@ -27,6 +30,19 @@ export type TelegramLinkToken = {
   expires_at: Date;
   used_at: Date | null;
   created_at: Date;
+};
+
+export type TelegramProfileAccess = {
+  id: string;
+  telegram_account_id: string;
+  provider_id: string;
+  role: TelegramRole;
+  status: TelegramProfileAccessStatus;
+  granted_by_account_id: string | null;
+  granted_at: Date;
+  revoked_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
 };
 
 // ---- Link Tokens ----
@@ -102,6 +118,17 @@ export async function findLinkedAccountByTelegramUserId(db: Db, telegramUserId: 
   return rows[0] ?? null;
 }
 
+export async function hasPrimaryTelegramOwner(db: Db, accountId: string): Promise<boolean> {
+  const rows = await db<{ count: string }[]>`
+    SELECT COUNT(*) as count FROM telegram_accounts
+    WHERE account_id = ${accountId}
+      AND is_primary = TRUE
+      AND telegram_role = 'owner'
+      AND status = 'linked'
+  `;
+  return parseInt(rows[0]?.count ?? '0', 10) > 0;
+}
+
 export async function countLinkedAccounts(db: Db, providerId: string): Promise<number> {
   const rows = await db<{ count: string }[]>`
     SELECT COUNT(*) as count FROM telegram_accounts
@@ -112,19 +139,21 @@ export async function countLinkedAccounts(db: Db, providerId: string): Promise<n
 
 export async function createTelegramAccount(db: Db, data: {
   providerId: string;
+  accountId: string;
   telegramUserId: number;
   telegramUsername?: string | undefined;
   telegramFirstName?: string | undefined;
   telegramLastName?: string | undefined;
   role: TelegramRole;
+  isPrimary?: boolean | undefined;
 }): Promise<TelegramAccount> {
   const rows = await db<TelegramAccount[]>`
     INSERT INTO telegram_accounts
-      (provider_id, telegram_user_id, telegram_username, telegram_first_name, telegram_last_name, telegram_role, status, linked_at)
+      (provider_id, account_id, telegram_user_id, telegram_username, telegram_first_name, telegram_last_name, telegram_role, is_primary, status, linked_at)
     VALUES
-      (${data.providerId}, ${data.telegramUserId}, ${data.telegramUsername ?? null},
+      (${data.providerId}, ${data.accountId}, ${data.telegramUserId}, ${data.telegramUsername ?? null},
        ${data.telegramFirstName ?? null}, ${data.telegramLastName ?? null},
-       ${data.role}, 'linked', NOW())
+       ${data.role}, ${data.isPrimary ?? false}, 'linked', NOW())
     RETURNING *
   `;
   if (!rows[0]) throw new Error('Failed to create telegram account');
@@ -133,18 +162,22 @@ export async function createTelegramAccount(db: Db, data: {
 
 export async function relinkTelegramAccount(db: Db, id: string, data: {
   providerId: string;
+  accountId: string;
   telegramUsername?: string | undefined;
   telegramFirstName?: string | undefined;
   telegramLastName?: string | undefined;
   role: TelegramRole;
+  isPrimary?: boolean | undefined;
 }): Promise<TelegramAccount | null> {
   const rows = await db<TelegramAccount[]>`
     UPDATE telegram_accounts SET
       provider_id = ${data.providerId},
+      account_id = ${data.accountId},
       telegram_username = ${data.telegramUsername ?? null},
       telegram_first_name = ${data.telegramFirstName ?? null},
       telegram_last_name = ${data.telegramLastName ?? null},
       telegram_role = ${data.role},
+      is_primary = ${data.isPrimary ?? false},
       status = 'linked',
       linked_at = NOW(),
       unlinked_at = NULL
@@ -158,6 +191,52 @@ export async function unlinkTelegramAccount(db: Db, id: string): Promise<void> {
   await db`
     UPDATE telegram_accounts SET status = 'unlinked', unlinked_at = NOW() WHERE id = ${id}
   `;
+  await db`
+    UPDATE telegram_profile_access
+    SET status = 'revoked', revoked_at = NOW()
+    WHERE telegram_account_id = ${id}
+      AND status = 'active'
+  `.catch(() => null);
+}
+
+export async function upsertProfileAccess(db: Db, data: {
+  telegramAccountId: string;
+  providerId: string;
+  role: TelegramRole;
+  grantedByAccountId?: string | undefined;
+}): Promise<TelegramProfileAccess> {
+  const rows = await db<TelegramProfileAccess[]>`
+    INSERT INTO telegram_profile_access
+      (telegram_account_id, provider_id, role, status, granted_by_account_id, granted_at)
+    VALUES
+      (${data.telegramAccountId}, ${data.providerId}, ${data.role}, 'active',
+       ${data.grantedByAccountId ?? null}, NOW())
+    ON CONFLICT (telegram_account_id, provider_id) DO UPDATE SET
+      role = EXCLUDED.role,
+      status = 'active',
+      granted_by_account_id = EXCLUDED.granted_by_account_id,
+      granted_at = EXCLUDED.granted_at,
+      revoked_at = NULL,
+      updated_at = NOW()
+    RETURNING *
+  `;
+  if (!rows[0]) throw new Error('Failed to upsert telegram profile access');
+  return rows[0];
+}
+
+export async function findActiveProfileAccess(
+  db: Db,
+  telegramAccountId: string,
+  providerId: string,
+): Promise<TelegramProfileAccess | null> {
+  const rows = await db<TelegramProfileAccess[]>`
+    SELECT * FROM telegram_profile_access
+    WHERE telegram_account_id = ${telegramAccountId}
+      AND provider_id = ${providerId}
+      AND status = 'active'
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
 }
 
 // ---- Activity Logs ----

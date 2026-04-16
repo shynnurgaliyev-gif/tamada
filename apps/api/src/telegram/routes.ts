@@ -59,9 +59,21 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
             return reply.send({ ok: true });
           }
 
+          const tokenProvider = await findProviderById(db, tokenRow.provider_id);
+          if (!tokenProvider) {
+            await bot.sendMessage(token, chatId, 'Профиль для этой ссылки не найден.' + bot.FOOTER);
+            return reply.send({ ok: true });
+          }
+
           // Check if already linked to another provider
           const existing = await repo.findAccountByTelegramUserId(db, telegramUserId);
-          if (existing && existing.status === 'linked' && existing.provider_id !== tokenRow.provider_id) {
+          const existingProvider = existing ? await findProviderById(db, existing.provider_id) : null;
+          if (
+            existing &&
+            existing.status === 'linked' &&
+            existing.provider_id !== tokenRow.provider_id &&
+            existingProvider?.account_id !== tokenProvider.account_id
+          ) {
             await bot.sendMessage(token, chatId,
               '⚠️ Этот Telegram уже привязан к другому исполнителю.\n\nСначала отвяжитесь командой <b>отвязать</b>, потом используйте новую ссылку.' + bot.FOOTER
             );
@@ -76,25 +88,40 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
 
           await repo.markTokenUsed(db, repo.hashToken(rawToken));
 
+          const hasPrimary = await repo.hasPrimaryTelegramOwner(db, tokenProvider.account_id);
+          const isPrimary = existing?.is_primary === true || !hasPrimary;
+          const role: repo.TelegramRole = isPrimary ? 'owner' : (existing?.telegram_role ?? 'other');
+
           let tgAccount: repo.TelegramAccount;
           if (existing) {
             tgAccount = (await repo.relinkTelegramAccount(db, existing.id, {
               providerId: tokenRow.provider_id,
+              accountId: tokenProvider.account_id,
               telegramUsername: msg.from.username,
               telegramFirstName: msg.from.first_name,
               telegramLastName: msg.from.last_name,
-              role: 'other',
+              role,
+              isPrimary,
             })) ?? existing;
           } else {
             tgAccount = await repo.createTelegramAccount(db, {
               providerId: tokenRow.provider_id,
+              accountId: tokenProvider.account_id,
               telegramUserId,
               telegramUsername: msg.from.username,
               telegramFirstName: msg.from.first_name,
               telegramLastName: msg.from.last_name,
-              role: 'other',
+              role,
+              isPrimary,
             });
           }
+
+          await repo.upsertProfileAccess(db, {
+            telegramAccountId: tgAccount.id,
+            providerId: tokenRow.provider_id,
+            role,
+            grantedByAccountId: tokenProvider.account_id,
+          });
 
           await repo.logActivity(db, {
             providerId: tokenRow.provider_id,
