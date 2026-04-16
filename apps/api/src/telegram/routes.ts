@@ -159,12 +159,16 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       const linked = await repo.findLinkedAccountByTelegramUserId(db, verified.user.id);
       if (linked) return reply.code(409).send({ ok: false, error: 'Telegram user already has account access' });
 
+      await ensureMiniGuestAccountSchema(db);
+
       const existingTelegram = await repo.findAccountByTelegramUserId(db, verified.user.id);
       const username = await uniqueMiniAccountUsername(db, fullName, verified.user.username, verified.user.id);
       const passwordHash = await bcrypt.hash(authRepo.generateToken(), 12);
-      const account = await authRepo.createAccount(db, {
+      const telegramPhone = `tg:${verified.user.id}`;
+      const existingAccount = await authRepo.findAccountByPhone(db, telegramPhone);
+      const account = existingAccount ?? await authRepo.createAccount(db, {
         username,
-        phone: `tg:${verified.user.id}`,
+        phone: telegramPhone,
         passwordHash,
       });
 
@@ -1075,6 +1079,25 @@ function telegramMiniAppUrl(env: AppEnv): string {
   const shortName = (env.TELEGRAM_MINIAPP_SHORT_NAME ?? 'octiqa').trim().replace(/^\/+/, '');
   const base = shortName ? `https://t.me/${username}/${shortName}` : `https://t.me/${username}`;
   return `${base}?startapp=onboarding`;
+}
+
+async function ensureMiniGuestAccountSchema(db: Db): Promise<void> {
+  const rows = await db<Array<{ is_nullable: string }>>`
+    SELECT is_nullable
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'telegram_accounts'
+      AND column_name = 'provider_id'
+    LIMIT 1
+  `;
+  if (rows[0]?.is_nullable === 'YES') return;
+  await db`ALTER TABLE telegram_accounts ALTER COLUMN provider_id DROP NOT NULL`;
+  await db`ALTER TABLE telegram_accounts DROP CONSTRAINT IF EXISTS telegram_accounts_provider_id_fkey`;
+  await db`
+    ALTER TABLE telegram_accounts
+    ADD CONSTRAINT telegram_accounts_provider_id_fkey
+    FOREIGN KEY (provider_id) REFERENCES providers(id) ON DELETE SET NULL
+  `;
 }
 
 async function listMiniAccessibleProviders(db: Db, tgAccount: repo.TelegramAccount): Promise<readonly unknown[]> {
