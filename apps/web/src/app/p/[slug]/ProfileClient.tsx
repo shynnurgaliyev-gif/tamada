@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { FaWhatsapp, FaTelegram, FaInstagram, FaYoutube, FaTiktok, FaGlobe, FaPhone, FaLink, FaMapMarkerAlt, FaComments } from 'react-icons/fa';
 import { OctiMark } from '@/components/OctiLogo';
 
@@ -14,6 +14,13 @@ type Service = { id: string; category: string; title: string; description: strin
 type Photo = { id: string; url: string; is_cover: boolean; };
 type Link = { id: string; link_type: string; url: string; label: string | null; };
 type DayInfo = { date: string; status: string; count: number };
+type CalendarChangeEvent = {
+  provider_id: string;
+  action: 'create' | 'update' | 'delete';
+  entry_id: string;
+  ranges: { starts_at: string; ends_at: string }[];
+  changed_at: string;
+};
 
 const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 const DAYS_SHORT = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
@@ -66,6 +73,28 @@ function getSessionId(): string {
   return id;
 }
 
+function calendarDaysEqual(a: DayInfo[], b: DayInfo[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const left = a[i]!;
+    const right = b[i]!;
+    if (left.date !== right.date || left.status !== right.status || left.count !== right.count) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function rangeTouchesMonth(range: { starts_at: string; ends_at: string }, year: number, month: number): boolean {
+  const startsAt = new Date(range.starts_at);
+  const endsAt = new Date(range.ends_at);
+  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) return true;
+
+  const monthStart = new Date(Date.UTC(year, month - 1, 1));
+  const monthEnd = new Date(Date.UTC(year, month, 1));
+  return startsAt.getTime() < monthEnd.getTime() && endsAt.getTime() > monthStart.getTime();
+}
+
 export default function ProfileClient({ slug }: { slug: string }) {
   const [provider, setProvider] = useState<Provider | null>(null);
   const [services, setServices] = useState<Service[]>([]);
@@ -88,6 +117,37 @@ export default function ProfileClient({ slug }: { slug: string }) {
   const contactRef = useRef<HTMLDivElement>(null);
   const calendarTrackRef = useRef<HTMLDivElement>(null);
   const calendarTracked = useRef(false);
+  const calendarRequestId = useRef(0);
+  const visibleCalendarRef = useRef({ year: calYear, month: calMonth });
+  const [calendarRealtimeConnected, setCalendarRealtimeConnected] = useState(false);
+
+  useEffect(() => {
+    visibleCalendarRef.current = { year: calYear, month: calMonth };
+  }, [calYear, calMonth]);
+
+  const refreshCalendarMonth = useCallback(async (year: number, month: number): Promise<boolean> => {
+    if (!slug) return false;
+    const requestId = ++calendarRequestId.current;
+    try {
+      const res = await fetch(`${API}/public/providers/${slug}/calendar/month?year=${year}&month=${month}`, {
+        cache: 'no-store',
+      });
+      const c = await res.json() as { ok: boolean; days?: DayInfo[]; timezone?: string };
+      if (!c.ok || requestId !== calendarRequestId.current) return false;
+      if (visibleCalendarRef.current.year !== year || visibleCalendarRef.current.month !== month) return false;
+      let changed = false;
+      setCalDays(prev => {
+        const next = c.days ?? [];
+        if (calendarDaysEqual(prev, next)) return prev;
+        changed = true;
+        return next;
+      });
+      if (c.timezone) setCalTimezone(c.timezone);
+      return changed;
+    } catch {
+      return false;
+    }
+  }, [slug]);
 
   useEffect(() => {
     if (!slug) return;
@@ -102,12 +162,7 @@ export default function ProfileClient({ slug }: { slug: string }) {
         setPhotos(d.photos ?? []);
         const yr = new Date().getFullYear();
         const mo = new Date().getMonth() + 1;
-        fetch(`${API}/public/providers/${slug}/calendar/month?year=${yr}&month=${mo}`)
-          .then(r => r.json())
-          .then((c: { ok: boolean; days?: DayInfo[]; timezone?: string }) => {
-            if (c.ok) { setCalDays(c.days ?? []); if (c.timezone) setCalTimezone(c.timezone); }
-          })
-          .catch(() => null);
+        void refreshCalendarMonth(yr, mo);
       } else {
         // Owner preview fallback
         const token = localStorage.getItem('session_token');
@@ -136,15 +191,43 @@ export default function ProfileClient({ slug }: { slug: string }) {
     }
 
     void load();
-  }, [slug]);
+  }, [slug, refreshCalendarMonth]);
 
   useEffect(() => {
     if (!provider || !slug) return;
-    fetch(`${API}/public/providers/${slug}/calendar/month?year=${calYear}&month=${calMonth}`)
-      .then(r => r.json())
-      .then((c: { ok: boolean; days?: DayInfo[] }) => { if (c.ok) setCalDays(c.days ?? []); })
-      .catch(() => null);
-  }, [calYear, calMonth, slug, provider]);
+    void refreshCalendarMonth(calYear, calMonth);
+  }, [calYear, calMonth, slug, provider, refreshCalendarMonth]);
+
+  useEffect(() => {
+    if (!provider || !slug || isPreview || typeof EventSource === 'undefined') return;
+
+    const stream = new EventSource(`${API}/public/providers/${slug}/calendar/stream`);
+    stream.onopen = () => setCalendarRealtimeConnected(true);
+    stream.addEventListener('calendar-change', event => {
+      try {
+        const payload = JSON.parse((event as MessageEvent<string>).data) as CalendarChangeEvent;
+        if (!payload.ranges.some(range => rangeTouchesMonth(range, calYear, calMonth))) return;
+        void refreshCalendarMonth(calYear, calMonth);
+      } catch {
+        void refreshCalendarMonth(calYear, calMonth);
+      }
+    });
+    stream.onerror = () => setCalendarRealtimeConnected(false);
+
+    return () => {
+      stream.close();
+      setCalendarRealtimeConnected(false);
+    };
+  }, [provider, slug, isPreview, calYear, calMonth, refreshCalendarMonth]);
+
+  useEffect(() => {
+    if (!provider || !slug || isPreview || calendarRealtimeConnected) return;
+
+    const timer = setInterval(() => {
+      void refreshCalendarMonth(calYear, calMonth);
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [provider, slug, isPreview, calendarRealtimeConnected, calYear, calMonth, refreshCalendarMonth]);
 
   void calTimezone;
 

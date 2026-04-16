@@ -2,9 +2,17 @@ import type { FastifyPluginAsync } from 'fastify';
 import type { Db } from '../db';
 import { getAuthAccount } from '../auth/middleware';
 import { findProviderById, findProviderBySlug } from '../providers/repositories';
+import { onCalendarChange, publishCalendarChange } from './events';
 import * as repo from './repositories';
 
 type DayInfo = { date: string; status: string; count: number };
+
+function entryRange(entry: Pick<repo.CalendarEntry, 'starts_at' | 'ends_at'>) {
+  return {
+    starts_at: entry.starts_at.toISOString(),
+    ends_at: entry.ends_at.toISOString(),
+  };
+}
 
 function computeMonthDays(entries: repo.CalendarEntry[], year: number, month: number): DayInfo[] {
   const today = new Date();
@@ -121,6 +129,13 @@ export function createCalendarRoutes(db: Db) {
         });
       }
 
+      publishCalendarChange({
+        provider_id: id,
+        action: 'create',
+        entry_id: entry.id,
+        ranges: [entryRange(entry)],
+      });
+
       return reply.code(201).send({ ok: true, entry: { ...entry, client } });
     });
 
@@ -174,6 +189,15 @@ export function createCalendarRoutes(db: Db) {
         });
       }
 
+      if (updated) {
+        publishCalendarChange({
+          provider_id: id,
+          action: 'update',
+          entry_id: entryId,
+          ranges: [entryRange(entry), entryRange(updated)],
+        });
+      }
+
       return reply.send({ ok: true, entry: { ...updated, client } });
     });
 
@@ -191,6 +215,12 @@ export function createCalendarRoutes(db: Db) {
       if (!entry || entry.provider_id !== id) return reply.code(404).send({ ok: false, error: 'Entry not found' });
 
       await repo.deleteEntry(db, entryId);
+      publishCalendarChange({
+        provider_id: id,
+        action: 'delete',
+        entry_id: entryId,
+        ranges: [entryRange(entry)],
+      });
       return reply.send({ ok: true });
     });
 
@@ -228,6 +258,39 @@ export function createCalendarRoutes(db: Db) {
 
       const entries = await repo.findEntriesByRange(db, provider.id, monthStart, monthEnd);
       return reply.send({ ok: true, year, month, days: computeMonthDays(entries, year, month), timezone: provider.timezone });
+    });
+
+    // GET /public/providers/:slug/calendar/stream
+    app.get('/public/providers/:slug/calendar/stream', async (req, reply) => {
+      const { slug } = req.params as { slug: string };
+      const provider = await findProviderBySlug(db, slug);
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+
+      reply.hijack();
+      reply.raw.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      });
+      reply.raw.write(`event: ready\ndata: ${JSON.stringify({ ok: true, provider_id: provider.id })}\n\n`);
+
+      const off = onCalendarChange(event => {
+        if (event.provider_id !== provider.id) return;
+        if (!reply.raw.writableEnded) {
+          reply.raw.write(`event: calendar-change\ndata: ${JSON.stringify(event)}\n\n`);
+        }
+      });
+      const keepAlive = setInterval(() => {
+        if (!reply.raw.writableEnded) {
+          reply.raw.write(`: keep-alive ${Date.now()}\n\n`);
+        }
+      }, 25000);
+
+      req.raw.on('close', () => {
+        clearInterval(keepAlive);
+        off();
+      });
     });
 
     // GET /public/providers/:slug/calendar?from=&to=
