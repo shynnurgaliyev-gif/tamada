@@ -7,6 +7,7 @@ import { onCalendarChange, publishCalendarChange } from './events';
 import * as repo from './repositories';
 import * as telegramRepo from '../telegram/repositories';
 import * as bot from '../telegram/bot';
+import { hasMiniPermission } from '../telegram/permissions';
 
 type DayInfo = { date: string; status: string; count: number };
 
@@ -25,6 +26,7 @@ async function canAccessProvider(db: Db, req: Parameters<typeof getAuthAccount>[
 
   const miniSession = await telegramRepo.findValidMiniSession(db, telegramRepo.hashToken(miniAuthToken));
   if (!miniSession) return { ok: false, accountId: null, telegramAccountId: null };
+  if (!hasMiniPermission(miniSession.role, 'can_manage_calendar')) return { ok: false, accountId: null, telegramAccountId: null };
 
   const tgAccount = await telegramRepo.findTelegramAccountById(db, miniSession.telegram_account_id);
   if (!tgAccount) return { ok: false, accountId: null, telegramAccountId: null };

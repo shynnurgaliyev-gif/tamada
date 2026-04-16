@@ -1,4 +1,4 @@
-import type { Tab, NavItem } from '../types';
+import type { MiniPermissions, Tab, NavItem } from '../types';
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'profiles',  icon: '👤',  label: 'Профили'   },
@@ -10,16 +10,25 @@ const NAV_ITEMS: NavItem[] = [
 
 export function MiniBottomNav({
   tab,
+  permissions,
   onTab,
   onAdd,
 }: {
   tab: Tab;
+  permissions: MiniPermissions;
   onTab: (t: Tab) => void;
   onAdd: () => void;
 }) {
+  const items = NAV_ITEMS.filter(item => {
+    if (item.id === 'calendar') return permissions.can_manage_calendar;
+    if (item.id === 'analytics') return permissions.can_view_analytics;
+    if (item.id === 'add') return permissions.can_manage_calendar || permissions.can_create_profile;
+    return true;
+  });
+
   return (
     <nav className="mini-nav">
-      {NAV_ITEMS.map(item => {
+      {items.map(item => {
         if (item.special) {
           return (
             <button key="add" onClick={onAdd} className="mini-nav-add mini-tap">

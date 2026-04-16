@@ -14,6 +14,9 @@ import {
   type TgFlow,
   type Provider,
   type AnalyticsSummary,
+  type MiniPermissions,
+  OWNER_MINI_PERMISSIONS,
+  ASSISTANT_MINI_PERMISSIONS,
 } from '../types';
 
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
@@ -38,6 +41,7 @@ export interface MiniAppState {
   /* User */
   tgUser: TgUser | null;
   miniAuthError: string | null;
+  permissions: MiniPermissions;
   /* Providers */
   providers: Provider[];
   activeIdx: number;
@@ -64,12 +68,12 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
   const [activeIdx,  setActiveIdx]  = useState(0);
   const [summary,    setSummary]    = useState<AnalyticsSummary | null>(null);
   const [sumLoading, setSumLoading] = useState(false);
-  const [miniRole,   setMiniRole]   = useState<string | null>('owner');
   const [miniAuthError, setMiniAuthError] = useState<string | null>(null);
+  const [permissions, setPermissions] = useState<MiniPermissions>(OWNER_MINI_PERMISSIONS);
 
   const activeProvider = providers[activeIdx] ?? null;
   const activeProfileCount = providers.filter(p => !p.archived_at && !p.pending_delete_at).length;
-  const canManageProfiles = miniRole !== 'assistant';
+  const canManageProfiles = permissions.can_create_profile || permissions.can_archive_profile || permissions.can_edit_profile;
   const switchActiveIdx = useCallback((i: number) => {
     setSummary(null);
     setActiveIdx(i);
@@ -105,13 +109,13 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
           body: JSON.stringify({ init_data: initData }),
         })
           .then(r => r.json())
-          .then((d: { ok: boolean; providers?: Provider[]; role?: string | null; mini_token?: string | null; expires_at?: string | null; error?: string }) => {
+          .then((d: { ok: boolean; providers?: Provider[]; role?: string | null; permissions?: MiniPermissions; mini_token?: string | null; expires_at?: string | null; error?: string }) => {
             if (d.ok && d.providers?.length) {
               if (d.mini_token) {
                 localStorage.setItem('mini_auth_token', d.mini_token);
                 if (d.expires_at) localStorage.setItem('mini_auth_expires_at', d.expires_at);
               }
-              setMiniRole(d.role ?? 'assistant');
+              setPermissions(d.permissions ?? ASSISTANT_MINI_PERMISSIONS);
               setProviders(d.providers);
               setPhase('shell');
             } else {
@@ -138,12 +142,14 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
 
     // onboarding flow → show gate, but silently load providers
     if (flow === 'onboarding') {
+      setPermissions(OWNER_MINI_PERMISSIONS);
       setPhase('onboarding');
       fetchProviders(token);
       return;
     }
 
     // Default → fetch providers then enter shell
+    setPermissions(OWNER_MINI_PERMISSIONS);
     fetchProviders(token).finally(() => setPhase('shell'));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);                          // run once on mount
@@ -170,6 +176,7 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
 
   /* ── Analytics — lazy-loaded when the analytics tab is opened ─────────── */
   const loadAnalytics = useCallback(() => {
+    if (!permissions.can_view_analytics) return;
     if (summary || sumLoading) return;
     const token = localStorage.getItem('session_token');
     if (!token || !activeProvider) return;
@@ -183,7 +190,7 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
       })
       .catch(() => null)
       .finally(() => setSumLoading(false));
-  }, [summary, sumLoading, activeProvider]);
+  }, [summary, sumLoading, activeProvider, permissions.can_view_analytics]);
 
   useEffect(() => {
     setSummary(null);
@@ -191,9 +198,11 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
 
   /* ── Tab change ───────────────────────────────────────────────────────── */
   const handleTab = useCallback((next: Tab) => {
+    if (next === 'analytics' && !permissions.can_view_analytics) return;
+    if (next === 'calendar' && !permissions.can_manage_calendar) return;
     setTab(next);
     if (next === 'analytics') loadAnalytics();
-  }, [loadAnalytics]);
+  }, [loadAnalytics, permissions.can_view_analytics, permissions.can_manage_calendar]);
 
   useEffect(() => {
     if (tab === 'analytics' && activeProvider && !summary && !sumLoading) loadAnalytics();
@@ -205,7 +214,7 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
 
   const createProfile = useCallback(async (input: CreateProfileInput): Promise<Provider | null> => {
     const token = localStorage.getItem('session_token');
-    if (!token || activeProfileCount >= MAX_PROFILES_PER_ACCOUNT) return null;
+    if (!permissions.can_create_profile || !token || activeProfileCount >= MAX_PROFILES_PER_ACCOUNT) return null;
 
     const slugBase = input.display_name
       .trim()
@@ -252,11 +261,11 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
     });
     setTab('profiles');
     return createdProvider;
-  }, [activeProfileCount]);
+  }, [activeProfileCount, permissions.can_create_profile]);
 
   const archiveProfile = useCallback(async (providerId: string): Promise<boolean> => {
     const token = localStorage.getItem('session_token');
-    if (!token) return false;
+    if (!permissions.can_archive_profile || !token) return false;
     const res = await fetch(`${API}/providers/${providerId}/archive`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -275,13 +284,14 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
       return next;
     });
     return true;
-  }, [activeIdx]);
+  }, [activeIdx, permissions.can_archive_profile]);
 
   return {
     phase, setPhase,
     tab, handleTab,
     tgUser,
     miniAuthError,
+    permissions,
     providers, activeIdx, setActiveIdx: switchActiveIdx,
     activeProvider,
     updateActiveProvider,

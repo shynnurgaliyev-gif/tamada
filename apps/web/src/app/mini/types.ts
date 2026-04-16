@@ -142,6 +142,42 @@ export type AnalyticsSummary = {
   conversion_pct:  number;
 };
 
+export type MiniPermissions = {
+  can_view_profile: boolean;
+  can_edit_profile: boolean;
+  can_manage_calendar: boolean;
+  can_view_analytics: boolean;
+  can_manage_team: boolean;
+  can_manage_subscription: boolean;
+  can_manage_integrations: boolean;
+  can_archive_profile: boolean;
+  can_create_profile: boolean;
+};
+
+export const OWNER_MINI_PERMISSIONS: MiniPermissions = {
+  can_view_profile: true,
+  can_edit_profile: true,
+  can_manage_calendar: true,
+  can_view_analytics: true,
+  can_manage_team: true,
+  can_manage_subscription: true,
+  can_manage_integrations: true,
+  can_archive_profile: true,
+  can_create_profile: true,
+};
+
+export const ASSISTANT_MINI_PERMISSIONS: MiniPermissions = {
+  can_view_profile: true,
+  can_edit_profile: false,
+  can_manage_calendar: true,
+  can_view_analytics: false,
+  can_manage_team: false,
+  can_manage_subscription: false,
+  can_manage_integrations: false,
+  can_archive_profile: false,
+  can_create_profile: false,
+};
+
 /* ── Navigation & shell state ─────────────────────────────────────────────── */
 
 export type Tab   = 'profiles' | 'calendar' | 'analytics' | 'more';

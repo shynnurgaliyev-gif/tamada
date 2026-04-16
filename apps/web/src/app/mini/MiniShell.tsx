@@ -30,7 +30,7 @@ export default function MiniShell() {
   const {
     phase, setPhase,
     tab, handleTab,
-    tgUser, miniAuthError,
+    tgUser, miniAuthError, permissions,
     providers, activeIdx, setActiveIdx, activeProvider,
     updateActiveProvider, canManageProfiles, maxProfiles, createProfile, archiveProfile,
     summary, sumLoading, loadAnalytics,
@@ -74,6 +74,7 @@ export default function MiniShell() {
               providers={providers}
               activeIdx={activeIdx}
               canManageProfiles={canManageProfiles}
+              permissions={permissions}
               maxProfiles={maxProfiles}
               onSwitchProfile={setActiveIdx}
               onCreateProfile={createProfile}
@@ -81,13 +82,14 @@ export default function MiniShell() {
               onProviderUpdated={updateActiveProvider}
             />
           )}
-          {tab === 'calendar'  && <MiniCalendarScreen   provider={activeProvider} openNewEntry={calendarNewEntry} onNewEntryHandled={() => setCalendarNewEntry(false)} />}
-          {tab === 'analytics' && <MiniAnalyticsScreen  summary={summary} loading={sumLoading} onRetry={loadAnalytics} />}
-          {tab === 'more'      && <MiniMoreScreen        tgUser={tgUser} />}
+          {tab === 'calendar'  && permissions.can_manage_calendar && <MiniCalendarScreen   provider={activeProvider} openNewEntry={calendarNewEntry} onNewEntryHandled={() => setCalendarNewEntry(false)} />}
+          {tab === 'analytics' && permissions.can_view_analytics && <MiniAnalyticsScreen  summary={summary} loading={sumLoading} onRetry={loadAnalytics} />}
+          {tab === 'more'      && <MiniMoreScreen        tgUser={tgUser} permissions={permissions} />}
         </main>
 
         <MiniBottomNav
           tab={tab}
+          permissions={permissions}
           onTab={onTab}
           onAdd={() => setShowAdd(true)}
         />
@@ -95,6 +97,7 @@ export default function MiniShell() {
         {showAdd && (
           <MiniAddSheet
             hasProfile={!!activeProvider}
+            permissions={permissions}
             onClose={() => setShowAdd(false)}
             onNewCalendarEntry={() => {
               setShowAdd(false);

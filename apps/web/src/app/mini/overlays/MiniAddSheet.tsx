@@ -1,9 +1,13 @@
+import type { MiniPermissions } from '../types';
+
 export function MiniAddSheet({
   hasProfile,
+  permissions,
   onClose,
   onNewCalendarEntry,
 }: {
   hasProfile:         boolean;
+  permissions:        MiniPermissions;
   onClose:            () => void;
   onNewCalendarEntry: () => void;
 }) {
@@ -16,6 +20,7 @@ export function MiniAddSheet({
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {/* Calendar entry */}
+            {permissions.can_manage_calendar && (
             <button
               className="mini-row mini-tap"
               onClick={onNewCalendarEntry}
@@ -30,9 +35,10 @@ export function MiniAddSheet({
               </div>
               <span className="mini-row-chevron">›</span>
             </button>
+            )}
 
             {/* New profile — only when none exists */}
-            {!hasProfile && (
+            {!hasProfile && permissions.can_create_profile && (
               <a href="/dashboard/onboarding" className="mini-row mini-tap">
                 <div className="mini-row-icon" style={{ background: '#f5f3ff', color: '#7c3aed' }}>👤</div>
                 <div style={{ flex: 1 }}>

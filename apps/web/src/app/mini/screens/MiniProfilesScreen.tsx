@@ -8,7 +8,7 @@ import { ProfileView } from './profile/ProfileView';
 import { ProfileEditView } from './profile/ProfileEditView';
 import { ProfilePhotosView } from './profile/ProfilePhotosView';
 import { ProfileLinksView } from './profile/ProfileLinksView';
-import type { Provider } from '../types';
+import type { MiniPermissions, Provider } from '../types';
 import type { CreateProfileInput } from '../hooks/useMiniApp';
 
 type SubView = 'main' | 'edit' | 'photos' | 'links' | 'create';
@@ -25,6 +25,7 @@ export function MiniProfilesScreen({
   providers,
   activeIdx,
   canManageProfiles,
+  permissions,
   maxProfiles,
   onSwitchProfile,
   onCreateProfile,
@@ -34,6 +35,7 @@ export function MiniProfilesScreen({
   providers: Provider[];
   activeIdx: number;
   canManageProfiles: boolean;
+  permissions: MiniPermissions;
   maxProfiles: number;
   onSwitchProfile: (idx: number) => void;
   onCreateProfile: (input: CreateProfileInput) => Promise<Provider | null>;
@@ -47,12 +49,12 @@ export function MiniProfilesScreen({
 
   const activeProfiles = providers.filter(p => !p.archived_at && !p.pending_delete_at);
   const archivedProfiles = providers.filter(p => p.archived_at || p.pending_delete_at);
-  const canCreate = canManageProfiles && activeProfiles.length < maxProfiles;
+  const canCreate = permissions.can_create_profile && activeProfiles.length < maxProfiles;
 
   const {
     photos, links, loading, saving, error, reload,
     updateBasic, uploadPhoto, deletePhoto, addLink, deleteLink,
-  } = useProviderData(provider && !provider.archived_at ? provider.id : null);
+  } = useProviderData(provider && !provider.archived_at && (permissions.can_edit_profile || permissions.can_manage_team) ? provider.id : null);
 
   useEffect(() => {
     const tg = getTelegramWebApp();
@@ -95,7 +97,7 @@ export function MiniProfilesScreen({
   ) : null;
 
   async function archiveProvider(id: string) {
-    if (!canManageProfiles || archivingId) return;
+    if (!permissions.can_archive_profile || archivingId) return;
     setArchivingId(id);
     try {
       const ok = await onArchiveProfile(id);
@@ -119,6 +121,7 @@ export function MiniProfilesScreen({
             archivedProfiles={archivedProfiles}
             archiveOpen={archiveOpen}
             canManageProfiles={canManageProfiles}
+            canArchiveProfile={permissions.can_archive_profile}
             canCreate={canCreate}
             maxProfiles={maxProfiles}
             archivingId={archivingId}
@@ -134,7 +137,8 @@ export function MiniProfilesScreen({
               photos={photos}
               links={links}
               loading={loading}
-              canManage={canManageProfiles}
+              canEditProfile={permissions.can_edit_profile}
+              canManageTeam={permissions.can_manage_team}
               onEdit={() => setSubView('edit')}
               onPhotos={() => setSubView('photos')}
               onLinks={() => setSubView('links')}
@@ -143,7 +147,7 @@ export function MiniProfilesScreen({
         </>
       )}
 
-      {subView === 'create' && (
+      {subView === 'create' && permissions.can_create_profile && (
         <ProfileCreateView
           saving={saving}
           canCreate={canCreate}
@@ -156,7 +160,7 @@ export function MiniProfilesScreen({
         />
       )}
 
-      {subView === 'edit' && provider && (
+      {subView === 'edit' && provider && permissions.can_edit_profile && (
         <ProfileEditView
           provider={provider}
           saving={saving}
@@ -167,11 +171,11 @@ export function MiniProfilesScreen({
         />
       )}
 
-      {subView === 'photos' && (
+      {subView === 'photos' && permissions.can_edit_profile && (
         <ProfilePhotosView photos={photos} saving={saving} onUpload={uploadPhoto} onDelete={deletePhoto} />
       )}
 
-      {subView === 'links' && (
+      {subView === 'links' && permissions.can_edit_profile && (
         <ProfileLinksView links={links} saving={saving} onAdd={addLink} onDelete={deleteLink} />
       )}
     </div>
@@ -185,6 +189,7 @@ function ProfilesOverview(props: {
   archivedProfiles: Provider[];
   archiveOpen: boolean;
   canManageProfiles: boolean;
+  canArchiveProfile: boolean;
   canCreate: boolean;
   maxProfiles: number;
   archivingId: string | null;
@@ -228,7 +233,7 @@ function ProfilesOverview(props: {
             key={p.id}
             provider={p}
             isActive={indexById.get(p.id) === props.activeIdx}
-            canManage={props.canManageProfiles}
+            canManage={props.canArchiveProfile}
             archiving={props.archivingId === p.id}
             onSwitch={() => props.onSwitch(indexById.get(p.id) ?? 0)}
             onArchive={() => props.onArchive(p.id)}

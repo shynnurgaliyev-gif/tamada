@@ -36,7 +36,8 @@ export function ProfileView({
   photos,
   links,
   loading,
-  canManage = true,
+  canEditProfile = true,
+  canManageTeam = true,
   onEdit,
   onPhotos,
   onLinks,
@@ -45,7 +46,8 @@ export function ProfileView({
   photos:   ProviderPhoto[];
   links:    ProviderLink[];
   loading:  boolean;
-  canManage?: boolean;
+  canEditProfile?: boolean;
+  canManageTeam?: boolean;
   onEdit:   () => void;
   onPhotos: () => void;
   onLinks:  () => void;
@@ -58,12 +60,12 @@ export function ProfileView({
 
   useEffect(() => {
     const session = token();
-    if (!session) return;
+    if (!session || !canManageTeam) return;
     fetch(`${API}/providers/${provider.id}/team`, { headers: { Authorization: `Bearer ${session}` } })
       .then(r => r.json())
       .then((d: { ok: boolean; team?: TeamMember[] }) => { if (d.ok) setTeam(d.team ?? []); })
       .catch(() => null);
-  }, [provider.id]);
+  }, [provider.id, canManageTeam]);
 
   async function createAssistantInvite() {
     const session = token();
@@ -165,8 +167,8 @@ export function ProfileView({
       </div>
 
       {/* Actions */}
-      <div style={{ display: 'grid', gridTemplateColumns: canManage ? '1fr 1fr' : '1fr', gap: 8, marginBottom: 16 }}>
-        {canManage && (
+      <div style={{ display: 'grid', gridTemplateColumns: canEditProfile ? '1fr 1fr' : '1fr', gap: 8, marginBottom: 16 }}>
+        {canEditProfile && (
           <button className="mini-btn mini-btn-primary mini-tap" onClick={onEdit} style={{ fontSize: 13 }}>
             ✏️ Редактировать
           </button>
@@ -182,6 +184,7 @@ export function ProfileView({
         </a>
       </div>
 
+      {canManageTeam && (
       <div className="mini-card" style={{ marginBottom: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 10 }}>
           <div>
@@ -190,7 +193,7 @@ export function ProfileView({
               Владелец и помощники этого профиля
             </div>
           </div>
-          {canManage && token() && (
+          {canManageTeam && token() && (
             <button className="mini-tap" onClick={() => void createAssistantInvite()} disabled={teamBusy} style={{ border: 'none', borderRadius: 8, padding: '8px 10px', background: 'rgba(124,58,237,.1)', color: '#6d28d9', fontWeight: 800, fontSize: 12 }}>
               Пригласить
             </button>
@@ -217,7 +220,7 @@ export function ProfileView({
                     {member.linked_at ? ` · ${new Date(member.linked_at).toLocaleDateString('ru-RU')}` : ''}
                   </div>
                 </div>
-                {canManage && !member.is_primary && token() && (
+                {canManageTeam && !member.is_primary && token() && (
                   <button className="mini-tap" onClick={() => void revokeAssistant(member.id)} disabled={teamBusy} style={{ border: 'none', borderRadius: 8, padding: '7px 9px', background: 'rgba(239,68,68,.08)', color: '#dc2626', fontWeight: 800, fontSize: 11 }}>
                     Отозвать
                   </button>
@@ -227,8 +230,10 @@ export function ProfileView({
           })}
         </div>
       </div>
+      )}
 
       {/* Photos section */}
+      {canEditProfile && (
       <div
         className="mini-card mini-tap"
         style={{ cursor: 'pointer' }}
@@ -266,8 +271,10 @@ export function ProfileView({
           </div>
         )}
       </div>
+      )}
 
       {/* Links section */}
+      {canEditProfile && (
       <div
         className="mini-card mini-tap"
         style={{ cursor: 'pointer' }}
@@ -301,6 +308,7 @@ export function ProfileView({
           </div>
         )}
       </div>
+      )}
 
       <div style={{ height: 16 }} />
     </div>

@@ -1,17 +1,56 @@
 import { NavRow } from '../components/NavRow';
-import type { TgUser } from '../types';
+import type { MiniPermissions, TgUser } from '../types';
 
 const MORE_ITEMS = [
-  { icon: '⭐', bg: '#fffbeb', color: '#d97706', label: 'Подписка',    sub: 'Тарифы и оплата',         href: '/dashboard/subscription'  },
-  { icon: '🔗', bg: '#f0f9ff', color: '#0ea5e9', label: 'Интеграции',  sub: 'Telegram-бот',            href: '/dashboard/integrations'  },
-  { icon: '🔔', bg: '#f5f3ff', color: '#7c3aed', label: 'Напоминания', sub: 'Настройки уведомлений',   href: '/dashboard/notifications' },
-  { icon: '⚙️', bg: '#f9fafb', color: '#6b7280', label: 'Настройки',   sub: 'Аккаунт и безопасность', href: '/dashboard/settings'      },
+  {
+    permission: 'can_manage_subscription',
+    icon: '⭐',
+    bg: '#fffbeb',
+    color: '#d97706',
+    label: 'Подписка',
+    sub: 'Тарифы и оплата',
+    href: '/dashboard/subscription',
+  },
+  {
+    permission: 'can_manage_integrations',
+    icon: '🔗',
+    bg: '#f0f9ff',
+    color: '#0ea5e9',
+    label: 'Интеграции',
+    sub: 'Telegram-бот',
+    href: '/dashboard/integrations',
+  },
+  {
+    permission: 'can_manage_integrations',
+    icon: '🔔',
+    bg: '#f5f3ff',
+    color: '#7c3aed',
+    label: 'Напоминания',
+    sub: 'Настройки уведомлений',
+    href: '/dashboard/notifications',
+  },
+  {
+    permission: 'can_manage_subscription',
+    icon: '⚙️',
+    bg: '#f9fafb',
+    color: '#6b7280',
+    label: 'Настройки',
+    sub: 'Аккаунт и безопасность',
+    href: '/dashboard/settings',
+  },
 ] as const;
 
-export function MiniMoreScreen({ tgUser }: { tgUser: TgUser | null }) {
+export function MiniMoreScreen({
+  tgUser,
+  permissions,
+}: {
+  tgUser: TgUser | null;
+  permissions: MiniPermissions;
+}) {
+  const visibleItems = MORE_ITEMS.filter(item => permissions[item.permission]);
+
   return (
     <div>
-      {/* User card */}
       {tgUser && (
         <div className="mini-card" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div className="mini-avatar">
@@ -32,7 +71,13 @@ export function MiniMoreScreen({ tgUser }: { tgUser: TgUser | null }) {
 
       <div className="mini-section-label">Настройки</div>
 
-      {MORE_ITEMS.map(item => (
+      {visibleItems.length === 0 && (
+        <div className="mini-card" style={{ fontSize: 13, color: 'var(--tg-theme-hint-color, #6b7280)' }}>
+          Для вашей роли доступен только календарь и просмотр профиля.
+        </div>
+      )}
+
+      {visibleItems.map(item => (
         <NavRow
           key={item.label}
           icon={item.icon}
@@ -44,12 +89,13 @@ export function MiniMoreScreen({ tgUser }: { tgUser: TgUser | null }) {
         />
       ))}
 
-      {/* Web dashboard link */}
-      <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(0,0,0,.06)' }}>
-        <a href="/dashboard" className="mini-btn mini-btn-outline mini-tap">
-          Открыть кабинет на сайте →
-        </a>
-      </div>
+      {visibleItems.length > 0 && (
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(0,0,0,.06)' }}>
+          <a href="/dashboard" className="mini-btn mini-btn-outline mini-tap">
+            Открыть кабинет на сайте →
+          </a>
+        </div>
+      )}
 
       <div style={{ height: 16 }} />
     </div>

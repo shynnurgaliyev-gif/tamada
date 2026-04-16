@@ -8,6 +8,7 @@ import { getSubscriptionStatus } from '../subscription/routes';
 import * as repo from './repositories';
 import * as bot from './bot';
 import { verifyTelegramInitData } from './mini-auth';
+import { permissionsForTelegramRole } from './permissions';
 
 export function createTelegramRoutes(db: Db, env: AppEnv) {
   const plugin: FastifyPluginAsync = async (app) => {
@@ -68,11 +69,11 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       if (!verified) return reply.code(401).send({ ok: false, error: 'Invalid Telegram Mini App auth data' });
 
       const tgAccount = await repo.findLinkedAccountByTelegramUserId(db, verified.user.id);
-      if (!tgAccount) return reply.send({ ok: true, providers: [], role: null, mini_token: null, expires_at: null });
+      if (!tgAccount) return reply.send({ ok: true, providers: [], role: null, permissions: permissionsForTelegramRole(null), mini_token: null, expires_at: null });
 
       const providers = await listMiniAccessibleProviders(db, tgAccount);
       if (providers.length === 0) {
-        return reply.send({ ok: true, providers: [], role: tgAccount.telegram_role, mini_token: null, expires_at: null });
+        return reply.send({ ok: true, providers: [], role: tgAccount.telegram_role, permissions: permissionsForTelegramRole(tgAccount.telegram_role), mini_token: null, expires_at: null });
       }
 
       const rawSessionToken = repo.generateMiniSessionToken();
@@ -89,6 +90,7 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
         ok: true,
         providers,
         role: tgAccount.telegram_role,
+        permissions: permissionsForTelegramRole(tgAccount.telegram_role),
         mini_token: rawSessionToken,
         expires_at: expiresAt.toISOString(),
       });
