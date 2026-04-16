@@ -58,6 +58,32 @@ export type TelegramMiniSession = {
   created_at: Date;
 };
 
+export type OwnershipTransferStatus = 'pending' | 'accepted' | 'cancelled' | 'expired' | 'rejected';
+
+export type OwnershipTransferRequest = {
+  id: string;
+  provider_id: string;
+  from_account_id: string;
+  to_account_id: string | null;
+  to_phone: string | null;
+  status: OwnershipTransferStatus;
+  requested_by_account_id: string | null;
+  accepted_at: Date | null;
+  cancelled_at: Date | null;
+  expires_at: Date;
+  created_at: Date;
+  updated_at: Date;
+};
+
+export type TransferRequestView = OwnershipTransferRequest & {
+  provider_display_name: string;
+  provider_slug: string;
+  from_username: string | null;
+  from_phone: string | null;
+  to_username: string | null;
+  to_phone_account: string | null;
+};
+
 // ---- Link Tokens ----
 
 export function generateLinkToken(): string {
@@ -361,6 +387,144 @@ export async function createOwnershipTransferRequest(db: Db, data: {
   `;
   if (!rows[0]) throw new Error('Failed to create ownership transfer request');
   return rows[0];
+}
+
+export async function expireOwnershipTransferRequests(db: Db): Promise<void> {
+  await db`
+    UPDATE provider_ownership_transfer_requests
+    SET status = 'expired'
+    WHERE status = 'pending'
+      AND expires_at <= NOW()
+  `;
+}
+
+export async function findIncomingOwnershipTransferRequests(db: Db, accountId: string): Promise<TransferRequestView[]> {
+  await expireOwnershipTransferRequests(db);
+  return db<TransferRequestView[]>`
+    SELECT tr.*,
+           p.display_name AS provider_display_name,
+           p.slug AS provider_slug,
+           from_acc.username AS from_username,
+           from_acc.phone AS from_phone,
+           to_acc.username AS to_username,
+           to_acc.phone AS to_phone_account
+    FROM provider_ownership_transfer_requests tr
+    JOIN providers p ON p.id = tr.provider_id
+    JOIN accounts target_acc ON target_acc.id = ${accountId}
+    LEFT JOIN accounts from_acc ON from_acc.id = tr.from_account_id
+    LEFT JOIN accounts to_acc ON to_acc.id = tr.to_account_id
+    WHERE (
+        tr.to_account_id = ${accountId}
+        OR (tr.to_account_id IS NULL AND tr.to_phone IS NOT NULL AND tr.to_phone = target_acc.phone)
+      )
+      AND tr.status IN ('pending', 'accepted', 'rejected', 'expired')
+    ORDER BY tr.created_at DESC
+  `;
+}
+
+export async function findOutgoingOwnershipTransferRequests(
+  db: Db,
+  accountId: string,
+  providerId?: string,
+): Promise<TransferRequestView[]> {
+  await expireOwnershipTransferRequests(db);
+  return db<TransferRequestView[]>`
+    SELECT tr.*,
+           p.display_name AS provider_display_name,
+           p.slug AS provider_slug,
+           from_acc.username AS from_username,
+           from_acc.phone AS from_phone,
+           to_acc.username AS to_username,
+           to_acc.phone AS to_phone_account
+    FROM provider_ownership_transfer_requests tr
+    JOIN providers p ON p.id = tr.provider_id
+    LEFT JOIN accounts from_acc ON from_acc.id = tr.from_account_id
+    LEFT JOIN accounts to_acc ON to_acc.id = tr.to_account_id
+    WHERE tr.from_account_id = ${accountId}
+      ${providerId ? db`AND tr.provider_id = ${providerId}` : db``}
+    ORDER BY tr.created_at DESC
+  `;
+}
+
+export async function findAcceptableOwnershipTransferRequest(
+  db: Db,
+  requestId: string,
+  accountId: string,
+): Promise<OwnershipTransferRequest | null> {
+  await expireOwnershipTransferRequests(db);
+  const rows = await db<OwnershipTransferRequest[]>`
+    SELECT tr.*
+    FROM provider_ownership_transfer_requests tr
+    JOIN accounts target_acc ON target_acc.id = ${accountId}
+    WHERE tr.id = ${requestId}
+      AND (
+        tr.to_account_id = ${accountId}
+        OR (tr.to_account_id IS NULL AND tr.to_phone IS NOT NULL AND tr.to_phone = target_acc.phone)
+      )
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+export async function acceptOwnershipTransferRequest(
+  db: Db,
+  requestId: string,
+  accountId: string,
+): Promise<OwnershipTransferRequest | null> {
+  const rows = await db<OwnershipTransferRequest[]>`
+    UPDATE provider_ownership_transfer_requests
+    SET status = 'accepted',
+        to_account_id = ${accountId},
+        accepted_at = NOW()
+    WHERE id = ${requestId}
+      AND status = 'pending'
+      AND expires_at > NOW()
+    RETURNING *
+  `;
+  return rows[0] ?? null;
+}
+
+export async function rejectOwnershipTransferRequest(
+  db: Db,
+  requestId: string,
+  accountId: string,
+): Promise<OwnershipTransferRequest | null> {
+  const rows = await db<OwnershipTransferRequest[]>`
+    UPDATE provider_ownership_transfer_requests tr
+    SET status = 'rejected',
+        cancelled_at = NOW()
+    FROM accounts target_acc
+    WHERE tr.id = ${requestId}
+      AND target_acc.id = ${accountId}
+      AND tr.status = 'pending'
+      AND tr.expires_at > NOW()
+      AND (
+        tr.to_account_id = ${accountId}
+        OR (tr.to_account_id IS NULL AND tr.to_phone IS NOT NULL AND tr.to_phone = target_acc.phone)
+      )
+    RETURNING tr.*
+  `;
+  return rows[0] ?? null;
+}
+
+export async function revokeAllProfileAccessForProvider(db: Db, providerId: string): Promise<void> {
+  await db`
+    UPDATE telegram_profile_access
+    SET status = 'revoked', revoked_at = NOW()
+    WHERE provider_id = ${providerId}
+      AND status = 'active'
+  `;
+}
+
+export async function revokeMiniSessionsForAccount(db: Db, accountId: string): Promise<void> {
+  await db`
+    UPDATE telegram_mini_sessions tms
+    SET revoked_at = NOW()
+    FROM telegram_accounts ta
+    WHERE tms.telegram_account_id = ta.id
+      AND ta.account_id = ${accountId}
+      AND tms.revoked_at IS NULL
+  `;
 }
 
 // ---- Mini App Sessions ----

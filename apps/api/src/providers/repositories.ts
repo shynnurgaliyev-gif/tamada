@@ -230,6 +230,20 @@ export async function markProviderPendingDelete(db: Db, id: string, accountId: s
   return rows[0] ?? null;
 }
 
+export async function transferProviderToAccount(db: Db, id: string, accountId: string): Promise<Provider | null> {
+  const rows = await db<Provider[]>`
+    UPDATE providers SET
+      account_id = ${accountId},
+      archived_by_account_id = NULL,
+      archive_reason = NULL,
+      updated_at = NOW()
+    WHERE id = ${id}
+      AND pending_delete_at IS NULL
+    RETURNING *
+  `;
+  return rows[0] ?? null;
+}
+
 // ---- Services ----
 
 export async function findServicesByProviderId(db: Db, providerId: string): Promise<ProviderService[]> {

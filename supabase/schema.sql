@@ -258,7 +258,7 @@ CREATE TABLE activity_logs (
 CREATE INDEX idx_activity_logs_provider ON activity_logs(provider_id);
 CREATE INDEX idx_activity_logs_created_at ON activity_logs(created_at);
 
-CREATE TYPE ownership_transfer_status AS ENUM ('pending', 'accepted', 'cancelled', 'expired');
+CREATE TYPE ownership_transfer_status AS ENUM ('pending', 'accepted', 'cancelled', 'expired', 'rejected');
 
 CREATE TABLE provider_ownership_transfer_requests (
   id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -277,6 +277,7 @@ CREATE TABLE provider_ownership_transfer_requests (
 
 CREATE INDEX idx_provider_transfer_provider_status ON provider_ownership_transfer_requests(provider_id, status);
 CREATE INDEX idx_provider_transfer_to_account ON provider_ownership_transfer_requests(to_account_id, status);
+CREATE INDEX idx_provider_transfer_from_account ON provider_ownership_transfer_requests(from_account_id, status);
 
 -- ---- Migration 006: Subscription + Payment Core ----
 

@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import type { Db } from '../db';
 import type { AppEnv } from '@tamada/config';
 import { getAuthAccount } from '../auth/middleware';
-import { findProviderById } from '../providers/repositories';
+import { countActiveProvidersByAccountId, findProviderById, transferProviderToAccount } from '../providers/repositories';
 import { findEntriesByRange, createEntry, CalendarEntryStatus } from '../calendar/repositories';
 import { getSubscriptionStatus } from '../subscription/routes';
 import * as repo from './repositories';
@@ -77,7 +77,11 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       if (!tgAccount) return reply.send({ ok: true, providers: [], role: null, permissions: permissionsForTelegramRole(null), mini_token: null, expires_at: null });
 
       const providers = await listMiniAccessibleProviders(db, tgAccount);
-      if (providers.length === 0) {
+      const incomingTransfers = tgAccount.account_id
+        ? await repo.findIncomingOwnershipTransferRequests(db, tgAccount.account_id)
+        : [];
+      const hasPendingIncomingTransfer = incomingTransfers.some(r => r.status === 'pending');
+      if (providers.length === 0 && !hasPendingIncomingTransfer) {
         return reply.send({ ok: true, providers: [], role: tgAccount.telegram_role, permissions: permissionsForTelegramRole(tgAccount.telegram_role), mini_token: null, expires_at: null });
       }
 
@@ -99,6 +103,94 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
         mini_token: rawSessionToken,
         expires_at: expiresAt.toISOString(),
       });
+    });
+
+    // GET /telegram/mini/transfers/incoming
+    app.get('/telegram/mini/transfers/incoming', async (req, reply) => {
+      const mini = await getMiniSessionContext(db, req);
+      if (!mini) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+
+      const requests = await repo.findIncomingOwnershipTransferRequests(db, mini.accountId);
+      return reply.send({ ok: true, transfer_requests: requests });
+    });
+
+    // GET /telegram/mini/transfers/outgoing
+    app.get('/telegram/mini/transfers/outgoing', async (req, reply) => {
+      const mini = await getMiniSessionContext(db, req, 'can_archive_profile');
+      if (!mini) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+
+      const query = req.query as Record<string, string | undefined>;
+      const providerId = typeof query['provider_id'] === 'string' ? query['provider_id'] : undefined;
+      const requests = await repo.findOutgoingOwnershipTransferRequests(db, mini.accountId, providerId);
+      return reply.send({ ok: true, transfer_requests: requests });
+    });
+
+    // POST /telegram/mini/transfers/:requestId/accept
+    app.post('/telegram/mini/transfers/:requestId/accept', async (req, reply) => {
+      const mini = await getMiniSessionContext(db, req, 'can_create_profile');
+      if (!mini) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+
+      const { requestId } = req.params as { requestId: string };
+      const request = await repo.findAcceptableOwnershipTransferRequest(db, requestId, mini.accountId);
+      if (!request) return reply.code(404).send({ ok: false, error: 'Transfer request not found' });
+      if (request.status !== 'pending') return reply.code(400).send({ ok: false, error: `Transfer request is ${request.status}` });
+      if (new Date(request.expires_at).getTime() <= Date.now()) return reply.code(400).send({ ok: false, error: 'Transfer request expired' });
+      if (request.from_account_id === mini.accountId) return reply.code(400).send({ ok: false, error: 'Cannot accept own transfer request' });
+
+      const provider = await findProviderById(db, request.provider_id);
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+      if (provider.account_id !== request.from_account_id) {
+        return reply.code(409).send({ ok: false, error: 'Provider ownership already changed' });
+      }
+      if (provider.pending_delete_at) return reply.code(400).send({ ok: false, error: 'Provider is pending deletion' });
+
+      const activeCount = await countActiveProvidersByAccountId(db, mini.accountId);
+      if (!provider.archived_at && activeCount >= 3) {
+        return reply.code(400).send({ ok: false, error: 'Target account has maximum active profiles' });
+      }
+
+      const accepted = await repo.acceptOwnershipTransferRequest(db, requestId, mini.accountId);
+      if (!accepted) return reply.code(409).send({ ok: false, error: 'Transfer request is no longer active' });
+
+      await repo.revokeAllProfileAccessForProvider(db, provider.id);
+      await repo.revokeLinkTokensForProvider(db, provider.id);
+      const transferred = await transferProviderToAccount(db, provider.id, mini.accountId);
+      if (!transferred) return reply.code(500).send({ ok: false, error: 'Failed to transfer provider' });
+      await repo.upsertProfileAccess(db, {
+        telegramAccountId: mini.telegramAccount.id,
+        providerId: provider.id,
+        role: 'owner',
+        grantedByAccountId: mini.accountId,
+      });
+      await repo.revokeMiniSessionsForAccount(db, request.from_account_id);
+      await repo.logActivity(db, {
+        providerId: provider.id,
+        actorType: 'telegram',
+        actorAccountId: mini.accountId,
+        telegramAccountId: mini.telegramAccount.id,
+        actionType: 'ownership_transfer_accepted',
+        targetType: 'provider',
+        targetId: provider.id,
+        payloadJson: { transfer_request_id: requestId, from_account_id: request.from_account_id },
+      });
+
+      return reply.send({ ok: true, transfer_request: accepted, provider: transferred });
+    });
+
+    // POST /telegram/mini/transfers/:requestId/reject
+    app.post('/telegram/mini/transfers/:requestId/reject', async (req, reply) => {
+      const mini = await getMiniSessionContext(db, req);
+      if (!mini) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+
+      const { requestId } = req.params as { requestId: string };
+      const request = await repo.findAcceptableOwnershipTransferRequest(db, requestId, mini.accountId);
+      if (!request) return reply.code(404).send({ ok: false, error: 'Transfer request not found' });
+      if (request.status !== 'pending') return reply.code(400).send({ ok: false, error: `Transfer request is ${request.status}` });
+      if (request.from_account_id === mini.accountId) return reply.code(400).send({ ok: false, error: 'Cannot reject own transfer request' });
+
+      const rejected = await repo.rejectOwnershipTransferRequest(db, requestId, mini.accountId);
+      if (!rejected) return reply.code(409).send({ ok: false, error: 'Transfer request is no longer active' });
+      return reply.send({ ok: true, transfer_request: rejected });
     });
 
     // POST /telegram/webhook  (called by Telegram)

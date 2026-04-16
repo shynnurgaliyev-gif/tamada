@@ -6,7 +6,7 @@ import type { MiniPermissions, Provider, TgUser } from '../types';
 
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
-type MoreView = 'main' | 'subscription' | 'integrations' | 'team' | 'settings';
+type MoreView = 'main' | 'subscription' | 'integrations' | 'team' | 'settings' | 'transfers';
 
 type Account = { id: string; username: string; phone: string; show_related_profiles: boolean };
 type Subscription = {
@@ -42,6 +42,24 @@ type TelegramAccount = {
   status: string;
   linked_at: string | null;
   access_granted_at?: string | null;
+};
+type TransferRequest = {
+  id: string;
+  provider_id: string;
+  from_account_id: string;
+  to_account_id: string | null;
+  to_phone: string | null;
+  status: string;
+  expires_at: string;
+  created_at: string;
+  accepted_at: string | null;
+  cancelled_at: string | null;
+  provider_display_name: string;
+  provider_slug: string;
+  from_username: string | null;
+  from_phone: string | null;
+  to_username: string | null;
+  to_phone_account: string | null;
 };
 
 const statusLabel: Record<string, string> = {
@@ -81,10 +99,12 @@ export function MiniMoreScreen({
   tgUser,
   permissions,
   activeProvider,
+  onProvidersChanged,
 }: {
   tgUser: TgUser | null;
   permissions: MiniPermissions;
   activeProvider: Provider | null;
+  onProvidersChanged: () => Promise<void>;
 }) {
   const [view, setView] = useState<MoreView>('main');
 
@@ -101,6 +121,7 @@ export function MiniMoreScreen({
         {view === 'subscription' && permissions.can_manage_subscription && <SubscriptionTool />}
         {view === 'integrations' && permissions.can_manage_integrations && <IntegrationsTool provider={activeProvider} />}
         {view === 'team' && permissions.can_manage_team && <TeamTool provider={activeProvider} />}
+        {view === 'transfers' && permissions.can_archive_profile && <TransfersTool provider={activeProvider} onProvidersChanged={onProvidersChanged} />}
         {view === 'settings' && (permissions.can_manage_subscription || permissions.can_manage_integrations) && (
           <SettingsTool tgUser={tgUser} provider={activeProvider} />
         )}
@@ -124,6 +145,14 @@ export function MiniMoreScreen({
       color: '#0ea5e9',
       label: 'Интеграции',
       sub: 'Telegram, Mini App и будущие подключения',
+    },
+    permissions.can_manage_team && {
+      id: 'transfers' as const,
+      icon: '⇄',
+      bg: '#fff7ed',
+      color: '#c2410c',
+      label: 'Передачи',
+      sub: 'Входящие и исходящие запросы передачи профиля',
     },
     permissions.can_manage_team && {
       id: 'team' as const,
@@ -468,6 +497,83 @@ function TeamTool({ provider }: { provider: Provider | null }) {
   );
 }
 
+function TransfersTool({ provider, onProvidersChanged }: { provider: Provider | null; onProvidersChanged: () => Promise<void> }) {
+  const [incoming, setIncoming] = useState<TransferRequest[]>([]);
+  const [outgoing, setOutgoing] = useState<TransferRequest[]>([]);
+  const [busyId, setBusyId] = useState('');
+  const [message, setMessage] = useState('');
+
+  const load = () => {
+    fetch(`${API}/telegram/mini/transfers/incoming`, { headers: auth() })
+      .then(r => r.json())
+      .then((d: { ok: boolean; transfer_requests?: TransferRequest[] }) => { if (d.ok) setIncoming(d.transfer_requests ?? []); })
+      .catch(() => null);
+    const suffix = provider ? `?provider_id=${provider.id}` : '';
+    fetch(`${API}/telegram/mini/transfers/outgoing${suffix}`, { headers: auth() })
+      .then(r => r.json())
+      .then((d: { ok: boolean; transfer_requests?: TransferRequest[] }) => { if (d.ok) setOutgoing(d.transfer_requests ?? []); })
+      .catch(() => null);
+  };
+
+  useEffect(() => { load(); }, [provider?.id]);
+
+  async function act(requestId: string, action: 'accept' | 'reject') {
+    setBusyId(requestId);
+    setMessage('');
+    const res = await fetch(`${API}/telegram/mini/transfers/${requestId}/${action}`, {
+      method: 'POST',
+      headers: auth(),
+    }).catch(() => null);
+    const data = res ? await res.json() as { ok: boolean; error?: string } : null;
+    if (data?.ok) {
+      setMessage(action === 'accept' ? 'Профиль принят. Список профилей обновлен.' : 'Запрос отклонен.');
+      await onProvidersChanged();
+      load();
+    } else {
+      setMessage(data?.error ?? 'Не удалось выполнить действие.');
+    }
+    setBusyId('');
+  }
+
+  return (
+    <div>
+      <ToolTitle title="Передачи" subtitle="Принятие профиля всегда требует отдельного подтверждения новым владельцем." />
+      <div className="mini-card">
+        <div style={{ fontWeight: 900, marginBottom: 10 }}>Входящие запросы</div>
+        {incoming.length === 0 ? (
+          <div style={{ fontSize: 13, color: 'var(--tg-theme-hint-color, #6b7280)' }}>Входящих запросов нет.</div>
+        ) : incoming.map(req => (
+          <TransferRow key={req.id} request={req} mode="incoming" action={
+            req.status === 'pending' ? (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  className="mini-tap"
+                  disabled={!!busyId}
+                  onClick={() => void act(req.id, 'accept')}
+                  style={{ border: 'none', borderRadius: 8, padding: '8px 10px', background: '#16a34a', color: '#fff', fontWeight: 900, fontSize: 12 }}
+                >
+                  {busyId === req.id ? '...' : 'Принять'}
+                </button>
+                <SmallDangerButton disabled={!!busyId} onClick={() => void act(req.id, 'reject')}>Отклонить</SmallDangerButton>
+              </div>
+            ) : null
+          } />
+        ))}
+      </div>
+
+      <div className="mini-card">
+        <div style={{ fontWeight: 900, marginBottom: 10 }}>Исходящие запросы</div>
+        {outgoing.length === 0 ? (
+          <div style={{ fontSize: 13, color: 'var(--tg-theme-hint-color, #6b7280)' }}>Исходящих запросов нет.</div>
+        ) : outgoing.map(req => (
+          <TransferRow key={req.id} request={req} mode="outgoing" action={null} />
+        ))}
+      </div>
+      {message && <div className="mini-card" style={{ fontSize: 13, lineHeight: 1.45 }}>{message}</div>}
+    </div>
+  );
+}
+
 function SettingsTool({ tgUser, provider }: { tgUser: TgUser | null; provider: Provider | null }) {
   const [account, setAccount] = useState<Account | null>(null);
   const [team, setTeam] = useState<TelegramAccount[]>([]);
@@ -673,6 +779,29 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '7px 0', fontSize: 13 }}>
       <span style={{ color: 'var(--tg-theme-hint-color, #6b7280)' }}>{label}</span>
       <span style={{ fontWeight: 800, textAlign: 'right' }}>{value}</span>
+    </div>
+  );
+}
+
+function TransferRow({ request, mode, action }: { request: TransferRequest; mode: 'incoming' | 'outgoing'; action: ReactNode }) {
+  const isPending = request.status === 'pending';
+  const target = request.to_username || request.to_phone_account || request.to_phone || 'не указан';
+  const source = request.from_username || request.from_phone || 'владелец';
+  return (
+    <div style={{ padding: '12px 0', borderTop: '1px solid rgba(0,0,0,.06)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: 6 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 900, fontSize: 14 }}>{request.provider_display_name}</div>
+          <div style={{ fontSize: 12, color: 'var(--tg-theme-hint-color, #6b7280)', marginTop: 2 }}>
+            {mode === 'incoming' ? `От: ${source}` : `Кому: ${target}`}
+          </div>
+        </div>
+        <Badge>{request.status}</Badge>
+      </div>
+      <div style={{ fontSize: 12, color: isPending ? '#92400e' : 'var(--tg-theme-hint-color, #6b7280)', lineHeight: 1.4, marginBottom: action ? 10 : 0 }}>
+        Действует до {new Date(request.expires_at).toLocaleString('ru-RU')}
+      </div>
+      {action}
     </div>
   );
 }

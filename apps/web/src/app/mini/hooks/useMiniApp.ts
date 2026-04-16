@@ -57,6 +57,7 @@ export interface MiniAppState {
   setActiveIdx: (i: number) => void;
   activeProvider: Provider | null;
   updateActiveProvider: (updated: Provider) => void;
+  refreshProviders: () => Promise<void>;
   canManageProfiles: boolean;
   maxProfiles: number;
   createProfile: (input: CreateProfileInput) => Promise<Provider | null>;
@@ -120,13 +121,13 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
         })
           .then(r => r.json())
           .then((d: { ok: boolean; providers?: Provider[]; role?: string | null; permissions?: MiniPermissions; mini_token?: string | null; expires_at?: string | null; error?: string }) => {
-            if (d.ok && d.providers?.length) {
+            if (d.ok && (d.providers?.length || d.mini_token)) {
               if (d.mini_token) {
                 localStorage.setItem('mini_auth_token', d.mini_token);
                 if (d.expires_at) localStorage.setItem('mini_auth_expires_at', d.expires_at);
               }
               setPermissions(d.permissions ?? ASSISTANT_MINI_PERMISSIONS);
-              setProviders(d.providers);
+              setProviders(d.providers ?? []);
               setPhase('shell');
             } else {
               localStorage.removeItem('mini_auth_token');
@@ -154,18 +155,18 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
     if (flow === 'onboarding') {
       setPermissions(OWNER_MINI_PERMISSIONS);
       setPhase('onboarding');
-      fetchProviders(token);
+      fetchProviders();
       return;
     }
 
     // Default → fetch providers then enter shell
     setPermissions(OWNER_MINI_PERMISSIONS);
-    fetchProviders(token).finally(() => setPhase('shell'));
+    fetchProviders().finally(() => setPhase('shell'));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);                          // run once on mount
 
   /* ── Provider fetcher ─────────────────────────────────────────────────── */
-  function fetchProviders(token: string): Promise<void> {
+  function fetchProviders(): Promise<void> {
     return fetch(`${API}/providers/me?include_archived=1`, {
       headers: miniHeaders(),
     })
@@ -322,6 +323,7 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
     providers, activeIdx, setActiveIdx: switchActiveIdx,
     activeProvider,
     updateActiveProvider,
+    refreshProviders: fetchProviders,
     canManageProfiles,
     maxProfiles: MAX_PROFILES_PER_ACCOUNT,
     createProfile,
