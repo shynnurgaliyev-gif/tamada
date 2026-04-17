@@ -254,11 +254,12 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
   const loadAnalytics = useCallback(() => {
     if (!permissions.can_view_analytics) return;
     if (summary || sumLoading) return;
-    const token = localStorage.getItem('session_token');
-    if (!token || !activeProvider) return;
+    if (!activeProvider) return;
+    const headers = miniHeaders();
+    if (!headers['Authorization'] && !headers['X-Mini-Auth']) return;
     setSumLoading(true);
     fetch(`${API}/dashboard/analytics/summary?provider_id=${activeProvider.id}&days=30`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers,
     })
       .then(r => r.json())
       .then((d: { ok: boolean; summary?: AnalyticsSummary | null }) => {

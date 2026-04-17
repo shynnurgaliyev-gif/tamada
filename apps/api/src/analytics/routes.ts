@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import type { Db } from '../db';
 import { getAuthAccount } from '../auth/middleware';
+import { getMiniSessionContext } from '../telegram/mini-session';
 import { findProviderBySlug, findProviderById, findProvidersByAccountId, findLinksByProviderId } from '../providers/repositories';
 import * as repo from './repositories';
 
@@ -56,7 +57,9 @@ export function createAnalyticsRoutes(db: Db) {
     // GET /dashboard/analytics/summary?provider_id=&days=
     app.get('/dashboard/analytics/summary', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      const mini = account ? null : await getMiniSessionContext(db, req, 'can_view_analytics');
+      const accountId = account?.id ?? mini?.accountId;
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const query = req.query as Record<string, string>;
       const days = parseInt(query['days'] ?? '30', 10);
@@ -65,11 +68,11 @@ export function createAnalyticsRoutes(db: Db) {
       let providerId = query['provider_id'] ?? '';
       if (providerId) {
         const p = await findProviderById(db, providerId);
-        if (!p || p.account_id !== account.id) {
+        if (!p || p.account_id !== accountId) {
           return reply.code(403).send({ ok: false, error: 'Forbidden' });
         }
       } else {
-        const providers = await findProvidersByAccountId(db, account.id);
+        const providers = await findProvidersByAccountId(db, accountId);
         if (!providers[0]) return reply.send({ ok: true, summary: null });
         providerId = providers[0].id;
       }

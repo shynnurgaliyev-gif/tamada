@@ -376,6 +376,29 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
         const parts = text.split(' ');
         const param = parts[1];
         if (!param) {
+          // Check if user is already linked — show contextual greeting
+          const existingForStart = await repo.findLinkedAccountByTelegramUserId(db, telegramUserId);
+          if (existingForStart) {
+            const startProviders = await listBotAccessibleProviders(db, existingForStart);
+            if (startProviders.length > 0) {
+              const activeProvider = resolveBotActiveProvider(
+                startProviders,
+                (await repo.findBotSession(db, existingForStart.id))?.active_provider_id ?? existingForStart.provider_id,
+              );
+              await bot.sendMessage(
+                token, chatId,
+                bot.helpText(activeProvider?.display_name ?? null, startProviders.length > 1),
+              );
+              return reply.send({ ok: true });
+            }
+            // Linked but no profiles yet
+            const miniUrlForStart = telegramMiniAppUrl(env).replace('?startapp=onboarding', '');
+            await bot.sendMessage(token, chatId,
+              '<b>Аккаунт подключён.</b>\n\nПрофиль ещё не создан. Откройте Mini App и добавьте первый профиль.',
+              { replyMarkup: bot.miniAppKeyboard(miniUrlForStart) },
+            );
+            return reply.send({ ok: true });
+          }
           await bot.sendMessage(token, chatId, bot.startText(), guestOptions);
           return reply.send({ ok: true });
         }
@@ -488,7 +511,20 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
 
       const accessibleProviders = await listBotAccessibleProviders(db, tgAccount);
       if (accessibleProviders.length === 0) {
-        await bot.sendMessage(token, chatId, 'Нет доступных активных профилей.');
+        // Owner has account but no profiles yet — direct them to Mini App to create first profile.
+        // This happens when user registered via Mini App guest gate but hasn't created a profile.
+        const miniUrl = telegramMiniAppUrl(env).replace('?startapp=onboarding', '') || telegramMiniAppUrl(env);
+        const noProfileOptions = { replyMarkup: bot.miniAppKeyboard(miniUrl) };
+        const isPrimaryOwner = tgAccount.is_primary && tgAccount.telegram_role === 'owner';
+        const noProfileMsg = isPrimaryOwner
+          ? [
+              '<b>Профиль ещё не создан.</b>',
+              '',
+              'Откройте Mini App и создайте первый профиль специалиста.',
+              'После этого бот сможет добавлять записи в календарь.',
+            ].join('\n')
+          : 'Нет доступных активных профилей. Обратитесь к владельцу профиля для получения доступа.';
+        await bot.sendMessage(token, chatId, noProfileMsg, isPrimaryOwner ? noProfileOptions : {});
         return reply.send({ ok: true });
       }
 
@@ -735,6 +771,7 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
         const startsAt = new Date(date); startsAt.setHours(0, 0, 0, 0);
         const endsAt = new Date(date); endsAt.setHours(23, 59, 0, 0);
         const entry = await createEntry(db, { providerId, startsAt, endsAt, status: 'free', createdByAccountId: actorAccountId });
+        publishCalendarChange({ provider_id: providerId, action: 'create', entry_id: entry.id, ranges: [{ starts_at: entry.starts_at.toISOString(), ends_at: entry.ends_at.toISOString() }] });
         await repo.logActivity(db, { providerId, actorType: 'telegram', telegramAccountId: tgAccount.id, actionType: 'calendar_created', targetType: 'calendar_entry', targetId: entry.id });
         await bot.sendMessage(token, chatId, `🟢 ${dateStr} отмечен как свободный.` + bot.FOOTER);
         await notifyAll(db, token, providerId, tgAccount.id, `🟢 ${msg.from.first_name ?? 'Помощник'} отметил ${dateStr} свободным.`);
@@ -767,6 +804,7 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
           return reply.send({ ok: true });
         }
         const entry = await createEntry(db, { providerId, startsAt, endsAt, status, createdByAccountId: actorAccountId });
+        publishCalendarChange({ provider_id: providerId, action: 'create', entry_id: entry.id, ranges: [{ starts_at: entry.starts_at.toISOString(), ends_at: entry.ends_at.toISOString() }] });
         await repo.logActivity(db, { providerId, actorType: 'telegram', telegramAccountId: tgAccount.id, actionType: 'calendar_created', targetType: 'calendar_entry', targetId: entry.id });
         const emoji = status === 'busy' ? '🔴' : '🟡';
         const label = status === 'busy' ? 'занятым' : 'под вопросом';
@@ -849,13 +887,31 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       const ta = tgAccount[0];
       if (!ta) return reply.code(404).send({ ok: false, error: 'Not found' });
 
-      if (!ta.provider_id) return reply.code(400).send({ ok: false, error: 'Telegram account is not linked to a profile' });
-      const provider = await findProviderById(db, ta.provider_id);
-      if (!provider || provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      // Ownership check: either the account's primary provider belongs to accountId,
+      // or the account itself belongs to accountId (guest-gate accounts have provider_id = NULL).
+      let logProviderId: string | null = null;
+      if (ta.provider_id) {
+        const provider = await findProviderById(db, ta.provider_id);
+        if (!provider || provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+        logProviderId = provider.id;
+      } else if (ta.account_id !== accountId) {
+        // No direct provider link — verify via profile access table
+        const accessRows = await db<Array<{ provider_id: string }>>`
+          SELECT tpa.provider_id FROM telegram_profile_access tpa
+          JOIN providers p ON p.id = tpa.provider_id
+          WHERE tpa.telegram_account_id = ${telegramAccountId}
+            AND p.account_id = ${accountId}
+          LIMIT 1
+        `;
+        if (!accessRows[0]) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+        logProviderId = accessRows[0].provider_id;
+      }
 
       await repo.unlinkTelegramAccount(db, telegramAccountId);
       await repo.revokeMiniSessionsForTelegramAccount(db, telegramAccountId);
-      await repo.logActivity(db, { providerId: ta.provider_id, actorType: 'web', actorAccountId: accountId, telegramAccountId, actionType: 'telegram_unlinked' });
+      if (logProviderId) {
+        await repo.logActivity(db, { providerId: logProviderId, actorType: 'web', actorAccountId: accountId, telegramAccountId, actionType: 'telegram_unlinked' });
+      }
 
       const token = env.TELEGRAM_BOT_TOKEN ?? '';
       if (token) {
