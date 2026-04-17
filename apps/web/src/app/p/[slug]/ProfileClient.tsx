@@ -905,7 +905,7 @@ function DayTimeline({
           <span style={{ color: dayStatus.color, fontWeight: 800, fontSize: 13 }}>{dayStatus.label}</span>
         </div>
         <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--surface-2)', color: 'var(--ink-3)', fontSize: 13, fontWeight: 700 }}>
-          Р—Р°РіСЂСѓР¶Р°РµРј Р·Р°РЅСЏС‚РѕСЃС‚СЊ РЅР° РґРµРЅСЊ...
+          Загружаем занятость на день...
         </div>
       </div>
     );

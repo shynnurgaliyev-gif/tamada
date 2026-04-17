@@ -1102,15 +1102,22 @@ async function ensureMiniGuestAccountSchema(db: Db): Promise<void> {
 
 async function listMiniAccessibleProviders(db: Db, tgAccount: repo.TelegramAccount): Promise<readonly unknown[]> {
   if (tgAccount.is_primary && tgAccount.account_id) {
+    // Owners see all their providers including archived/pending-delete
+    // so that the Mini App profile tab can show the archive section.
     return db`
-      SELECT p.* FROM providers p
+      SELECT p.*, ps.category AS primary_category, ps.subcategory AS primary_subcategory
+      FROM providers p
+      LEFT JOIN LATERAL (
+        SELECT category, subcategory FROM provider_services
+        WHERE provider_id = p.id AND is_active = TRUE
+        ORDER BY created_at ASC LIMIT 1
+      ) ps ON TRUE
       WHERE p.account_id = ${tgAccount.account_id}
-        AND p.archived_at IS NULL
-        AND p.pending_delete_at IS NULL
       ORDER BY p.created_at ASC
     `;
   }
 
+  // Assistants only see active (non-archived) profiles they have explicit access to
   return db`
     SELECT p.* FROM providers p
     JOIN telegram_profile_access tpa ON tpa.provider_id = p.id
