@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { getTelegramWebApp } from '@/lib/telegram';
 import { useProviderData } from '../hooks/useProviderData';
-import { EmptyState } from '../components/EmptyState';
 import { ProfileView } from './profile/ProfileView';
 import { ProfileEditView } from './profile/ProfileEditView';
 import { ProfilePhotosView } from './profile/ProfilePhotosView';
@@ -32,6 +31,8 @@ export function MiniProfilesScreen({
   onArchiveProfile,
   onUnarchiveProfile,
   onProviderUpdated,
+  openPhotosOnLoad,
+  onPhotosOpened,
 }: {
   providers: Provider[];
   activeIdx: number;
@@ -43,6 +44,8 @@ export function MiniProfilesScreen({
   onArchiveProfile: (providerId: string) => Promise<boolean>;
   onUnarchiveProfile: (providerId: string) => Promise<boolean>;
   onProviderUpdated: (updated: Provider) => void;
+  openPhotosOnLoad?: boolean;
+  onPhotosOpened?: () => void;
 }) {
   const provider = providers[activeIdx] ?? null;
   const [subView, setSubView] = useState<SubView>('main');
@@ -71,15 +74,42 @@ export function MiniProfilesScreen({
     tg.BackButton.hide();
   }, [subView]);
 
+  // Auto-open photos view when directed here from first-profile success state
+  useEffect(() => {
+    if (openPhotosOnLoad && provider && !provider.archived_at && permissions.can_edit_profile) {
+      setSubView('photos');
+      onPhotosOpened?.();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openPhotosOnLoad, provider?.id]);
+
   if (!provider && providers.length === 0) {
+    if (permissions.can_create_profile) {
+      return (
+        <div style={{ textAlign: 'center', paddingTop: 56 }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>👤</div>
+          <div style={{ fontWeight: 900, fontSize: 20, marginBottom: 8 }}>Профиль не создан</div>
+          <div style={{ fontSize: 14, color: 'var(--tg-theme-hint-color, #6b7280)', marginBottom: 28, lineHeight: 1.5, padding: '0 20px' }}>
+            Создайте первый профиль — клиенты со всего Казахстана смогут найти вас на сайте.
+          </div>
+          <button
+            className="mini-btn mini-btn-primary mini-tap"
+            onClick={() => setSubView('create')}
+            style={{ width: 'auto', padding: '13px 28px', display: 'inline-flex' }}
+          >
+            Создать первый профиль
+          </button>
+        </div>
+      );
+    }
     return (
-      <EmptyState
-        icon="👤"
-        title="Профиль не создан"
-        sub="Создайте профиль, чтобы клиенты нашли вас"
-        href="/dashboard/onboarding"
-        cta="Создать профиль"
-      />
+      <div style={{ textAlign: 'center', paddingTop: 56 }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>👤</div>
+        <div style={{ fontWeight: 900, fontSize: 20, marginBottom: 8 }}>Нет профилей</div>
+        <div style={{ fontSize: 14, color: 'var(--tg-theme-hint-color, #6b7280)', lineHeight: 1.5 }}>
+          Обратитесь к владельцу аккаунта.
+        </div>
+      </div>
     );
   }
 

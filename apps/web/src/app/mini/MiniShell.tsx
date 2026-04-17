@@ -14,7 +14,7 @@ import { MiniAnalyticsScreen }          from './screens/MiniAnalyticsScreen';
 import { MiniMoreScreen }               from './screens/MiniMoreScreen';
 import { MiniAddSheet }                 from './overlays/MiniAddSheet';
 import { MiniSwitchSheet }              from './overlays/MiniSwitchSheet';
-import { MiniOnboardingGate }           from './overlays/MiniOnboardingGate';
+import { MiniFirstProfileGate }         from './overlays/MiniFirstProfileGate';
 import { MiniGuestGate }                from './overlays/MiniGuestGate';
 
 export default function MiniShell() {
@@ -26,6 +26,7 @@ export default function MiniShell() {
   const [showAdd,          setShowAdd]          = useState(false);
   const [showSwitch,       setShowSwitch]       = useState(false);
   const [calendarNewEntry, setCalendarNewEntry] = useState(false);
+  const [openPhotosOnLoad, setOpenPhotosOnLoad] = useState(false);
 
   // ── Core state + init ────────────────────────────────────
   const {
@@ -59,10 +60,19 @@ export default function MiniShell() {
 
   if (phase === 'onboarding') {
     return (
-      <MiniOnboardingGate
+      <MiniFirstProfileGate
         tgUser={tgUser}
-        authError={miniAuthError}
-        onContinue={() => setPhase('shell')}
+        createProfile={createProfile}
+        onSkip={() => setPhase('shell')}
+        onDone={(_, action) => {
+          setPhase('shell');
+          if (action === 'calendar') {
+            handleTab('calendar');
+          } else if (action === 'photos') {
+            setOpenPhotosOnLoad(true);
+            handleTab('profiles');
+          }
+        }}
       />
     );
   }
@@ -92,6 +102,8 @@ export default function MiniShell() {
               onArchiveProfile={archiveProfile}
               onUnarchiveProfile={unarchiveProfile}
               onProviderUpdated={updateActiveProvider}
+              openPhotosOnLoad={openPhotosOnLoad}
+              onPhotosOpened={() => setOpenPhotosOnLoad(false)}
             />
           )}
           {tab === 'calendar'  && permissions.can_manage_calendar && <MiniCalendarScreen   provider={activeProvider} openNewEntry={calendarNewEntry} onNewEntryHandled={() => setCalendarNewEntry(false)} />}
