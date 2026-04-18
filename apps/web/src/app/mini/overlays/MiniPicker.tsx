@@ -1,11 +1,14 @@
 /* ── MiniPicker ────────────────────────────────────────────────────────────────
    iOS-style wheel picker in a bottom sheet.
-   - Scroll-snap wheel with fade + scale effect
+   - Rendered via React portal → always positioned relative to viewport, not scroll parent
+   - Scroll-snap wheel with fade + scale effect (larger selected item like native iOS)
+   - Action bar: [Отмена text] [title] [✓ circle] — matches native time-picker feel
    - "Свой вариант" at the end → exposes text input
    - Subcategory suggestions per category via SUBCATEGORIES map
 ────────────────────────────────────────────────────────────────────────────── */
 
 import { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 /* ── Subcategory presets (used by edit + create forms) ─────────────────────── */
 export const SUBCATEGORIES: Record<string, string[]> = {
@@ -20,9 +23,9 @@ export const SUBCATEGORIES: Record<string, string[]> = {
 };
 
 /* ── Wheel constants ────────────────────────────────────────────────────────── */
-const ITEM_H   = 44;  // px per item
-const VISIBLE  = 5;   // items visible (must be odd)
-const HALF     = Math.floor(VISIBLE / 2);  // items above/below center = 2
+const ITEM_H  = 50;  // px per item — slightly taller for native-feel
+const VISIBLE = 5;   // items visible (must be odd)
+const HALF    = Math.floor(VISIBLE / 2);  // items above/below center = 2
 
 const CUSTOM_LABEL = 'Свой вариант';
 
@@ -44,7 +47,7 @@ export function MiniPicker({
 }) {
   const allOptions = allowCustom ? [...options, CUSTOM_LABEL] : options;
 
-  // Detect if initial value is a custom (not in options list)
+  // Detect if initial value is custom (not in options list)
   const isCustomInit = !!value && !options.includes(value) && value !== CUSTOM_LABEL;
   const initSel = isCustomInit
     ? CUSTOM_LABEL
@@ -53,7 +56,8 @@ export function MiniPicker({
   const [selected,   setSelected]   = useState(initSel);
   const [customText, setCustomText] = useState(isCustomInit ? value : '');
 
-  const isCustom = selected === CUSTOM_LABEL;
+  const isCustom   = selected === CUSTOM_LABEL;
+  const canConfirm = isCustom ? !!customText.trim() : !!selected;
 
   function confirm() {
     const result = isCustom ? customText.trim() : selected;
@@ -61,55 +65,98 @@ export function MiniPicker({
     else onClose();
   }
 
-  return (
+  const sheet = (
     <div className="mini-overlay" onClick={onClose}>
       <div className="mini-sheet mini-slideup" onClick={e => e.stopPropagation()}>
         <div className="mini-sheet-handle" />
-        <div style={{ padding: '0 0 24px' }}>
+
+        {/* Wheel — always shown when there are options */}
+        {allOptions.length > 0 && (
+          <WheelScroll
+            options={allOptions}
+            value={selected}
+            onChange={setSelected}
+          />
+        )}
+
+        {/* Custom text input */}
+        {isCustom && (
+          <div style={{ padding: '4px 16px 0' }}>
+            <input
+              autoFocus
+              className="mini-input"
+              value={customText}
+              maxLength={80}
+              placeholder="Введите вариант…"
+              onChange={e => setCustomText(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') confirm(); }}
+            />
+          </div>
+        )}
+
+        {/* ── Action bar: Отмена | Title | ✓ ─────────────────────── */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '10px 20px 28px',
+          borderTop: '1px solid rgba(0,0,0,.07)',
+          marginTop: 10,
+        }}>
+          {/* Cancel */}
+          <button
+            className="mini-tap"
+            onClick={onClose}
+            style={{
+              border: 'none', background: 'none',
+              fontFamily: 'inherit', fontSize: 16, fontWeight: 500,
+              color: 'var(--tg-theme-hint-color,#6b7280)',
+              cursor: 'pointer', padding: '6px 0', minWidth: 72,
+            }}
+          >
+            Отмена
+          </button>
 
           {/* Title */}
-          <div style={{ fontWeight: 800, fontSize: 17, textAlign: 'center', padding: '0 16px 12px' }}>
+          <span style={{
+            flex: 1, textAlign: 'center',
+            fontWeight: 700, fontSize: 15,
+            color: 'var(--tg-theme-text-color,#0a0a0f)',
+          }}>
             {title}
-          </div>
+          </span>
 
-          {/* Wheel — always shown when there are options */}
-          {allOptions.length > 0 && (
-            <WheelScroll
-              options={allOptions}
-              value={selected}
-              onChange={setSelected}
-            />
-          )}
-
-          {/* Custom text input */}
-          {isCustom && (
-            <div style={{ padding: '12px 16px 0' }}>
-              <input
-                autoFocus
-                className="mini-input"
-                value={customText}
-                maxLength={80}
-                placeholder="Введите вариант…"
-                onChange={e => setCustomText(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') confirm(); }}
-              />
-            </div>
-          )}
-
-          {/* Confirm */}
-          <div style={{ padding: '14px 16px 0' }}>
+          {/* Confirm circle */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', minWidth: 72 }}>
             <button
-              className="mini-btn mini-btn-primary mini-tap"
+              className="mini-tap"
               onClick={confirm}
-              disabled={isCustom ? !customText.trim() : !selected}
+              disabled={!canConfirm}
+              style={{
+                width: 44, height: 44,
+                borderRadius: 22,
+                border: 'none',
+                background: canConfirm
+                  ? 'linear-gradient(135deg, #4f46e5, #7c3aed)'
+                  : 'rgba(124,58,237,.22)',
+                cursor: canConfirm ? 'pointer' : 'default',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: canConfirm ? '0 3px 12px rgba(124,58,237,.4)' : 'none',
+                flexShrink: 0,
+              }}
             >
-              Выбрать
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M4 10l5 5 7-9" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
             </button>
           </div>
         </div>
       </div>
     </div>
   );
+
+  // Portal: render into document.body so position is always relative to viewport,
+  // not any ancestor overflow:hidden container (fixes position in Telegram Mini App)
+  if (typeof window === 'undefined') return sheet;
+  return createPortal(sheet, document.body);
 }
 
 /* ── WheelScroll ────────────────────────────────────────────────────────────── */
@@ -176,7 +223,7 @@ function WheelScroll({
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0,
         height: ITEM_H * HALF,
-        background: 'linear-gradient(to bottom, var(--tg-theme-secondary-bg-color,#fff) 15%, transparent 100%)',
+        background: 'linear-gradient(to bottom, var(--tg-theme-secondary-bg-color,#fff) 20%, transparent 100%)',
         pointerEvents: 'none', zIndex: 3,
       }} />
 
@@ -184,7 +231,7 @@ function WheelScroll({
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0,
         height: ITEM_H * HALF,
-        background: 'linear-gradient(to top, var(--tg-theme-secondary-bg-color,#fff) 15%, transparent 100%)',
+        background: 'linear-gradient(to top, var(--tg-theme-secondary-bg-color,#fff) 20%, transparent 100%)',
         pointerEvents: 'none', zIndex: 3,
       }} />
 
@@ -193,9 +240,9 @@ function WheelScroll({
         position: 'absolute',
         top: ITEM_H * HALF,
         height: ITEM_H,
-        left: 20, right: 20,
-        borderTop: '1px solid rgba(124,58,237,.35)',
-        borderBottom: '1px solid rgba(124,58,237,.35)',
+        left: 16, right: 16,
+        borderTop: '1px solid rgba(124,58,237,.4)',
+        borderBottom: '1px solid rgba(124,58,237,.4)',
         pointerEvents: 'none', zIndex: 4,
       }} />
 
@@ -210,17 +257,16 @@ function WheelScroll({
           scrollSnapType: 'y mandatory',
           paddingTop: ITEM_H * HALF,
           paddingBottom: ITEM_H * HALF,
-          /* hide scrollbar */
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
           WebkitOverflowScrolling: 'touch',
         } as React.CSSProperties}
       >
         {options.map((opt, i) => {
-          // distance in item-heights from current center
           const dist     = Math.abs(i * ITEM_H - scrollY) / ITEM_H;
-          const opacity  = Math.max(0.20, 1 - dist * 0.40);
-          const scale    = Math.max(0.78, 1 - dist * 0.09);
+          // Higher contrast: selected stands out more vs neighbours
+          const opacity  = Math.max(0.18, 1 - dist * 0.45);
+          const scale    = Math.max(0.70, 1 - dist * 0.12);
           const isCenter = Math.round(scrollY / ITEM_H) === i;
 
           return (
@@ -233,17 +279,21 @@ function WheelScroll({
                 scrollSnapAlign: 'center',
                 paddingLeft: 24, paddingRight: 24,
                 textAlign: 'center',
-                fontSize: 17,
-                fontWeight: isCenter ? 600 : 400,
+                // Selected item is noticeably larger — matches native iOS picker
+                fontSize: isCenter ? 22 : 16,
+                fontWeight: isCenter ? 700 : 400,
                 color: isCenter
                   ? 'var(--tg-theme-text-color,#0a0a0f)'
-                  : (opt === CUSTOM_LABEL ? 'var(--tg-theme-hint-color,#6b7280)' : 'var(--tg-theme-text-color,#0a0a0f)'),
+                  : (opt === CUSTOM_LABEL
+                      ? 'var(--tg-theme-hint-color,#6b7280)'
+                      : 'var(--tg-theme-text-color,#0a0a0f)'),
                 opacity,
                 transform: `scale(${scale})`,
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
+                transition: 'font-size .08s, font-weight .08s',
               }}
             >
               {opt}
