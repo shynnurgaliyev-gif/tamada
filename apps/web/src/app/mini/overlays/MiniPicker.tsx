@@ -1,31 +1,30 @@
 /* ── MiniPicker ────────────────────────────────────────────────────────────────
-   iOS-style wheel picker in a bottom sheet.
-   - Rendered via React portal → always positioned relative to viewport, not scroll parent
-   - Scroll-snap wheel with fade + scale effect (larger selected item like native iOS)
-   - Action bar: [Отмена text] [title] [✓ circle] — matches native time-picker feel
+   iOS-style wheel picker — centered floating card (like native time picker).
+   - Portal → always positioned relative to viewport
+   - Frosted-glass card, all 4 corners rounded, scale-in animation
+   - Action bar: [Отмена] [Title] [✓ circle]
    - "Свой вариант" at the end → exposes text input
-   - Subcategory suggestions per category via SUBCATEGORIES map
 ────────────────────────────────────────────────────────────────────────────── */
 
 import { useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
-/* ── Subcategory presets (used by edit + create forms) ─────────────────────── */
+/* ── Subcategory presets ───────────────────────────────────────────────────── */
 export const SUBCATEGORIES: Record<string, string[]> = {
-  'Тамада':     ['Ведущий праздников', 'Тамада на свадьбу', 'Корпоративный ведущий', 'Детский праздник', 'Развлекательная программа'],
-  'Фотограф':   ['Свадебный фотограф', 'Семейный фотограф', 'Ньюборн', 'Портретная съёмка', 'Репортажная съёмка', 'Love story'],
-  'Видеограф':  ['Свадебный видеограф', 'Клипмейкер', 'Видеоотчёт', 'Аэросъёмка', 'Видеопродакшн'],
-  'DJ':         ['DJ на свадьбу', 'DJ на корпоратив', 'DJ на день рождения', 'Club DJ', 'Sound-продюсер'],
-  'Декоратор':  ['Свадебный декор', 'Флористика', 'Оформление зала', 'Выездная церемония', 'Украшение авто'],
-  'Флорист':    ['Свадебные букеты', 'Цветочные композиции', 'Оформление зала', 'Живые цветы', 'Флористика событий'],
-  'Артист':     ['Певец / Певица', 'Музыкальная группа', 'Кавер-группа', 'Стендап', 'Живая музыка'],
-  'Аниматор':   ['Детский аниматор', 'Клоун', 'Интерактивное шоу', 'Ростовые куклы', 'Игровая программа'],
+  'Тамада':    ['Ведущий праздников', 'Тамада на свадьбу', 'Корпоративный ведущий', 'Детский праздник', 'Развлекательная программа'],
+  'Фотограф':  ['Свадебный фотограф', 'Семейный фотограф', 'Ньюборн', 'Портретная съёмка', 'Репортажная съёмка', 'Love story'],
+  'Видеограф': ['Свадебный видеограф', 'Клипмейкер', 'Видеоотчёт', 'Аэросъёмка', 'Видеопродакшн'],
+  'DJ':        ['DJ на свадьбу', 'DJ на корпоратив', 'DJ на день рождения', 'Club DJ', 'Sound-продюсер'],
+  'Декоратор': ['Свадебный декор', 'Флористика', 'Оформление зала', 'Выездная церемония', 'Украшение авто'],
+  'Флорист':   ['Свадебные букеты', 'Цветочные композиции', 'Оформление зала', 'Живые цветы', 'Флористика событий'],
+  'Артист':    ['Певец / Певица', 'Музыкальная группа', 'Кавер-группа', 'Стендап', 'Живая музыка'],
+  'Аниматор':  ['Детский аниматор', 'Клоун', 'Интерактивное шоу', 'Ростовые куклы', 'Игровая программа'],
 };
 
 /* ── Wheel constants ────────────────────────────────────────────────────────── */
-const ITEM_H  = 50;  // px per item — slightly taller for native-feel
-const VISIBLE = 5;   // items visible (must be odd)
-const HALF    = Math.floor(VISIBLE / 2);  // items above/below center = 2
+const ITEM_H  = 50;
+const VISIBLE = 5;
+const HALF    = Math.floor(VISIBLE / 2);
 
 const CUSTOM_LABEL = 'Свой вариант';
 
@@ -47,7 +46,6 @@ export function MiniPicker({
 }) {
   const allOptions = allowCustom ? [...options, CUSTOM_LABEL] : options;
 
-  // Detect if initial value is custom (not in options list)
   const isCustomInit = !!value && !options.includes(value) && value !== CUSTOM_LABEL;
   const initSel = isCustomInit
     ? CUSTOM_LABEL
@@ -65,12 +63,29 @@ export function MiniPicker({
     else onClose();
   }
 
-  const sheet = (
-    <div className="mini-overlay" onClick={onClose}>
-      <div className="mini-sheet mini-slideup" onClick={e => e.stopPropagation()}>
-        <div className="mini-sheet-handle" />
-
-        {/* Wheel — always shown when there are options */}
+  const card = (
+    /* ── Backdrop ───────────────────────────────────────────────────────── */
+    <div
+      className="mini-overlay"
+      onClick={onClose}
+      style={{ alignItems: 'center', justifyContent: 'center', padding: '0 20px' }}
+    >
+      {/* ── Floating glass card ──────────────────────────────────────── */}
+      <div
+        className="mini-scalein"
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: '100%',
+          maxWidth: 360,
+          borderRadius: 16,
+          overflow: 'hidden',
+          background: 'var(--tg-theme-secondary-bg-color, #2c2c2e)',
+          backdropFilter: 'blur(24px) saturate(160%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(160%)',
+          boxShadow: '0 24px 60px rgba(0,0,0,.45)',
+        } as React.CSSProperties}
+      >
+        {/* ── Wheel ──────────────────────────────────────────────────── */}
         {allOptions.length > 0 && (
           <WheelScroll
             options={allOptions}
@@ -79,9 +94,9 @@ export function MiniPicker({
           />
         )}
 
-        {/* Custom text input */}
+        {/* ── Custom text input ──────────────────────────────────────── */}
         {isCustom && (
-          <div style={{ padding: '4px 16px 0' }}>
+          <div style={{ padding: '0 16px 4px' }}>
             <input
               autoFocus
               className="mini-input"
@@ -94,12 +109,11 @@ export function MiniPicker({
           </div>
         )}
 
-        {/* ── Action bar: Отмена | Title | ✓ ─────────────────────── */}
+        {/* ── Action bar ─────────────────────────────────────────────── */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '10px 20px 28px',
-          borderTop: '1px solid rgba(0,0,0,.07)',
-          marginTop: 10,
+          padding: '10px 16px 16px',
+          borderTop: '1px solid rgba(128,128,128,.15)',
         }}>
           {/* Cancel */}
           <button
@@ -108,7 +122,7 @@ export function MiniPicker({
             style={{
               border: 'none', background: 'none',
               fontFamily: 'inherit', fontSize: 16, fontWeight: 500,
-              color: 'var(--tg-theme-hint-color,#6b7280)',
+              color: 'var(--tg-theme-hint-color,#8e8e93)',
               cursor: 'pointer', padding: '6px 0', minWidth: 72,
             }}
           >
@@ -119,7 +133,7 @@ export function MiniPicker({
           <span style={{
             flex: 1, textAlign: 'center',
             fontWeight: 700, fontSize: 15,
-            color: 'var(--tg-theme-text-color,#0a0a0f)',
+            color: 'var(--tg-theme-text-color,#fff)',
           }}>
             {title}
           </span>
@@ -131,16 +145,15 @@ export function MiniPicker({
               onClick={confirm}
               disabled={!canConfirm}
               style={{
-                width: 44, height: 44,
-                borderRadius: 22,
-                border: 'none',
+                width: 44, height: 44, borderRadius: 22, border: 'none',
                 background: canConfirm
                   ? 'linear-gradient(135deg, #4f46e5, #7c3aed)'
                   : 'rgba(124,58,237,.22)',
                 cursor: canConfirm ? 'pointer' : 'default',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: canConfirm ? '0 3px 12px rgba(124,58,237,.4)' : 'none',
+                boxShadow: canConfirm ? '0 3px 14px rgba(124,58,237,.5)' : 'none',
                 flexShrink: 0,
+                transition: 'background .15s, box-shadow .15s',
               }}
             >
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -153,10 +166,8 @@ export function MiniPicker({
     </div>
   );
 
-  // Portal: render into document.body so position is always relative to viewport,
-  // not any ancestor overflow:hidden container (fixes position in Telegram Mini App)
-  if (typeof window === 'undefined') return sheet;
-  return createPortal(sheet, document.body);
+  if (typeof window === 'undefined') return card;
+  return createPortal(card, document.body);
 }
 
 /* ── WheelScroll ────────────────────────────────────────────────────────────── */
@@ -169,12 +180,11 @@ function WheelScroll({
   value:    string;
   onChange: (v: string) => void;
 }) {
-  const ref       = useRef<HTMLDivElement>(null);
-  const [scrollY, setScrollY] = useState(() => Math.max(0, options.indexOf(value)) * ITEM_H);
-  const snapTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const ref        = useRef<HTMLDivElement>(null);
+  const [scrollY,  setScrollY]  = useState(() => Math.max(0, options.indexOf(value)) * ITEM_H);
+  const snapTimer  = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const containerH = ITEM_H * VISIBLE;
 
-  // Init scroll position on mount — rAF ensures layout is ready after slideup animation
   useEffect(() => {
     const idx = Math.max(0, options.indexOf(value));
     const el  = ref.current;
@@ -187,24 +197,19 @@ function WheelScroll({
 
   function handleScroll() {
     if (!ref.current) return;
-    const st = ref.current.scrollTop;
-    setScrollY(st);
-
-    // Debounce: commit selection after wheel settles
+    setScrollY(ref.current.scrollTop);
     if (snapTimer.current) clearTimeout(snapTimer.current);
     snapTimer.current = setTimeout(() => {
       if (!ref.current) return;
-      const idx = clampIdx(Math.round(ref.current.scrollTop / ITEM_H));
+      const idx = clamp(Math.round(ref.current.scrollTop / ITEM_H));
       onChange(options[idx]);
     }, 100);
   }
 
-  function clampIdx(i: number) {
-    return Math.max(0, Math.min(options.length - 1, i));
-  }
+  function clamp(i: number) { return Math.max(0, Math.min(options.length - 1, i)); }
 
   function scrollToIdx(i: number) {
-    const idx = clampIdx(i);
+    const idx = clamp(i);
     onChange(options[idx]);
     ref.current?.scrollTo({ top: idx * ITEM_H, behavior: 'smooth' });
   }
@@ -214,39 +219,37 @@ function WheelScroll({
       style={{
         position: 'relative',
         height: containerH,
-        background: 'var(--tg-theme-secondary-bg-color, #fff)',
         userSelect: 'none',
         WebkitUserSelect: 'none',
       } as React.CSSProperties}
     >
-      {/* ── Top fade ───────────────────────────────────────────── */}
+      {/* Top fade */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0,
         height: ITEM_H * HALF,
-        background: 'linear-gradient(to bottom, var(--tg-theme-secondary-bg-color,#fff) 20%, transparent 100%)',
+        background: 'linear-gradient(to bottom, var(--tg-theme-secondary-bg-color,#2c2c2e) 20%, transparent 100%)',
         pointerEvents: 'none', zIndex: 3,
       }} />
 
-      {/* ── Bottom fade ────────────────────────────────────────── */}
+      {/* Bottom fade */}
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0,
         height: ITEM_H * HALF,
-        background: 'linear-gradient(to top, var(--tg-theme-secondary-bg-color,#fff) 20%, transparent 100%)',
+        background: 'linear-gradient(to top, var(--tg-theme-secondary-bg-color,#2c2c2e) 20%, transparent 100%)',
         pointerEvents: 'none', zIndex: 3,
       }} />
 
-      {/* ── Center selection indicator ─────────────────────────── */}
+      {/* Selection indicator */}
       <div style={{
         position: 'absolute',
-        top: ITEM_H * HALF,
-        height: ITEM_H,
+        top: ITEM_H * HALF, height: ITEM_H,
         left: 16, right: 16,
-        borderTop: '1px solid rgba(124,58,237,.4)',
-        borderBottom: '1px solid rgba(124,58,237,.4)',
+        borderTop: '1px solid rgba(124,58,237,.5)',
+        borderBottom: '1px solid rgba(124,58,237,.5)',
         pointerEvents: 'none', zIndex: 4,
       }} />
 
-      {/* ── Scroll list ────────────────────────────────────────── */}
+      {/* Scroll list */}
       <div
         ref={ref}
         onScroll={handleScroll}
@@ -264,7 +267,6 @@ function WheelScroll({
       >
         {options.map((opt, i) => {
           const dist     = Math.abs(i * ITEM_H - scrollY) / ITEM_H;
-          // Higher contrast: selected stands out more vs neighbours
           const opacity  = Math.max(0.18, 1 - dist * 0.45);
           const scale    = Math.max(0.70, 1 - dist * 0.12);
           const isCenter = Math.round(scrollY / ITEM_H) === i;
@@ -279,21 +281,17 @@ function WheelScroll({
                 scrollSnapAlign: 'center',
                 paddingLeft: 24, paddingRight: 24,
                 textAlign: 'center',
-                // Selected item is noticeably larger — matches native iOS picker
                 fontSize: isCenter ? 22 : 16,
                 fontWeight: isCenter ? 700 : 400,
-                color: isCenter
-                  ? 'var(--tg-theme-text-color,#0a0a0f)'
-                  : (opt === CUSTOM_LABEL
-                      ? 'var(--tg-theme-hint-color,#6b7280)'
-                      : 'var(--tg-theme-text-color,#0a0a0f)'),
+                color: opt === CUSTOM_LABEL && !isCenter
+                  ? 'var(--tg-theme-hint-color,#8e8e93)'
+                  : 'var(--tg-theme-text-color,#fff)',
                 opacity,
                 transform: `scale(${scale})`,
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
-                transition: 'font-size .08s, font-weight .08s',
               }}
             >
               {opt}

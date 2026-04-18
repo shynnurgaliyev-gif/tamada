@@ -380,6 +380,12 @@ export function MiniStyles() {
 
       @keyframes mini-spin { to { transform: rotate(360deg); } }
 
+      @keyframes mini-scalein {
+        from { opacity: 0; transform: scale(0.86); }
+        to   { opacity: 1; transform: scale(1); }
+      }
+      .mini-scalein { animation: mini-scalein 0.22s cubic-bezier(.34,1.56,.64,1) both; }
+
       /* ── Forms ───────────────────────────────────────────────── */
       .mini-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
       .mini-field label { font-size: 12px; font-weight: 700; color: var(--tg-theme-hint-color, #6b7280); text-transform: uppercase; letter-spacing: .06em; }
