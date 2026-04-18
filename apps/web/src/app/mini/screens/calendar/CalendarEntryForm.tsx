@@ -52,6 +52,7 @@ export function CalendarEntryForm({
   saveError,
   onSave,
   onDelete,
+  onCancel,
 }: {
   entry:       CalendarEntryWithClient | null;
   defaultDate: string | null;
@@ -59,6 +60,7 @@ export function CalendarEntryForm({
   saveError:   string | null;
   onSave:      (data: EntryInput) => Promise<void>;
   onDelete?:   () => Promise<void>;
+  onCancel:    () => void;
 }) {
   const isEdit = !!entry;
 
@@ -118,8 +120,30 @@ export function CalendarEntryForm({
 
   return (
     <div>
-      <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid rgba(0,0,0,.07)' }}>
-        {isEdit ? 'Редактировать запись' : 'Новая запись'}
+      {/* ── Inline header: Отмена | title | Сохранить ── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        marginBottom: 20, paddingBottom: 14,
+        borderBottom: '1px solid rgba(0,0,0,.07)',
+      }}>
+        <button
+          className="mini-tap"
+          onClick={onCancel}
+          style={{ border: 'none', background: 'none', padding: '4px 0', color: 'var(--tg-theme-hint-color,#6b7280)', fontFamily: 'inherit', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}
+        >
+          Отмена
+        </button>
+        <span style={{ fontWeight: 800, fontSize: 16 }}>
+          {isEdit ? 'Редактировать' : 'Новая запись'}
+        </span>
+        <button
+          className="mini-tap"
+          onClick={() => void handleSave()}
+          disabled={saving}
+          style={{ border: 'none', background: 'none', padding: '4px 0', color: saving ? 'rgba(124,58,237,.45)' : '#7c3aed', fontFamily: 'inherit', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
+        >
+          {saving ? '...' : 'Сохранить'}
+        </button>
       </div>
 
       {saveError && (
@@ -276,30 +300,18 @@ export function CalendarEntryForm({
         </div>
       )}
 
-      {/* Save */}
-      <div className="mini-save-bar" style={{ paddingBottom: 8 }}>
+      {isEdit && onDelete && (
         <button
-          className="mini-btn mini-btn-primary mini-tap"
-          onClick={handleSave}
+          className="mcal-delete-btn mini-tap"
+          onClick={onDelete}
           disabled={saving}
-          style={{ opacity: saving ? 0.6 : 1 }}
+          style={{ opacity: saving ? 0.6 : 1, marginTop: 8 }}
         >
-          {saving ? 'Сохранение…' : isEdit ? 'Сохранить изменения' : 'Создать запись'}
+          Удалить запись
         </button>
+      )}
 
-        {isEdit && onDelete && (
-          <button
-            className="mcal-delete-btn mini-tap"
-            onClick={onDelete}
-            disabled={saving}
-            style={{ opacity: saving ? 0.6 : 1 }}
-          >
-            Удалить запись
-          </button>
-        )}
-      </div>
-
-      <div style={{ height: 16 }} />
+      <div style={{ height: 24 }} />
     </div>
   );
 }

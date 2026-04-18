@@ -37,8 +37,11 @@ export default function MiniShell() {
       if (!container) return;
       const elRect = el.getBoundingClientRect();
       const visibleBottom = viewport.offsetTop + viewport.height;
+      // Center the input in the visible content area (below topbar ~56px, above keyboard)
+      const visibleCenter = viewport.offsetTop + 56 + (viewport.height - 56) * 0.5;
+      const elCenter = (elRect.top + elRect.bottom) / 2;
       if (elRect.bottom > visibleBottom - 20) {
-        container.scrollTop += elRect.bottom - visibleBottom + 280;
+        container.scrollTop += elCenter - visibleCenter;
       }
     }
 
