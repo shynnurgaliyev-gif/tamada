@@ -45,14 +45,14 @@ export function MiniStyles() {
         overflow-y: auto;
         overflow-x: hidden;
         padding: 16px;
-        padding-bottom: max(80px, env(keyboard-inset-height, 80px));
+        padding-bottom: 32px;
         -webkit-overflow-scrolling: touch;
-        scroll-padding-bottom: 120px;
+        scroll-padding-bottom: 80px;
       }
 
       /* Ensure focused inputs scroll into view above keyboard */
       input:focus, textarea:focus, select:focus {
-        scroll-margin-bottom: 140px;
+        scroll-margin-bottom: 100px;
       }
 
       /* ── Bottom navigation ───────────────────────────────────── */
@@ -421,11 +421,6 @@ export function MiniStyles() {
       }
       .mini-toggle input:checked ~ .mini-toggle-thumb { transform: translateX(18px); }
       .mini-error-msg { font-size: 12px; color: #ef4444; margin-top: -10px; margin-bottom: 10px; }
-      .mini-save-bar {
-        position: sticky; bottom: 0;
-        padding: 12px 0 0;
-        background: linear-gradient(to bottom, transparent, var(--tg-theme-bg-color, #f7f6ff) 35%);
-      }
 
       /* ── Photo grid ───────────────────────────────────────────── */
       .mini-photo-grid {
