@@ -22,18 +22,23 @@ export default function MiniShell() {
   const params  = useSearchParams();
   const tgFlow  = params.get('tg_flow');
 
-  // Shrink shell to visible area when keyboard opens (fixes all tabs)
-  const [vpHeight, setVpHeight] = useState<number>(() =>
-    typeof window !== 'undefined' ? (window.visualViewport?.height ?? window.innerHeight) : 600
-  );
+  // When keyboard opens, scroll the focused input into view inside .mini-content
   useEffect(() => {
     const vp = window.visualViewport;
     if (!vp) return;
-    const update = () => setVpHeight(vp.height);
-    vp.addEventListener('resize', update);
-    vp.addEventListener('scroll', update);
-    update();
-    return () => { vp.removeEventListener('resize', update); vp.removeEventListener('scroll', update); };
+    const onResize = () => {
+      const el = document.activeElement as HTMLElement | null;
+      if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) return;
+      const container = el.closest('.mini-content') as HTMLElement | null;
+      if (!container) return;
+      const elRect = el.getBoundingClientRect();
+      const visibleBottom = vp.offsetTop + vp.height;
+      if (elRect.bottom > visibleBottom - 20) {
+        container.scrollTop += elRect.bottom - visibleBottom + 280;
+      }
+    };
+    vp.addEventListener('resize', onResize);
+    return () => vp.removeEventListener('resize', onResize);
   }, []);
 
   // ── Overlay state (UI-only, not owned by the hook) ──────
@@ -121,7 +126,7 @@ export default function MiniShell() {
   return (
     <>
       <MiniStyles />
-      <div className="mini-root" style={{ height: vpHeight }}>
+      <div className="mini-root">
 
         <MiniTopBar
           provider={activeProvider}

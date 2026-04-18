@@ -50,9 +50,9 @@ export function MiniStyles() {
         scroll-padding-bottom: 80px;
       }
 
-      /* Ensure focused inputs scroll into view above keyboard (iOS keyboard ~250px) */
+      /* Ensure focused inputs scroll into view above keyboard (iOS keyboard ~300px) */
       input:focus, textarea:focus, select:focus {
-        scroll-margin-bottom: 220px;
+        scroll-margin-bottom: 280px;
       }
 
       /* ── Bottom navigation ───────────────────────────────────── */
