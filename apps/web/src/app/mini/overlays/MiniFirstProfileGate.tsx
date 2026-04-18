@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { OctiMark } from '@/components/OctiLogo';
 import { MiniStyles } from '../components/MiniStyles';
 import type { TgUser, Provider } from '../types';
@@ -42,6 +42,20 @@ export function MiniFirstProfileGate({
 
   const canSubmit = displayName.trim().length >= 2 && !saving;
 
+  // Shrink container to visible area when keyboard opens
+  const [vpHeight, setVpHeight] = useState<number>(() =>
+    typeof window !== 'undefined' ? (window.visualViewport?.height ?? window.innerHeight) : 600
+  );
+  useEffect(() => {
+    const vp = window.visualViewport;
+    if (!vp) return;
+    const update = () => setVpHeight(vp.height);
+    vp.addEventListener('resize', update);
+    vp.addEventListener('scroll', update);
+    update();
+    return () => { vp.removeEventListener('resize', update); vp.removeEventListener('scroll', update); };
+  }, []);
+
   async function submit() {
     if (!canSubmit) return;
     setError(null);
@@ -70,7 +84,7 @@ export function MiniFirstProfileGate({
         <MiniStyles />
         <div
           className="mini-root mini-fadein"
-          style={{ padding: '40px 20px 32px', overflowY: 'auto', height: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+          style={{ padding: '40px 20px 32px', overflowY: 'auto', height: vpHeight, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
         >
           {/* Success icon */}
           <div style={{
@@ -136,7 +150,7 @@ export function MiniFirstProfileGate({
       <MiniStyles />
       <div
         className="mini-root"
-        style={{ padding: '32px 20px 24px', overflowY: 'auto', height: '100dvh' }}
+        style={{ padding: '32px 20px 24px', overflowY: 'auto', height: vpHeight }}
       >
         {/* Header row */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>

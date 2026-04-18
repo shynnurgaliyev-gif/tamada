@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { OctiMark } from '@/components/OctiLogo';
 import { MiniStyles } from '../components/MiniStyles';
 import type { TgUser } from '../types';
@@ -13,6 +13,20 @@ export function MiniGuestGate({
   onCreateAccount: (input: { full_name: string }) => Promise<boolean>;
 }) {
   const defaultName = [tgUser?.first_name, tgUser?.last_name].filter(Boolean).join(' ');
+
+  // Shrink container to visible area when keyboard opens
+  const [vpHeight, setVpHeight] = useState<number>(() =>
+    typeof window !== 'undefined' ? (window.visualViewport?.height ?? window.innerHeight) : 600
+  );
+  useEffect(() => {
+    const vp = window.visualViewport;
+    if (!vp) return;
+    const update = () => setVpHeight(vp.height);
+    vp.addEventListener('resize', update);
+    vp.addEventListener('scroll', update);
+    update();
+    return () => { vp.removeEventListener('resize', update); vp.removeEventListener('scroll', update); };
+  }, []);
   const [formOpen, setFormOpen] = useState(false);
   const [fullName, setFullName] = useState(defaultName);
   const [confirmed, setConfirmed] = useState(false);
@@ -31,7 +45,7 @@ export function MiniGuestGate({
   return (
     <>
       <MiniStyles />
-      <div className="mini-root" style={{ padding: '32px 20px 24px', overflowY: 'auto', height: '100dvh' }}>
+      <div className="mini-root" style={{ padding: '32px 20px 24px', overflowY: 'auto', height: vpHeight }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
           <OctiMark size={30} />
           <div style={{ fontWeight: 900, fontSize: 18 }}>Octiqa</div>
