@@ -50,9 +50,9 @@ export function MiniStyles() {
         scroll-padding-bottom: 80px;
       }
 
-      /* Ensure focused inputs scroll into view above keyboard */
+      /* Ensure focused inputs scroll into view above keyboard (iOS keyboard ~250px) */
       input:focus, textarea:focus, select:focus {
-        scroll-margin-bottom: 100px;
+        scroll-margin-bottom: 220px;
       }
 
       /* ── Bottom navigation ───────────────────────────────────── */
@@ -344,6 +344,8 @@ export function MiniStyles() {
         background: var(--tg-theme-secondary-bg-color, #fff);
         border-radius: 20px 20px 0 0;
         padding: 8px 0 0;
+        position: relative;
+        z-index: 210;
       }
       .mini-sheet-handle {
         width: 36px; height: 4px;

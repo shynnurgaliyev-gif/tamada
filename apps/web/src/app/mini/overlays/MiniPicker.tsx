@@ -127,13 +127,15 @@ function WheelScroll({
   const snapTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const containerH = ITEM_H * VISIBLE;
 
-  // Init scroll position on mount / value change from outside
+  // Init scroll position on mount — rAF ensures layout is ready after slideup animation
   useEffect(() => {
     const idx = Math.max(0, options.indexOf(value));
-    if (ref.current) {
-      ref.current.scrollTop = idx * ITEM_H;
+    const el  = ref.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollTop = idx * ITEM_H;
       setScrollY(idx * ITEM_H);
-    }
+    });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleScroll() {
@@ -174,7 +176,7 @@ function WheelScroll({
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0,
         height: ITEM_H * HALF,
-        background: 'linear-gradient(to bottom, var(--tg-theme-secondary-bg-color,#fff) 15%, rgba(255,255,255,0) 100%)',
+        background: 'linear-gradient(to bottom, var(--tg-theme-secondary-bg-color,#fff) 15%, transparent 100%)',
         pointerEvents: 'none', zIndex: 3,
       }} />
 
@@ -182,7 +184,7 @@ function WheelScroll({
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0,
         height: ITEM_H * HALF,
-        background: 'linear-gradient(to top, var(--tg-theme-secondary-bg-color,#fff) 15%, rgba(255,255,255,0) 100%)',
+        background: 'linear-gradient(to top, var(--tg-theme-secondary-bg-color,#fff) 15%, transparent 100%)',
         pointerEvents: 'none', zIndex: 3,
       }} />
 
@@ -250,5 +252,43 @@ function WheelScroll({
         })}
       </div>
     </div>
+  );
+}
+
+/* ── PickerRow ──────────────────────────────────────────────────────────────── */
+export function PickerRow({ label, value, placeholder, onOpen, optional, disabled }: {
+  label:       string;
+  value:       string;
+  placeholder: string;
+  onOpen:      () => void;
+  optional?:   boolean;
+  disabled?:   boolean;
+}) {
+  return (
+    <button
+      className="mini-tap"
+      onClick={onOpen}
+      disabled={disabled}
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        width: '100%', padding: '13px 16px',
+        background: 'var(--tg-theme-secondary-bg-color,#fff)',
+        border: '1px solid rgba(0,0,0,.09)',
+        borderRadius: 12, marginBottom: 10,
+        fontFamily: 'inherit', cursor: disabled ? 'default' : 'pointer',
+        textAlign: 'left',
+        opacity: disabled ? 0.5 : 1,
+      }}
+    >
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--tg-theme-hint-color,#6b7280)', marginBottom: 2 }}>
+          {label}{optional ? <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}> — необязательно</span> : ''}
+        </div>
+        <div style={{ fontSize: 15, fontWeight: value ? 600 : 400, color: value ? 'var(--tg-theme-text-color,#0a0a0f)' : 'var(--tg-theme-hint-color,#9ca3af)' }}>
+          {value || placeholder}
+        </div>
+      </div>
+      <span style={{ fontSize: 16, color: 'rgba(0,0,0,.2)', marginLeft: 8 }}>›</span>
+    </button>
   );
 }

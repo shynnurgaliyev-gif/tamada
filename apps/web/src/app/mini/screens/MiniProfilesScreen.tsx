@@ -7,7 +7,7 @@ import { ProfileView } from './profile/ProfileView';
 import { ProfileEditView } from './profile/ProfileEditView';
 import { ProfilePhotosView } from './profile/ProfilePhotosView';
 import { ProfileLinksView } from './profile/ProfileLinksView';
-import { MiniPicker, SUBCATEGORIES } from '../overlays/MiniPicker';
+import { MiniPicker, PickerRow, SUBCATEGORIES } from '../overlays/MiniPicker';
 import type { MiniPermissions, Provider } from '../types';
 import type { CreateProfileInput } from '../hooks/useMiniApp';
 
@@ -66,8 +66,9 @@ export function MiniProfilesScreen({
     const tg = getTelegramWebApp();
     if (!tg) return;
     if (subView === 'main') { tg.BackButton.hide(); return; }
+    // 'edit' has its own picker-aware BackButton handler inside ProfileEditView
+    if (subView === 'edit') return;
 
-    // Back destination depends on current view
     const backTo: SubView = (subView === 'detail' || subView === 'create') ? 'main' : 'detail';
     const handler = () => setSubView(backTo);
     tg.BackButton.show();
@@ -77,10 +78,12 @@ export function MiniProfilesScreen({
 
   // ── Auto-open photos from first-profile success state ──────────────────
   useEffect(() => {
-    if (openPhotosOnLoad && provider && !provider.archived_at && permissions.can_edit_profile) {
+    if (!openPhotosOnLoad) return;
+    if (provider && !provider.archived_at && permissions.can_edit_profile) {
       setSubView('photos');
-      onPhotosOpened?.();
     }
+    // Clear the flag regardless — prevents it firing again on next profile switch
+    onPhotosOpened?.();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openPhotosOnLoad, provider?.id]);
 
@@ -193,7 +196,8 @@ export function MiniProfilesScreen({
           onCancel={() => setSubView('detail')}
           onSave={async fields => {
             const updated = await updateBasic(fields);
-            if (updated) { onProviderUpdated(updated); setSubView('detail'); }
+            if (updated) { onProviderUpdated(updated); setSubView('detail'); return true; }
+            return false;
           }}
           onUpdateCategory={updateCategory}
         />
@@ -430,12 +434,19 @@ function ProfileCreateView({ saving, canCreate, maxProfiles, onCancel, onCreate 
       </div>
 
       <PickerRow label="Категория"    value={category}    placeholder="Выберите категорию"    onOpen={() => setPicker('category')} />
-      <PickerRow label="Подкатегория" value={subcategory} placeholder="Необязательно"         onOpen={() => setPicker('subcategory')} optional />
+      <PickerRow
+        label="Подкатегория"
+        value={subcategory}
+        placeholder={category ? 'Необязательно' : 'Сначала выберите категорию'}
+        onOpen={() => { if (category) setPicker('subcategory'); }}
+        optional
+        disabled={!category}
+      />
       <PickerRow label="Город"        value={city}        placeholder="Выберите город"        onOpen={() => setPicker('city')} optional />
 
       {picker === 'category' && (
         <MiniPicker title="Категория" options={CREATE_CATEGORIES} value={category} allowCustom
-          onConfirm={v => { setCategory(v); setPicker(null); }}
+          onConfirm={v => { setCategory(v); setSubcategory(''); setPicker(null); }}
           onClose={() => setPicker(null)}
         />
       )}
@@ -452,39 +463,5 @@ function ProfileCreateView({ saving, canCreate, maxProfiles, onCancel, onCreate 
         />
       )}
     </>
-  );
-}
-
-/* ── PickerRow (shared) ────────────────────────────────────────────────────── */
-function PickerRow({ label, value, placeholder, onOpen, optional }: {
-  label:       string;
-  value:       string;
-  placeholder: string;
-  onOpen:      () => void;
-  optional?:   boolean;
-}) {
-  return (
-    <button
-      className="mini-tap"
-      onClick={onOpen}
-      style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        width: '100%', padding: '13px 16px',
-        background: 'var(--tg-theme-secondary-bg-color,#fff)',
-        border: '1px solid rgba(0,0,0,.09)',
-        borderRadius: 12, marginBottom: 10,
-        fontFamily: 'inherit', cursor: 'pointer', textAlign: 'left',
-      }}
-    >
-      <div>
-        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--tg-theme-hint-color,#6b7280)', marginBottom: 2 }}>
-          {label}{optional ? <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}> — необязательно</span> : ''}
-        </div>
-        <div style={{ fontSize: 15, fontWeight: value ? 600 : 400, color: value ? 'var(--tg-theme-text-color,#0a0a0f)' : 'var(--tg-theme-hint-color,#9ca3af)' }}>
-          {value || placeholder}
-        </div>
-      </div>
-      <span style={{ fontSize: 16, color: 'rgba(0,0,0,.2)', marginLeft: 8 }}>›</span>
-    </button>
   );
 }

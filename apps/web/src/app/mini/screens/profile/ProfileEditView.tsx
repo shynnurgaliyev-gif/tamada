@@ -4,8 +4,9 @@
    City / category / subcategory use MiniPicker bottom-sheet.
 ────────────────────────────────────────────────────────────────────────────── */
 
-import { useState } from 'react';
-import { MiniPicker, SUBCATEGORIES } from '../../overlays/MiniPicker';
+import { useState, useEffect, useRef } from 'react';
+import { MiniPicker, PickerRow, SUBCATEGORIES } from '../../overlays/MiniPicker';
+import { getTelegramWebApp } from '@/lib/telegram';
 import type { Provider, ProviderUpdate } from '../../types';
 
 const STATUS_OPTS = [
@@ -38,7 +39,7 @@ export function ProfileEditView({
 }: {
   provider:          Provider;
   saving:            boolean;
-  onSave:            (fields: ProviderUpdate) => Promise<void>;
+  onSave:            (fields: ProviderUpdate) => Promise<boolean>;
   onCancel:          () => void;
   onUpdateCategory?: (category: string, subcategory?: string) => Promise<boolean>;
 }) {
@@ -52,16 +53,36 @@ export function ProfileEditView({
   const [nameErr,    setNameErr]    = useState(false);
   const [picker,     setPicker]     = useState<Picker>(null);
 
+  // ── Telegram BackButton: close picker first, then cancel ────────────────
+  const pickerRef   = useRef(picker);
+  const onCancelRef = useRef(onCancel);
+  pickerRef.current   = picker;
+  onCancelRef.current = onCancel;
+
+  useEffect(() => {
+    const tg = getTelegramWebApp();
+    if (!tg) return;
+    const handler = () => {
+      if (pickerRef.current) { setPicker(null); }
+      else { onCancelRef.current(); }
+    };
+    tg.BackButton.show();
+    tg.BackButton.onClick(handler);
+    return () => { tg.BackButton.offClick(handler); tg.BackButton.hide(); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function handleSave() {
     if (!name.trim()) { setNameErr(true); return; }
     setNameErr(false);
-    await onSave({
+    const saved = await onSave({
       display_name:       name.trim(),
       bio:                bio.trim() || null,
       city:               city.trim() || null,
       provider_status:    status,
       publication_status: pubVisible ? 'visible' : 'hidden',
     });
+    // Only update category if basic save succeeded
+    if (!saved) return;
     if (onUpdateCategory && category) {
       await onUpdateCategory(category, subcategory || undefined);
     }
@@ -122,7 +143,14 @@ export function ProfileEditView({
       {/* ── Picker rows ───────────────────────────────────────── */}
       <PickerRow label="Город"        value={city}        placeholder="Не указан"       onOpen={() => setPicker('city')} />
       <PickerRow label="Категория"    value={category}    placeholder="Не выбрана"      onOpen={() => setPicker('category')} />
-      <PickerRow label="Подкатегория" value={subcategory} placeholder="Не указана"      onOpen={() => setPicker('subcategory')} optional />
+      <PickerRow
+        label="Подкатегория"
+        value={subcategory}
+        placeholder={category ? 'Не указана' : 'Сначала выберите категорию'}
+        onOpen={() => { if (category) setPicker('subcategory'); }}
+        optional
+        disabled={!category}
+      />
 
       {/* ── Status grid ───────────────────────────────────────── */}
       <div className="mini-section-label">Статус</div>
@@ -179,7 +207,7 @@ export function ProfileEditView({
           options={CATEGORIES}
           value={category}
           allowCustom
-          onConfirm={v => { setCategory(v); setPicker(null); }}
+          onConfirm={v => { setCategory(v); setSubcategory(''); setPicker(null); }}
           onClose={() => setPicker(null)}
         />
       )}
@@ -194,40 +222,5 @@ export function ProfileEditView({
         />
       )}
     </>
-  );
-}
-
-/* ── PickerRow ─────────────────────────────────────────────────────────────── */
-function PickerRow({ label, value, placeholder, onOpen, optional }: {
-  label:       string;
-  value:       string;
-  placeholder: string;
-  onOpen:      () => void;
-  optional?:   boolean;
-}) {
-  return (
-    <button
-      className="mini-tap"
-      onClick={onOpen}
-      style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        width: '100%', padding: '13px 16px',
-        background: 'var(--tg-theme-secondary-bg-color,#fff)',
-        border: '1px solid rgba(0,0,0,.09)',
-        borderRadius: 12, marginBottom: 10,
-        fontFamily: 'inherit', cursor: 'pointer',
-        textAlign: 'left',
-      }}
-    >
-      <div>
-        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--tg-theme-hint-color,#6b7280)', marginBottom: 2 }}>
-          {label}{optional ? <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}> — необязательно</span> : ''}
-        </div>
-        <div style={{ fontSize: 15, fontWeight: value ? 600 : 400, color: value ? 'var(--tg-theme-text-color,#0a0a0f)' : 'var(--tg-theme-hint-color,#9ca3af)' }}>
-          {value || placeholder}
-        </div>
-      </div>
-      <span style={{ fontSize: 16, color: 'rgba(0,0,0,.2)', marginLeft: 8 }}>›</span>
-    </button>
   );
 }
