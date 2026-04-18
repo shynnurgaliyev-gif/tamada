@@ -500,6 +500,9 @@ export function MiniStyles() {
         flex-shrink: 0;
       }
 
+      /* ── Wheel picker scrollbar hide ────────────────────────── */
+      .mini-wheel-scroll::-webkit-scrollbar { display: none; }
+
       /* ── Skeleton shimmer ────────────────────────────────────── */
       @keyframes mini-shimmer {
         0%   { background-position: -300px 0; }

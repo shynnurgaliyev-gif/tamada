@@ -5,7 +5,7 @@
 ────────────────────────────────────────────────────────────────────────────── */
 
 import { useState } from 'react';
-import { MiniPicker } from '../../overlays/MiniPicker';
+import { MiniPicker, SUBCATEGORIES } from '../../overlays/MiniPicker';
 import type { Provider, ProviderUpdate } from '../../types';
 
 const STATUS_OPTS = [
@@ -186,7 +186,7 @@ export function ProfileEditView({
       {picker === 'subcategory' && (
         <MiniPicker
           title="Подкатегория"
-          options={[]}
+          options={SUBCATEGORIES[category] ?? []}
           value={subcategory}
           allowCustom
           onConfirm={v => { setSubcategory(v); setPicker(null); }}

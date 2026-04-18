@@ -7,7 +7,7 @@ import { ProfileView } from './profile/ProfileView';
 import { ProfileEditView } from './profile/ProfileEditView';
 import { ProfilePhotosView } from './profile/ProfilePhotosView';
 import { ProfileLinksView } from './profile/ProfileLinksView';
-import { MiniPicker } from '../overlays/MiniPicker';
+import { MiniPicker, SUBCATEGORIES } from '../overlays/MiniPicker';
 import type { MiniPermissions, Provider } from '../types';
 import type { CreateProfileInput } from '../hooks/useMiniApp';
 
@@ -440,7 +440,7 @@ function ProfileCreateView({ saving, canCreate, maxProfiles, onCancel, onCreate 
         />
       )}
       {picker === 'subcategory' && (
-        <MiniPicker title="Подкатегория" options={[]} value={subcategory} allowCustom
+        <MiniPicker title="Подкатегория" options={SUBCATEGORIES[category] ?? []} value={subcategory} allowCustom
           onConfirm={v => { setSubcategory(v); setPicker(null); }}
           onClose={() => setPicker(null)}
         />
