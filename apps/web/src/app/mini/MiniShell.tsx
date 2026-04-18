@@ -1,6 +1,6 @@
 'use client';
 
-import { useState }                    from 'react';
+import { useState, useEffect }         from 'react';
 import { useSearchParams }              from 'next/navigation';
 
 import { useMiniApp }                   from './hooks/useMiniApp';
@@ -21,6 +21,20 @@ export default function MiniShell() {
   // useSearchParams must be called here (inside the Suspense boundary in page.tsx)
   const params  = useSearchParams();
   const tgFlow  = params.get('tg_flow');
+
+  // Shrink shell to visible area when keyboard opens (fixes all tabs)
+  const [vpHeight, setVpHeight] = useState<number>(() =>
+    typeof window !== 'undefined' ? (window.visualViewport?.height ?? window.innerHeight) : 600
+  );
+  useEffect(() => {
+    const vp = window.visualViewport;
+    if (!vp) return;
+    const update = () => setVpHeight(vp.height);
+    vp.addEventListener('resize', update);
+    vp.addEventListener('scroll', update);
+    update();
+    return () => { vp.removeEventListener('resize', update); vp.removeEventListener('scroll', update); };
+  }, []);
 
   // ── Overlay state (UI-only, not owned by the hook) ──────
   const [showAdd,              setShowAdd]              = useState(false);
@@ -107,7 +121,7 @@ export default function MiniShell() {
   return (
     <>
       <MiniStyles />
-      <div className="mini-root">
+      <div className="mini-root" style={{ height: vpHeight }}>
 
         <MiniTopBar
           provider={activeProvider}
