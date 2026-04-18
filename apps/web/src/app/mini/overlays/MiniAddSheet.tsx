@@ -5,11 +5,13 @@ export function MiniAddSheet({
   permissions,
   onClose,
   onNewCalendarEntry,
+  onCreateFirstProfile,
 }: {
-  hasProfile:         boolean;
-  permissions:        MiniPermissions;
-  onClose:            () => void;
-  onNewCalendarEntry: () => void;
+  hasProfile:            boolean;
+  permissions:           MiniPermissions;
+  onClose:               () => void;
+  onNewCalendarEntry:    () => void;
+  onCreateFirstProfile?: () => void;
 }) {
   return (
     <div className="mini-overlay" onClick={onClose}>
@@ -39,7 +41,11 @@ export function MiniAddSheet({
 
             {/* New profile — only when none exists */}
             {!hasProfile && permissions.can_create_profile && (
-              <a href="/dashboard/onboarding" className="mini-row mini-tap">
+              <button
+                className="mini-row mini-tap"
+                onClick={() => { onCreateFirstProfile?.(); onClose(); }}
+                style={{ border: '1px solid rgba(0,0,0,.07)', cursor: 'pointer', background: 'var(--tg-theme-secondary-bg-color, #fff)', fontFamily: 'inherit', textAlign: 'left', width: '100%' }}
+              >
                 <div className="mini-row-icon" style={{ background: '#f5f3ff', color: '#7c3aed' }}>👤</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 15 }}>Новый профиль</div>
@@ -48,7 +54,7 @@ export function MiniAddSheet({
                   </div>
                 </div>
                 <span className="mini-row-chevron">›</span>
-              </a>
+              </button>
             )}
           </div>
 

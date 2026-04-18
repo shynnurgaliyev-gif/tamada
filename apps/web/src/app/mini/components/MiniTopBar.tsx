@@ -5,10 +5,12 @@ export function MiniTopBar({
   provider,
   providers,
   onToggleSwitch,
+  onCreateFirstProfile,
 }: {
   provider: Provider | null;
   providers: Provider[];
   onToggleSwitch: () => void;
+  onCreateFirstProfile?: () => void;
 }) {
   const activeProviders = providers.filter(p => !p.archived_at && !p.pending_delete_at);
   const hasMultiple = activeProviders.length > 1;
@@ -20,8 +22,8 @@ export function MiniTopBar({
       <div className="mini-topbar">
         <OctiMark size={28} />
         <span style={{ fontWeight: 900, fontSize: 17, letterSpacing: '-.04em' }}>Octiqa</span>
-        <a
-          href="/dashboard/onboarding"
+        <button
+          onClick={onCreateFirstProfile}
           className="mini-tap"
           style={{
             marginLeft: 'auto',
@@ -31,11 +33,13 @@ export function MiniTopBar({
             background: 'rgba(124,58,237,.1)',
             padding: '6px 12px',
             borderRadius: 10,
-            textDecoration: 'none',
+            border: 'none',
+            fontFamily: 'inherit',
+            cursor: 'pointer',
           }}
         >
           + Создать профиль
-        </a>
+        </button>
       </div>
     );
   }

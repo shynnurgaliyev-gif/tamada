@@ -23,10 +23,11 @@ export default function MiniShell() {
   const tgFlow  = params.get('tg_flow');
 
   // ── Overlay state (UI-only, not owned by the hook) ──────
-  const [showAdd,          setShowAdd]          = useState(false);
-  const [showSwitch,       setShowSwitch]       = useState(false);
-  const [calendarNewEntry, setCalendarNewEntry] = useState(false);
-  const [openPhotosOnLoad, setOpenPhotosOnLoad] = useState(false);
+  const [showAdd,              setShowAdd]              = useState(false);
+  const [showSwitch,           setShowSwitch]           = useState(false);
+  const [calendarNewEntry,     setCalendarNewEntry]     = useState(false);
+  const [openPhotosOnLoad,     setOpenPhotosOnLoad]     = useState(false);
+  const [showFirstProfileGate, setShowFirstProfileGate] = useState(false);
 
   // ── Core state + init ────────────────────────────────────
   const {
@@ -77,6 +78,31 @@ export default function MiniShell() {
     );
   }
 
+  // ── First-profile gate (in-shell, any entry point) ──────
+  const noActiveProfiles = providers.filter(p => !p.archived_at && !p.pending_delete_at).length === 0;
+  const onCreateFirstProfile = noActiveProfiles
+    ? () => setShowFirstProfileGate(true)
+    : undefined;
+
+  if (showFirstProfileGate) {
+    return (
+      <MiniFirstProfileGate
+        tgUser={tgUser}
+        createProfile={createProfile}
+        onSkip={() => setShowFirstProfileGate(false)}
+        onDone={(_, action) => {
+          setShowFirstProfileGate(false);
+          if (action === 'calendar') {
+            handleTab('calendar');
+          } else if (action === 'photos') {
+            setOpenPhotosOnLoad(true);
+            handleTab('profiles');
+          }
+        }}
+      />
+    );
+  }
+
   // ── Shell ────────────────────────────────────────────────
   return (
     <>
@@ -87,6 +113,7 @@ export default function MiniShell() {
           provider={activeProvider}
           providers={providers}
           onToggleSwitch={() => setShowSwitch(s => !s)}
+          onCreateFirstProfile={onCreateFirstProfile}
         />
 
         <main className="mini-content mini-fadein" key={tab}>
@@ -104,9 +131,10 @@ export default function MiniShell() {
               onProviderUpdated={updateActiveProvider}
               openPhotosOnLoad={openPhotosOnLoad}
               onPhotosOpened={() => setOpenPhotosOnLoad(false)}
+              onCreateFirstProfile={onCreateFirstProfile}
             />
           )}
-          {tab === 'calendar'  && permissions.can_manage_calendar && <MiniCalendarScreen   provider={activeProvider} openNewEntry={calendarNewEntry} onNewEntryHandled={() => setCalendarNewEntry(false)} />}
+          {tab === 'calendar'  && permissions.can_manage_calendar && <MiniCalendarScreen   provider={activeProvider} openNewEntry={calendarNewEntry} onNewEntryHandled={() => setCalendarNewEntry(false)} onCreateFirstProfile={onCreateFirstProfile} />}
           {tab === 'analytics' && permissions.can_view_analytics && <MiniAnalyticsScreen  summary={summary} loading={sumLoading} onRetry={loadAnalytics} />}
           {tab === 'more'      && <MiniMoreScreen        tgUser={tgUser} permissions={permissions} activeProvider={activeProvider} onProvidersChanged={refreshProviders} />}
         </main>
@@ -128,6 +156,7 @@ export default function MiniShell() {
               handleTab('calendar');
               setCalendarNewEntry(true);
             }}
+            onCreateFirstProfile={onCreateFirstProfile}
           />
         )}
 

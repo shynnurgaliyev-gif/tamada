@@ -33,6 +33,7 @@ export function MiniProfilesScreen({
   onProviderUpdated,
   openPhotosOnLoad,
   onPhotosOpened,
+  onCreateFirstProfile,
 }: {
   providers: Provider[];
   activeIdx: number;
@@ -46,6 +47,7 @@ export function MiniProfilesScreen({
   onProviderUpdated: (updated: Provider) => void;
   openPhotosOnLoad?: boolean;
   onPhotosOpened?: () => void;
+  onCreateFirstProfile?: () => void;
 }) {
   const provider = providers[activeIdx] ?? null;
   const [subView, setSubView] = useState<SubView>('main');
@@ -94,7 +96,7 @@ export function MiniProfilesScreen({
           </div>
           <button
             className="mini-btn mini-btn-primary mini-tap"
-            onClick={() => setSubView('create')}
+            onClick={onCreateFirstProfile}
             style={{ width: 'auto', padding: '13px 28px', display: 'inline-flex' }}
           >
             Создать первый профиль
@@ -159,7 +161,9 @@ export function MiniProfilesScreen({
             archivingId={archivingId}
             onToggleArchive={() => setArchiveOpen(v => !v)}
             onSwitch={onSwitchProfile}
-            onCreate={() => setSubView('create')}
+            onCreate={activeProfiles.length === 0 && onCreateFirstProfile
+              ? onCreateFirstProfile
+              : () => setSubView('create')}
             onArchive={archiveProvider}
             onUnarchive={onUnarchiveProfile}
           />

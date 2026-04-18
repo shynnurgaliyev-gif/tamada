@@ -9,7 +9,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { getTelegramWebApp }                from '@/lib/telegram';
 import { useCalendar }                      from '../hooks/useCalendar';
-import { EmptyState }                       from '../components/EmptyState';
 import { CalendarMonthView }                from './calendar/CalendarMonthView';
 import { CalendarDayView }                  from './calendar/CalendarDayView';
 import { CalendarEntryForm }                from './calendar/CalendarEntryForm';
@@ -21,10 +20,12 @@ export function MiniCalendarScreen({
   provider,
   openNewEntry,
   onNewEntryHandled,
+  onCreateFirstProfile,
 }: {
-  provider:          Provider | null;
-  openNewEntry:      boolean;
-  onNewEntryHandled: () => void;
+  provider:               Provider | null;
+  openNewEntry:           boolean;
+  onNewEntryHandled:      () => void;
+  onCreateFirstProfile?:  () => void;
 }) {
   const [view,         setView]         = useState<CalView>('month');
   const [editingEntry, setEditingEntry] = useState<CalendarEntryWithClient | null>(null);
@@ -61,13 +62,22 @@ export function MiniCalendarScreen({
   /* ── No provider ─────────────────────────────────────────────────────── */
   if (!provider) {
     return (
-      <EmptyState
-        icon="📅"
-        title="Создайте профиль"
-        sub="Календарь доступен после создания профиля"
-        href="/dashboard/onboarding"
-        cta="Создать профиль"
-      />
+      <div style={{ textAlign: 'center', paddingTop: 56 }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>📅</div>
+        <div style={{ fontWeight: 900, fontSize: 20, marginBottom: 8 }}>Создайте профиль</div>
+        <div style={{ fontSize: 14, color: 'var(--tg-theme-hint-color, #6b7280)', marginBottom: 28, lineHeight: 1.5 }}>
+          Календарь доступен после создания профиля
+        </div>
+        {onCreateFirstProfile && (
+          <button
+            onClick={onCreateFirstProfile}
+            className="mini-btn mini-btn-primary mini-tap"
+            style={{ width: 'auto', padding: '13px 28px', display: 'inline-flex' }}
+          >
+            Создать профиль
+          </button>
+        )}
+      </div>
     );
   }
 
