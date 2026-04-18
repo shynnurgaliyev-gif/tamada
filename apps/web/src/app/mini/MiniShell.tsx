@@ -22,11 +22,18 @@ export default function MiniShell() {
   const params  = useSearchParams();
   const tgFlow  = params.get('tg_flow');
 
-  // When keyboard opens, scroll the focused input into view inside .mini-content
+  // Hide bottom nav + scroll focused input when keyboard opens
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   useEffect(() => {
     const vp = window.visualViewport;
     if (!vp) return;
+    const initH = vp.height; // capture full height before any keyboard event
     const onResize = () => {
+      const diff = initH - vp.height;
+      const kbOpen = diff > 150;
+      setKeyboardOpen(kbOpen);
+      if (!kbOpen) return;
+      // Scroll focused input above keyboard
       const el = document.activeElement as HTMLElement | null;
       if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) return;
       const container = el.closest('.mini-content') as HTMLElement | null;
@@ -126,7 +133,7 @@ export default function MiniShell() {
   return (
     <>
       <MiniStyles />
-      <div className="mini-root">
+      <div className={keyboardOpen ? 'mini-root keyboard-open' : 'mini-root'}>
 
         <MiniTopBar
           provider={activeProvider}

@@ -55,6 +55,9 @@ export function MiniStyles() {
         scroll-margin-bottom: 280px;
       }
 
+      /* ── Hide bottom nav when keyboard is open ──────────────── */
+      .keyboard-open .mini-nav { display: none !important; }
+
       /* ── Bottom navigation ───────────────────────────────────── */
       .mini-nav {
         display: flex;
