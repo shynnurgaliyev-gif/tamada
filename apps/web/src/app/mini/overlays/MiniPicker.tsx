@@ -92,36 +92,11 @@ export function MiniPicker({
           boxShadow: '0 24px 60px rgba(0,0,0,.5)',
         } as React.CSSProperties}
       >
-        {/* ── Wheel ──────────────────────────────────────────────────── */}
-        {allOptions.length > 0 && (
-          <WheelScroll
-            options={allOptions}
-            value={selected}
-            onChange={setSelected}
-            fadeBg={fadeBg}
-          />
-        )}
-
-        {/* ── Custom text input ──────────────────────────────────────── */}
-        {isCustom && (
-          <div style={{ padding: '0 16px 4px' }}>
-            <input
-              autoFocus
-              className="mini-input"
-              value={customText}
-              maxLength={80}
-              placeholder="Введите вариант…"
-              onChange={e => setCustomText(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') confirm(); }}
-            />
-          </div>
-        )}
-
-        {/* ── Action bar ─────────────────────────────────────────────── */}
+        {/* ── Action bar — TOP so keyboard never covers it ────────────── */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '10px 16px 16px',
-          borderTop: '1px solid rgba(128,128,128,.15)',
+          padding: '12px 16px 10px',
+          borderBottom: '1px solid rgba(128,128,128,.15)',
         }}>
           {/* Cancel */}
           <button
@@ -170,6 +145,31 @@ export function MiniPicker({
             </button>
           </div>
         </div>
+
+        {/* ── Wheel ──────────────────────────────────────────────────── */}
+        {allOptions.length > 0 && (
+          <WheelScroll
+            options={allOptions}
+            value={selected}
+            onChange={setSelected}
+            fadeBg={fadeBg}
+          />
+        )}
+
+        {/* ── Custom text input ──────────────────────────────────────── */}
+        {isCustom && (
+          <div style={{ padding: '12px 16px 16px' }}>
+            <input
+              autoFocus
+              className="mini-input"
+              value={customText}
+              maxLength={80}
+              placeholder="Введите вариант…"
+              onChange={e => setCustomText(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') confirm(); }}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
