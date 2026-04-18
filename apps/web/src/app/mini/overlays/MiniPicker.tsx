@@ -58,6 +58,22 @@ export function MiniPicker({
   const isCustom   = selected === CUSTOM_LABEL;
   const canConfirm = isCustom ? !!customText.trim() : !!selected;
 
+  // Track visual viewport height — shrinks when keyboard opens on iOS/Android.
+  // This keeps the card centered in the *visible* area, not the full screen.
+  const [vpHeight, setVpHeight] = useState<number>(() =>
+    typeof window !== 'undefined' ? (window.visualViewport?.height ?? window.innerHeight) : 600
+  );
+  const [vpTop, setVpTop] = useState<number>(0);
+  useEffect(() => {
+    const vp = window.visualViewport;
+    if (!vp) return;
+    const update = () => { setVpHeight(vp.height); setVpTop(vp.offsetTop); };
+    vp.addEventListener('resize', update);
+    vp.addEventListener('scroll', update);
+    update();
+    return () => { vp.removeEventListener('resize', update); vp.removeEventListener('scroll', update); };
+  }, []);
+
   // Semi-transparent background — required for backdrop-filter blur to be visible.
   // var(--tg-theme-secondary-bg-color) is fully opaque and would hide the blur.
   const isDark  = getTelegramWebApp()?.colorScheme !== 'light';
@@ -75,7 +91,15 @@ export function MiniPicker({
     <div
       className="mini-overlay"
       onClick={onClose}
-      style={{ alignItems: 'center', justifyContent: 'center', padding: '0 20px' }}
+      style={{
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '0 20px',
+        // Override inset:0 with visual viewport so card centers in visible area above keyboard
+        top: vpTop,
+        height: vpHeight,
+        bottom: 'auto',
+      }}
     >
       {/* ── Floating glass card ──────────────────────────────────────── */}
       <div
