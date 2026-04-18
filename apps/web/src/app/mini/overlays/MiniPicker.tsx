@@ -61,8 +61,8 @@ export function MiniPicker({
   // Semi-transparent background — required for backdrop-filter blur to be visible.
   // var(--tg-theme-secondary-bg-color) is fully opaque and would hide the blur.
   const isDark  = getTelegramWebApp()?.colorScheme !== 'light';
-  const cardBg  = isDark ? 'rgba(28,28,30,0.78)' : 'rgba(242,242,247,0.78)';
-  const fadeBg  = isDark ? 'rgba(28,28,30,1)'    : 'rgba(242,242,247,1)';
+  const cardBg  = isDark ? 'rgba(28,28,30,0.40)'  : 'rgba(242,242,247,0.40)';
+  const fadeBg  = isDark ? 'rgba(28,28,30,0.92)'  : 'rgba(242,242,247,0.92)';
 
   function confirm() {
     const result = isCustom ? customText.trim() : selected;
@@ -87,8 +87,8 @@ export function MiniPicker({
           borderRadius: 16,
           overflow: 'hidden',
           background: cardBg,
-          backdropFilter: 'blur(28px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+          backdropFilter: 'blur(40px) saturate(200%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(200%)',
           boxShadow: '0 24px 60px rgba(0,0,0,.5)',
         } as React.CSSProperties}
       >
