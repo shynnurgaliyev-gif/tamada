@@ -28,7 +28,6 @@ export function MiniProfilesScreen({
   maxProfiles,
   onSwitchProfile,
   onCreateProfile,
-  onArchiveProfile,
   onUnarchiveProfile,
   onProviderUpdated,
   openPhotosOnLoad,
@@ -42,7 +41,6 @@ export function MiniProfilesScreen({
   maxProfiles: number;
   onSwitchProfile: (idx: number) => void;
   onCreateProfile: (input: CreateProfileInput) => Promise<Provider | null>;
-  onArchiveProfile: (providerId: string) => Promise<boolean>;
   onUnarchiveProfile: (providerId: string) => Promise<boolean>;
   onProviderUpdated: (updated: Provider) => void;
   openPhotosOnLoad?: boolean;
@@ -52,7 +50,6 @@ export function MiniProfilesScreen({
   const provider = providers[activeIdx] ?? null;
   const [subView, setSubView] = useState<SubView>('main');
   const [archiveOpen, setArchiveOpen] = useState(false);
-  const [archivingId, setArchivingId] = useState<string | null>(null);
 
   const activeProfiles = providers.filter(p => !p.archived_at && !p.pending_delete_at);
   const archivedProfiles = providers.filter(p => p.archived_at || p.pending_delete_at);
@@ -60,7 +57,7 @@ export function MiniProfilesScreen({
 
   const {
     photos, links, loading, saving, error, reload,
-    updateBasic, uploadPhoto, deletePhoto, addLink, deleteLink,
+    updateBasic, uploadPhoto, deletePhoto, addLink, deleteLink, updateCategory,
   } = useProviderData(provider && !provider.archived_at && (permissions.can_edit_profile || permissions.can_manage_team) ? provider.id : null);
 
   useEffect(() => {
@@ -130,17 +127,6 @@ export function MiniProfilesScreen({
     </div>
   ) : null;
 
-  async function archiveProvider(id: string) {
-    if (!permissions.can_archive_profile || archivingId) return;
-    setArchivingId(id);
-    try {
-      const ok = await onArchiveProfile(id);
-      if (ok) setSubView('main');
-    } finally {
-      setArchivingId(null);
-    }
-  }
-
   return (
     <div>
       {subHeader}
@@ -158,13 +144,11 @@ export function MiniProfilesScreen({
             canArchiveProfile={permissions.can_archive_profile}
             canCreate={canCreate}
             maxProfiles={maxProfiles}
-            archivingId={archivingId}
             onToggleArchive={() => setArchiveOpen(v => !v)}
             onSwitch={onSwitchProfile}
             onCreate={activeProfiles.length === 0 && onCreateFirstProfile
               ? onCreateFirstProfile
               : () => setSubView('create')}
-            onArchive={archiveProvider}
             onUnarchive={onUnarchiveProfile}
           />
 
@@ -205,6 +189,7 @@ export function MiniProfilesScreen({
             const updated = await updateBasic(fields);
             if (updated) { onProviderUpdated(updated); setSubView('main'); }
           }}
+          onUpdateCategory={updateCategory}
         />
       )}
 
@@ -229,13 +214,12 @@ function ProfilesOverview(props: {
   canArchiveProfile: boolean;
   canCreate: boolean;
   maxProfiles: number;
-  archivingId: string | null;
   onToggleArchive: () => void;
   onSwitch: (idx: number) => void;
   onCreate: () => void;
-  onArchive: (id: string) => void;
   onUnarchive: (id: string) => Promise<boolean>;
 }) {
+  const [unarchivingId, setUnarchivingId] = useState<string | null>(null);
   const indexById = new Map(props.providers.map((p, i) => [p.id, i]));
 
   return (
@@ -271,10 +255,7 @@ function ProfilesOverview(props: {
             key={p.id}
             provider={p}
             isActive={indexById.get(p.id) === props.activeIdx}
-            canManage={props.canArchiveProfile}
-            archiving={props.archivingId === p.id}
             onSwitch={() => props.onSwitch(indexById.get(p.id) ?? 0)}
-            onArchive={() => props.onArchive(p.id)}
           />
         ))}
       </div>
@@ -287,16 +268,24 @@ function ProfilesOverview(props: {
           {props.archiveOpen && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
               {props.archivedProfiles.map(p => (
-                <ProfileListCard
-                  key={p.id}
-                  provider={p}
-                  isActive={false}
-                  canManage={props.canArchiveProfile}
-                  archived
-                  archiving={false}
-                  onSwitch={() => undefined}
-                  onArchive={() => { void props.onUnarchive(p.id); }}
-                />
+                <div key={p.id} style={{ position: 'relative' }}>
+                  <ProfileListCard
+                    provider={p}
+                    isActive={false}
+                    archived
+                    onSwitch={() => undefined}
+                  />
+                  {props.canArchiveProfile && (
+                    <button
+                      className="mini-tap"
+                      onClick={async () => { setUnarchivingId(p.id); await props.onUnarchive(p.id); setUnarchivingId(null); }}
+                      disabled={unarchivingId === p.id}
+                      style={{ marginTop: 4, width: '100%', border: '1px solid rgba(34,197,94,.2)', background: 'rgba(34,197,94,.06)', color: '#166534', borderRadius: 8, padding: '8px 10px', fontSize: 12, fontWeight: 800 }}
+                    >
+                      {unarchivingId === p.id ? '...' : 'Восстановить профиль'}
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
           )}
@@ -306,14 +295,11 @@ function ProfilesOverview(props: {
   );
 }
 
-function ProfileListCard({ provider, isActive, canManage, archived, archiving, onSwitch, onArchive }: {
+function ProfileListCard({ provider, isActive, archived, onSwitch }: {
   provider: Provider;
   isActive: boolean;
-  canManage: boolean;
   archived?: boolean;
-  archiving: boolean;
   onSwitch: () => void;
-  onArchive: () => void;
 }) {
   const category = [provider.primary_category, provider.primary_subcategory].filter(Boolean).join(' · ') || 'Категория не указана';
   const isVisible = provider.publication_status === 'visible' && provider.provider_status === 'active';
@@ -335,11 +321,6 @@ function ProfileListCard({ provider, isActive, canManage, archived, archiving, o
           </div>
         </div>
       </button>
-      {canManage && (
-        <button className="mini-tap" onClick={onArchive} disabled={archiving} style={{ marginTop: 10, border: '1px solid rgba(239,68,68,.18)', background: 'rgba(239,68,68,.06)', color: '#dc2626', borderRadius: 8, padding: '8px 10px', fontSize: 12, fontWeight: 800, width: '100%' }}>
-          {archiving ? '...' : archived ? 'Восстановить профиль' : 'Архивировать профиль'}
-        </button>
-      )}
     </div>
   );
 }
@@ -348,6 +329,17 @@ function Badge({ bg, color, children }: { bg: string; color: string; children: s
   return <span style={{ background: bg, color, borderRadius: 8, padding: '2px 7px', fontSize: 11, fontWeight: 900 }}>{children}</span>;
 }
 
+const CREATE_CATEGORY_CHIPS = [
+  'Тамада', 'Фотограф', 'Видеограф', 'DJ',
+  'Декоратор', 'Флорист', 'Артист', 'Аниматор',
+];
+
+const CREATE_KZ_CITIES = [
+  'Алматы', 'Астана', 'Шымкент', 'Қарағанды', 'Ақтобе',
+  'Тараз', 'Павлодар', 'Өскемен', 'Семей', 'Атырау',
+  'Қостанай', 'Петропавл', 'Орал', 'Ақтау', 'Қызылорда',
+];
+
 function ProfileCreateView({ saving, canCreate, maxProfiles, onCancel, onCreate }: {
   saving: boolean;
   canCreate: boolean;
@@ -355,14 +347,17 @@ function ProfileCreateView({ saving, canCreate, maxProfiles, onCancel, onCreate 
   onCancel: () => void;
   onCreate: (input: CreateProfileInput) => Promise<void>;
 }) {
-  const [displayName, setDisplayName] = useState('');
-  const [category, setCategory] = useState('');
-  const [subcategory, setSubcategory] = useState('');
-  const [city, setCity] = useState('');
+  const [displayName,  setDisplayName]  = useState('');
+  const [selectedChip, setSelectedChip] = useState('');
+  const [customCat,    setCustomCat]    = useState('');
+  const [subcategory,  setSubcategory]  = useState('');
+  const [city,         setCity]         = useState('');
+
+  const effectiveCategory = selectedChip === 'custom' ? customCat.trim() : selectedChip;
 
   async function submit() {
-    if (!displayName.trim() || !category.trim() || !canCreate || saving) return;
-    await onCreate({ display_name: displayName, category, subcategory, city });
+    if (!displayName.trim() || !effectiveCategory || !canCreate || saving) return;
+    await onCreate({ display_name: displayName, category: effectiveCategory, subcategory, city });
   }
 
   return (
@@ -378,20 +373,60 @@ function ProfileCreateView({ saving, canCreate, maxProfiles, onCancel, onCreate 
       </div>
       <div className="mini-field">
         <label>Категория</label>
-        <input className="mini-input" value={category} onChange={e => setCategory(e.target.value)} placeholder="Тамада" />
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+          {CREATE_CATEGORY_CHIPS.map(chip => (
+            <button
+              key={chip}
+              type="button"
+              className="mini-tap"
+              onClick={() => setSelectedChip(chip)}
+              style={{
+                padding: '8px 14px',
+                border: selectedChip === chip ? '1.5px solid #7c3aed' : '1.5px solid rgba(0,0,0,.10)',
+                borderRadius: 20,
+                background: selectedChip === chip ? 'rgba(124,58,237,.08)' : 'transparent',
+                color: selectedChip === chip ? '#7c3aed' : 'inherit',
+                fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              }}
+            >
+              {chip}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="mini-tap"
+            onClick={() => setSelectedChip('custom')}
+            style={{
+              padding: '8px 14px',
+              border: selectedChip === 'custom' ? '1.5px solid #7c3aed' : '1.5px solid rgba(0,0,0,.10)',
+              borderRadius: 20,
+              background: selectedChip === 'custom' ? 'rgba(124,58,237,.08)' : 'transparent',
+              color: selectedChip === 'custom' ? '#7c3aed' : 'inherit',
+              fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+            }}
+          >
+            Другое
+          </button>
+        </div>
+        {selectedChip === 'custom' && (
+          <input className="mini-input" value={customCat} maxLength={60} placeholder="Ваша специальность" onChange={e => setCustomCat(e.target.value)} />
+        )}
       </div>
       <div className="mini-field">
-        <label>Подкатегория</label>
-        <input className="mini-input" value={subcategory} onChange={e => setSubcategory(e.target.value)} placeholder="Ведущий, DJ..." />
+        <label>Подкатегория <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--tg-theme-hint-color,#6b7280)' }}>— необязательно</span></label>
+        <input className="mini-input" value={subcategory} onChange={e => setSubcategory(e.target.value)} placeholder="Ведущий, DJ…" maxLength={60} />
       </div>
       <div className="mini-field">
         <label>Город</label>
-        <input className="mini-input" value={city} onChange={e => setCity(e.target.value)} placeholder="Алматы" />
+        <input className="mini-input" list="create-kz-cities" value={city} onChange={e => setCity(e.target.value)} placeholder="Алматы" maxLength={80} />
+        <datalist id="create-kz-cities">
+          {CREATE_KZ_CITIES.map(c => <option key={c} value={c} />)}
+        </datalist>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         <button className="mini-btn mini-btn-outline mini-tap" onClick={onCancel}>Отмена</button>
-        <button className="mini-btn mini-btn-primary mini-tap" onClick={() => void submit()} disabled={!displayName.trim() || !category.trim() || !canCreate || saving}>
+        <button className="mini-btn mini-btn-primary mini-tap" onClick={() => void submit()} disabled={!displayName.trim() || !effectiveCategory || !canCreate || saving}>
           {saving ? '...' : 'Создать'}
         </button>
       </div>

@@ -41,10 +41,18 @@ export function MiniStyles() {
       /* ── Scrollable content area ─────────────────────────────── */
       .mini-content {
         flex: 1;
+        min-height: 0;
         overflow-y: auto;
         overflow-x: hidden;
         padding: 16px;
+        padding-bottom: max(80px, env(keyboard-inset-height, 80px));
         -webkit-overflow-scrolling: touch;
+        scroll-padding-bottom: 120px;
+      }
+
+      /* Ensure focused inputs scroll into view above keyboard */
+      input:focus, textarea:focus, select:focus {
+        scroll-margin-bottom: 140px;
       }
 
       /* ── Bottom navigation ───────────────────────────────────── */
@@ -55,6 +63,7 @@ export function MiniStyles() {
         border-top: 1px solid rgba(0,0,0,.07);
         padding-bottom: env(safe-area-inset-bottom, 6px);
         flex-shrink: 0;
+        z-index: 10;
       }
       .mini-nav-item {
         flex: 1;

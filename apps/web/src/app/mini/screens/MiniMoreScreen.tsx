@@ -151,8 +151,8 @@ export function MiniMoreScreen({
         {view === 'team' && permissions.can_manage_team && <TeamTool provider={activeProvider} />}
         {view === 'activity' && permissions.can_manage_team && <ActivityTool provider={activeProvider} />}
         {view === 'transfers' && permissions.can_archive_profile && <TransfersTool provider={activeProvider} onProvidersChanged={onProvidersChanged} />}
-        {view === 'settings' && (permissions.can_manage_subscription || permissions.can_manage_integrations) && (
-          <SettingsTool tgUser={tgUser} provider={activeProvider} />
+        {view === 'settings' && (permissions.can_manage_subscription || permissions.can_manage_integrations || permissions.can_archive_profile) && (
+          <SettingsTool tgUser={tgUser} provider={activeProvider} canArchive={permissions.can_archive_profile} onProvidersChanged={onProvidersChanged} />
         )}
       </div>
     );
@@ -199,13 +199,13 @@ export function MiniMoreScreen({
       label: 'Команда',
       sub: 'Помощники этого профиля',
     },
-    (permissions.can_manage_subscription || permissions.can_manage_integrations) && {
+    (permissions.can_manage_subscription || permissions.can_manage_integrations || permissions.can_archive_profile) && {
       id: 'settings' as const,
       icon: '⚙️',
       bg: '#f9fafb',
       color: '#6b7280',
       label: 'Настройки',
-      sub: 'Аккаунт, Telegram и поддержка',
+      sub: 'Аккаунт, Telegram, архив и поддержка',
     },
   ].filter(Boolean) as Array<{ id: MoreView; icon: string; bg: string; color: string; label: string; sub: string }>;
 
@@ -669,7 +669,7 @@ function TransfersTool({ provider, onProvidersChanged }: { provider: Provider | 
   );
 }
 
-function SettingsTool({ tgUser, provider }: { tgUser: TgUser | null; provider: Provider | null }) {
+function SettingsTool({ tgUser, provider, canArchive, onProvidersChanged }: { tgUser: TgUser | null; provider: Provider | null; canArchive?: boolean; onProvidersChanged?: () => Promise<void> }) {
   const [account, setAccount] = useState<Account | null>(null);
   const [team, setTeam] = useState<TelegramAccount[]>([]);
   const [transferPhone, setTransferPhone] = useState('');
@@ -809,6 +809,34 @@ function SettingsTool({ tgUser, provider }: { tgUser: TgUser | null; provider: P
           />
         ))}
       </div>
+      {provider && canArchive && (
+        <div className="mini-card">
+          <div style={{ fontWeight: 900, marginBottom: 8 }}>Архив профиля</div>
+          <div style={{ fontSize: 13, color: 'var(--tg-theme-hint-color, #6b7280)', lineHeight: 1.45, marginBottom: 10 }}>
+            Архивированный профиль скрыт от клиентов, но не удалён. Восстановить можно в любой момент.
+          </div>
+          <button
+            className="mini-btn mini-btn-outline mini-tap"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              setMessage('');
+              const res = await fetch(`${API}/providers/${provider.id}/archive`, { method: 'POST', headers: auth() }).catch(() => null);
+              const data = res ? await res.json() as { ok: boolean; error?: string } : null;
+              if (data?.ok) {
+                setMessage('Профиль архивирован.');
+                await onProvidersChanged?.();
+              } else {
+                setMessage(data?.error ?? 'Не удалось архивировать профиль.');
+              }
+              setBusy(false);
+            }}
+            style={{ borderColor: 'rgba(239,68,68,.3)', color: '#dc2626' }}
+          >
+            Архивировать этот профиль
+          </button>
+        </div>
+      )}
       {provider && (
         <div className="mini-card">
           <div style={{ fontWeight: 900, marginBottom: 8 }}>Передача профиля</div>

@@ -35,7 +35,7 @@ export default function MiniShell() {
     tab, handleTab,
     tgUser, miniAuthError, permissions, createGuestAccount,
     providers, activeIdx, setActiveIdx, activeProvider,
-    updateActiveProvider, refreshProviders, canManageProfiles, maxProfiles, createProfile, archiveProfile, unarchiveProfile,
+    updateActiveProvider, refreshProviders, canManageProfiles, maxProfiles, createProfile, unarchiveProfile,
     summary, sumLoading, loadAnalytics,
   } = useMiniApp(tgFlow);
 
@@ -126,7 +126,6 @@ export default function MiniShell() {
               maxProfiles={maxProfiles}
               onSwitchProfile={setActiveIdx}
               onCreateProfile={createProfile}
-              onArchiveProfile={archiveProfile}
               onUnarchiveProfile={unarchiveProfile}
               onProviderUpdated={updateActiveProvider}
               openPhotosOnLoad={openPhotosOnLoad}

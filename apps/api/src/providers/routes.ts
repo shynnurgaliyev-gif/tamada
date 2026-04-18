@@ -106,13 +106,13 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
 
     // PATCH /providers/:id
     app.patch('/providers/:id', async (req, reply) => {
-      const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      const { accountId } = await getOwnerContext(req, 'can_edit_profile');
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const { id } = req.params as { id: string };
       const provider = await repo.findProviderById(db, id);
       if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
-      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
 
       const body = req.body as Record<string, unknown>;
       const updates: Record<string, unknown> = {};
@@ -129,6 +129,7 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
       const updated = await repo.updateProvider(db, id, updates);
       return reply.send({ ok: true, provider: updated });
     });
+
 
     // POST /providers/:id/archive
     app.post('/providers/:id/archive', async (req, reply) => {
@@ -264,12 +265,12 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
 
     // GET /providers/:id/data  (authenticated — works for drafts too)
     app.get('/providers/:id/data', async (req, reply) => {
-      const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      const { accountId } = await getOwnerContext(req, 'can_view_profile');
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const { id } = req.params as { id: string };
       const provider = await repo.findProviderById(db, id);
-      if (!provider || provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (!provider || provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
 
       const [services, photos, links] = await Promise.all([
         repo.findServicesByProviderId(db, id),
@@ -321,12 +322,12 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
 
     // PATCH /providers/:id/services/:serviceId
     app.patch('/providers/:id/services/:serviceId', async (req, reply) => {
-      const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      const { accountId } = await getOwnerContext(req, 'can_edit_profile');
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const { id, serviceId } = req.params as { id: string; serviceId: string };
       const provider = await repo.findProviderById(db, id);
-      if (!provider || provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (!provider || provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
 
       const service = await repo.findServiceById(db, serviceId);
       if (!service || service.provider_id !== id) return reply.code(404).send({ ok: false, error: 'Service not found' });
@@ -343,12 +344,12 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
 
     // POST /providers/:id/photos (multipart)
     app.post('/providers/:id/photos', async (req, reply) => {
-      const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      const { accountId } = await getOwnerContext(req, 'can_edit_profile');
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const { id } = req.params as { id: string };
       const provider = await repo.findProviderById(db, id);
-      if (!provider || provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (!provider || provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
 
       const count = await repo.countPhotosByProviderId(db, id);
       if (count >= MAX_PHOTOS) {
@@ -385,12 +386,12 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
 
     // DELETE /providers/:id/photos/:photoId
     app.delete('/providers/:id/photos/:photoId', async (req, reply) => {
-      const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      const { accountId } = await getOwnerContext(req, 'can_edit_profile');
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const { id, photoId } = req.params as { id: string; photoId: string };
       const provider = await repo.findProviderById(db, id);
-      if (!provider || provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (!provider || provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
 
       const photo = await repo.findPhotoById(db, photoId);
       if (!photo || photo.provider_id !== id) return reply.code(404).send({ ok: false, error: 'Photo not found' });
@@ -403,12 +404,12 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
 
     // POST /providers/:id/links
     app.post('/providers/:id/links', async (req, reply) => {
-      const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      const { accountId } = await getOwnerContext(req, 'can_edit_profile');
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const { id } = req.params as { id: string };
       const provider = await repo.findProviderById(db, id);
-      if (!provider || provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (!provider || provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
 
       const body = req.body as Record<string, unknown>;
       const linkType = typeof body['link_type'] === 'string' ? body['link_type'] : null;
@@ -427,12 +428,12 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
 
     // DELETE /providers/:id/links/:linkId
     app.delete('/providers/:id/links/:linkId', async (req, reply) => {
-      const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      const { accountId } = await getOwnerContext(req, 'can_edit_profile');
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
 
       const { id, linkId } = req.params as { id: string; linkId: string };
       const provider = await repo.findProviderById(db, id);
-      if (!provider || provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (!provider || provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
 
       const link = await repo.findLinkById(db, linkId);
       if (!link || link.provider_id !== id) return reply.code(404).send({ ok: false, error: 'Link not found' });

@@ -7,7 +7,17 @@ import { useEffect, useState } from 'react';
 import type { Provider, ProviderPhoto, ProviderLink } from '../../types';
 
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
-function token() { return localStorage.getItem('session_token') ?? ''; }
+function miniHeaders(): Record<string, string> {
+  const session = localStorage.getItem('session_token') ?? '';
+  const mini    = localStorage.getItem('mini_auth_token') ?? '';
+  return {
+    ...(session ? { Authorization: `Bearer ${session}` } : {}),
+    ...(mini    ? { 'X-Mini-Auth': mini }               : {}),
+  };
+}
+function hasAuth() {
+  return !!(localStorage.getItem('session_token') || localStorage.getItem('mini_auth_token'));
+}
 
 type TeamMember = {
   id: string;
@@ -59,22 +69,20 @@ export function ProfileView({
   const [teamBusy, setTeamBusy] = useState(false);
 
   useEffect(() => {
-    const session = token();
-    if (!session || !canManageTeam) return;
-    fetch(`${API}/providers/${provider.id}/team`, { headers: { Authorization: `Bearer ${session}` } })
+    if (!canManageTeam || !hasAuth()) return;
+    fetch(`${API}/providers/${provider.id}/team`, { headers: miniHeaders() })
       .then(r => r.json())
       .then((d: { ok: boolean; team?: TeamMember[] }) => { if (d.ok) setTeam(d.team ?? []); })
       .catch(() => null);
   }, [provider.id, canManageTeam]);
 
   async function createAssistantInvite() {
-    const session = token();
-    if (!session || teamBusy) return;
+    if (!hasAuth() || teamBusy) return;
     setTeamBusy(true);
     try {
       const res = await fetch(`${API}/providers/${provider.id}/assistant-invite`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${session}` },
+        headers: miniHeaders(),
       });
       const data = await res.json() as { ok: boolean; deep_link?: string };
       if (data.ok && data.deep_link) setInviteLink(data.deep_link);
@@ -84,13 +92,12 @@ export function ProfileView({
   }
 
   async function revokeAssistant(id: string) {
-    const session = token();
-    if (!session || teamBusy) return;
+    if (!hasAuth() || teamBusy) return;
     setTeamBusy(true);
     try {
       const res = await fetch(`${API}/providers/${provider.id}/team/${id}/revoke`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${session}` },
+        headers: miniHeaders(),
       });
       const data = await res.json() as { ok: boolean };
       if (data.ok) setTeam(prev => prev.filter(m => m.id !== id || m.is_primary));
@@ -193,7 +200,7 @@ export function ProfileView({
               Владелец и помощники этого профиля
             </div>
           </div>
-          {canManageTeam && token() && (
+          {canManageTeam && hasAuth() && (
             <button className="mini-tap" onClick={() => void createAssistantInvite()} disabled={teamBusy} style={{ border: 'none', borderRadius: 8, padding: '8px 10px', background: 'rgba(124,58,237,.1)', color: '#6d28d9', fontWeight: 800, fontSize: 12 }}>
               Пригласить
             </button>
@@ -220,7 +227,7 @@ export function ProfileView({
                     {member.linked_at ? ` · ${new Date(member.linked_at).toLocaleDateString('ru-RU')}` : ''}
                   </div>
                 </div>
-                {canManageTeam && !member.is_primary && token() && (
+                {canManageTeam && !member.is_primary && hasAuth() && (
                   <button className="mini-tap" onClick={() => void revokeAssistant(member.id)} disabled={teamBusy} style={{ border: 'none', borderRadius: 8, padding: '7px 9px', background: 'rgba(239,68,68,.08)', color: '#dc2626', fontWeight: 800, fontSize: 11 }}>
                     Отозвать
                   </button>

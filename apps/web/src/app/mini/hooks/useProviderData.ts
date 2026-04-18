@@ -15,8 +15,14 @@ import type {
 
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
-function token() { return localStorage.getItem('session_token') ?? ''; }
-function auth()  { return { Authorization: `Bearer ${token()}` }; }
+function miniHeaders(): Record<string, string> {
+  const sessionToken = localStorage.getItem('session_token') ?? '';
+  const miniToken    = localStorage.getItem('mini_auth_token') ?? '';
+  return {
+    ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+    ...(miniToken    ? { 'X-Mini-Auth': miniToken }               : {}),
+  };
+}
 
 /* ── Return shape ─────────────────────────────────────────────────────────── */
 
@@ -29,11 +35,12 @@ export interface ProviderDataState {
   error:    string | null;
   reload:   () => void;
 
-  updateBasic:  (fields: ProviderUpdate) => Promise<Provider | null>;
-  uploadPhoto:  (file: File)             => Promise<boolean>;
-  deletePhoto:  (photoId: string)        => Promise<boolean>;
-  addLink:      (link_type: LinkType, url: string, label?: string) => Promise<boolean>;
-  deleteLink:   (linkId: string)         => Promise<boolean>;
+  updateBasic:     (fields: ProviderUpdate) => Promise<Provider | null>;
+  uploadPhoto:     (file: File)             => Promise<boolean>;
+  deletePhoto:     (photoId: string)        => Promise<boolean>;
+  addLink:         (link_type: LinkType, url: string, label?: string) => Promise<boolean>;
+  deleteLink:      (linkId: string)         => Promise<boolean>;
+  updateCategory:  (category: string, subcategory?: string) => Promise<boolean>;
 }
 
 /* ── Hook ─────────────────────────────────────────────────────────────────── */
@@ -50,7 +57,7 @@ export function useProviderData(providerId: string | null): ProviderDataState {
     if (!providerId) return;
     setLoading(true);
     setError(null);
-    fetch(`${API}/providers/${providerId}/data`, { headers: auth() })
+    fetch(`${API}/providers/${providerId}/data`, { headers: miniHeaders() })
       .then(r => r.json())
       .then((d: { ok: boolean; photos?: ProviderPhoto[]; links?: ProviderLink[]; services?: ProviderService[] }) => {
         if (d.ok) {
@@ -75,7 +82,7 @@ export function useProviderData(providerId: string | null): ProviderDataState {
     try {
       const r = await fetch(`${API}/providers/${providerId}`, {
         method: 'PATCH',
-        headers: { ...auth(), 'Content-Type': 'application/json' },
+        headers: { ...miniHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify(fields),
       });
       const d: { ok: boolean; provider?: Provider } = await r.json();
@@ -96,7 +103,7 @@ export function useProviderData(providerId: string | null): ProviderDataState {
       form.append('file', file);
       const r = await fetch(`${API}/providers/${providerId}/photos`, {
         method: 'POST',
-        headers: auth(),
+        headers: miniHeaders(),
         body: form,
       });
       const d: { ok: boolean; photo?: ProviderPhoto } = await r.json();
@@ -118,7 +125,7 @@ export function useProviderData(providerId: string | null): ProviderDataState {
     try {
       const r = await fetch(`${API}/providers/${providerId}/photos/${photoId}`, {
         method: 'DELETE',
-        headers: auth(),
+        headers: miniHeaders(),
       });
       const d: { ok: boolean } = await r.json();
       if (d.ok) { setPhotos(prev => prev.filter(p => p.id !== photoId)); }
@@ -140,7 +147,7 @@ export function useProviderData(providerId: string | null): ProviderDataState {
     try {
       const r = await fetch(`${API}/providers/${providerId}/links`, {
         method: 'POST',
-        headers: { ...auth(), 'Content-Type': 'application/json' },
+        headers: { ...miniHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ link_type, url, label }),
       });
       const d: { ok: boolean; link?: ProviderLink } = await r.json();
@@ -159,7 +166,7 @@ export function useProviderData(providerId: string | null): ProviderDataState {
     try {
       const r = await fetch(`${API}/providers/${providerId}/links/${linkId}`, {
         method: 'DELETE',
-        headers: auth(),
+        headers: miniHeaders(),
       });
       const d: { ok: boolean } = await r.json();
       if (d.ok) { setLinks(prev => prev.filter(l => l.id !== linkId)); }
@@ -171,10 +178,43 @@ export function useProviderData(providerId: string | null): ProviderDataState {
     }
   }, [providerId]);
 
+  const updateCategory = useCallback(async (category: string, subcategory?: string): Promise<boolean> => {
+    if (!providerId) return false;
+    setSaving(true);
+    try {
+      const firstService = services[0] ?? null;
+      if (firstService) {
+        const r = await fetch(`${API}/providers/${providerId}/services/${firstService.id}`, {
+          method: 'PATCH',
+          headers: { ...miniHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category, subcategory: subcategory ?? null, title: subcategory ?? category }),
+        });
+        const d: { ok: boolean } = await r.json();
+        if (d.ok) {
+          setServices(prev => prev.map(s => s.id === firstService.id ? { ...s, category, subcategory: subcategory ?? null } : s));
+        }
+        return d.ok;
+      } else {
+        const r = await fetch(`${API}/providers/${providerId}/services`, {
+          method: 'POST',
+          headers: { ...miniHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category, subcategory, title: subcategory ?? category }),
+        });
+        const d: { ok: boolean; service?: ProviderService } = await r.json();
+        if (d.ok && d.service) { setServices([d.service]); }
+        return d.ok;
+      }
+    } catch {
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }, [providerId, services]);
+
   return {
     photos, links, services,
     loading, saving, error,
     reload,
-    updateBasic, uploadPhoto, deletePhoto, addLink, deleteLink,
+    updateBasic, uploadPhoto, deletePhoto, addLink, deleteLink, updateCategory,
   };
 }
