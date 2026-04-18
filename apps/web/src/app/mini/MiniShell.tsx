@@ -27,25 +27,39 @@ export default function MiniShell() {
   useEffect(() => {
     const vp = window.visualViewport;
     if (!vp) return;
-    const initH = vp.height; // capture full height before any keyboard event
-    const onResize = () => {
-      const diff = initH - vp.height;
-      const kbOpen = diff > 150;
-      setKeyboardOpen(kbOpen);
-      if (!kbOpen) return;
-      // Scroll focused input above keyboard
+    const viewport = vp; // non-null reference for closures
+    const initH = viewport.height; // full height captured before any keyboard event
+
+    function scrollFocused() {
       const el = document.activeElement as HTMLElement | null;
       if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) return;
       const container = el.closest('.mini-content') as HTMLElement | null;
       if (!container) return;
       const elRect = el.getBoundingClientRect();
-      const visibleBottom = vp.offsetTop + vp.height;
+      const visibleBottom = viewport.offsetTop + viewport.height;
       if (elRect.bottom > visibleBottom - 20) {
         container.scrollTop += elRect.bottom - visibleBottom + 280;
       }
+    }
+
+    // viewport resize = keyboard opens or closes
+    const onResize = () => {
+      const kbOpen = initH - viewport.height > 150;
+      setKeyboardOpen(kbOpen);
+      if (kbOpen) setTimeout(scrollFocused, 100); // wait for React re-render + keyboard anim
     };
-    vp.addEventListener('resize', onResize);
-    return () => vp.removeEventListener('resize', onResize);
+
+    // focusin = user taps another field while keyboard is already open
+    const onFocusIn = () => {
+      if (initH - viewport.height > 150) setTimeout(scrollFocused, 50);
+    };
+
+    viewport.addEventListener('resize', onResize);
+    document.addEventListener('focusin', onFocusIn);
+    return () => {
+      viewport.removeEventListener('resize', onResize);
+      document.removeEventListener('focusin', onFocusIn);
+    };
   }, []);
 
   // ── Overlay state (UI-only, not owned by the hook) ──────
