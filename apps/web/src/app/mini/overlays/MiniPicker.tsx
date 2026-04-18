@@ -8,6 +8,7 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { getTelegramWebApp } from '@/lib/telegram';
 
 /* ── Subcategory presets ───────────────────────────────────────────────────── */
 export const SUBCATEGORIES: Record<string, string[]> = {
@@ -57,6 +58,12 @@ export function MiniPicker({
   const isCustom   = selected === CUSTOM_LABEL;
   const canConfirm = isCustom ? !!customText.trim() : !!selected;
 
+  // Semi-transparent background — required for backdrop-filter blur to be visible.
+  // var(--tg-theme-secondary-bg-color) is fully opaque and would hide the blur.
+  const isDark  = getTelegramWebApp()?.colorScheme !== 'light';
+  const cardBg  = isDark ? 'rgba(28,28,30,0.78)' : 'rgba(242,242,247,0.78)';
+  const fadeBg  = isDark ? 'rgba(28,28,30,1)'    : 'rgba(242,242,247,1)';
+
   function confirm() {
     const result = isCustom ? customText.trim() : selected;
     if (result) onConfirm(result);
@@ -79,10 +86,10 @@ export function MiniPicker({
           maxWidth: 360,
           borderRadius: 16,
           overflow: 'hidden',
-          background: 'var(--tg-theme-secondary-bg-color, #2c2c2e)',
-          backdropFilter: 'blur(24px) saturate(160%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(160%)',
-          boxShadow: '0 24px 60px rgba(0,0,0,.45)',
+          background: cardBg,
+          backdropFilter: 'blur(28px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+          boxShadow: '0 24px 60px rgba(0,0,0,.5)',
         } as React.CSSProperties}
       >
         {/* ── Wheel ──────────────────────────────────────────────────── */}
@@ -91,6 +98,7 @@ export function MiniPicker({
             options={allOptions}
             value={selected}
             onChange={setSelected}
+            fadeBg={fadeBg}
           />
         )}
 
@@ -175,10 +183,12 @@ function WheelScroll({
   options,
   value,
   onChange,
+  fadeBg,
 }: {
   options:  string[];
   value:    string;
   onChange: (v: string) => void;
+  fadeBg:   string;
 }) {
   const ref        = useRef<HTMLDivElement>(null);
   const [scrollY,  setScrollY]  = useState(() => Math.max(0, options.indexOf(value)) * ITEM_H);
@@ -227,7 +237,7 @@ function WheelScroll({
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0,
         height: ITEM_H * HALF,
-        background: 'linear-gradient(to bottom, var(--tg-theme-secondary-bg-color,#2c2c2e) 20%, transparent 100%)',
+        background: `linear-gradient(to bottom, ${fadeBg} 20%, transparent 100%)`,
         pointerEvents: 'none', zIndex: 3,
       }} />
 
@@ -235,7 +245,7 @@ function WheelScroll({
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0,
         height: ITEM_H * HALF,
-        background: 'linear-gradient(to top, var(--tg-theme-secondary-bg-color,#2c2c2e) 20%, transparent 100%)',
+        background: `linear-gradient(to top, ${fadeBg} 20%, transparent 100%)`,
         pointerEvents: 'none', zIndex: 3,
       }} />
 
