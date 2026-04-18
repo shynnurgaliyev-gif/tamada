@@ -31,11 +31,25 @@ export function MiniStyles() {
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 10px 16px;
+        padding: 8px 16px;
         background: var(--tg-theme-secondary-bg-color, #fff);
         border-bottom: 1px solid rgba(0,0,0,.07);
         flex-shrink: 0;
-        min-height: 60px;
+        min-height: 42px;
+      }
+
+      /* ── Sticky inline header (Отмена | Title | Сохранить) ── */
+      .mini-inline-header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: var(--tg-theme-bg-color, #f7f6ff);
+        margin: -16px -16px 20px;
+        padding: 12px 16px;
+        border-bottom: 1px solid rgba(0,0,0,.07);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
       }
 
       /* ── Scrollable content area ─────────────────────────────── */

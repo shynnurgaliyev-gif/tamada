@@ -399,11 +399,7 @@ function ProfileCreateView({ saving, canCreate, maxProfiles, onCancel, onCreate 
   return (
     <>
       {/* ── Inline header ─────────────────────────────────────── */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 20, paddingBottom: 14,
-        borderBottom: '1px solid rgba(0,0,0,.07)',
-      }}>
+      <div className="mini-inline-header">
         <button
           className="mini-tap"
           onClick={onCancel}

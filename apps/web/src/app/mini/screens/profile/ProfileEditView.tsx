@@ -90,26 +90,15 @@ export function ProfileEditView({
 
   return (
     <>
-      {/* ── Inline header ─────────────────────────────────────── */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 20, paddingBottom: 14,
-        borderBottom: '1px solid rgba(0,0,0,.07)',
-      }}>
-        <button
-          className="mini-tap"
-          onClick={onCancel}
-          style={{ border: 'none', background: 'none', padding: '4px 0', color: 'var(--tg-theme-hint-color,#6b7280)', fontFamily: 'inherit', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}
-        >
+      {/* ── Sticky inline header ──────────────────────────────── */}
+      <div className="mini-inline-header">
+        <button className="mini-tap" onClick={onCancel}
+          style={{ border: 'none', background: 'none', padding: '4px 0', color: 'var(--tg-theme-hint-color,#6b7280)', fontFamily: 'inherit', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
           Отмена
         </button>
         <span style={{ fontWeight: 800, fontSize: 16 }}>Редактирование</span>
-        <button
-          className="mini-tap"
-          onClick={() => void handleSave()}
-          disabled={saving}
-          style={{ border: 'none', background: 'none', padding: '4px 0', color: saving ? 'rgba(124,58,237,.45)' : '#7c3aed', fontFamily: 'inherit', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
-        >
+        <button className="mini-tap" onClick={() => void handleSave()} disabled={saving}
+          style={{ border: 'none', background: 'none', padding: '4px 0', color: saving ? 'rgba(124,58,237,.45)' : '#7c3aed', fontFamily: 'inherit', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
           {saving ? '...' : 'Сохранить'}
         </button>
       </div>
