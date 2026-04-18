@@ -92,10 +92,12 @@ export function MiniPicker({
       className="mini-overlay"
       onClick={onClose}
       style={{
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'center',
-        padding: '0 20px',
-        // Override inset:0 with visual viewport so card centers in visible area above keyboard
+        // paddingTop centers the card in the visible area (shrinks when keyboard opens)
+        paddingTop: Math.max(16, (vpHeight - 420) / 2),
+        paddingLeft: 20,
+        paddingRight: 20,
         top: vpTop,
         height: vpHeight,
         bottom: 'auto',
@@ -170,8 +172,8 @@ export function MiniPicker({
           </div>
         </div>
 
-        {/* ── Wheel ──────────────────────────────────────────────────── */}
-        {allOptions.length > 0 && (
+        {/* ── Wheel — hidden when typing custom value ─────────────── */}
+        {allOptions.length > 0 && !isCustom && (
           <WheelScroll
             options={allOptions}
             value={selected}
