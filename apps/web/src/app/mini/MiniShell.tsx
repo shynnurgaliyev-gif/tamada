@@ -38,14 +38,14 @@ export default function MiniShell() {
   // ── Fullscreen safe area (contentSafeAreaInset.top = Telegram header height)
   const [safeTop, setSafeTop] = useState(() => {
     const tg = getTelegramWebApp();
-    return (tg?.contentSafeAreaInset?.top ?? tg?.safeAreaInset?.top ?? 0) + 8;
+    return (tg?.contentSafeAreaInset?.top ?? tg?.safeAreaInset?.top ?? 0) + 12;
   });
   useEffect(() => {
     const tg = getTelegramWebApp();
     if (!tg) return;
     tg.requestFullscreen?.();
     const update = () => setSafeTop(
-      (tg.contentSafeAreaInset?.top ?? tg.safeAreaInset?.top ?? 0) + 8
+      (tg.contentSafeAreaInset?.top ?? tg.safeAreaInset?.top ?? 0) + 12
     );
     tg.onEvent('safeAreaChanged', update);
     tg.onEvent('contentSafeAreaChanged', update);
