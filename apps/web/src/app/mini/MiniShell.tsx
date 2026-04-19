@@ -35,6 +35,26 @@ export default function MiniShell() {
     return () => tg.offEvent('themeChanged', handler);
   }, []);
 
+  // ── Fullscreen safe area (contentSafeAreaInset.top = Telegram header height)
+  const [safeTop, setSafeTop] = useState(() => {
+    const tg = getTelegramWebApp();
+    return tg?.contentSafeAreaInset?.top ?? tg?.safeAreaInset?.top ?? 0;
+  });
+  useEffect(() => {
+    const tg = getTelegramWebApp();
+    if (!tg) return;
+    tg.requestFullscreen?.();
+    const update = () => setSafeTop(
+      tg.contentSafeAreaInset?.top ?? tg.safeAreaInset?.top ?? 0
+    );
+    tg.onEvent('safeAreaChanged', update);
+    tg.onEvent('contentSafeAreaChanged', update);
+    return () => {
+      tg.offEvent('safeAreaChanged', update);
+      tg.offEvent('contentSafeAreaChanged', update);
+    };
+  }, []);
+
   // Hide bottom nav + scroll focused input when keyboard opens
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   useEffect(() => {
@@ -163,7 +183,7 @@ export default function MiniShell() {
   return (
     <>
       <MiniStyles />
-      <div className={keyboardOpen ? 'mini-root keyboard-open' : 'mini-root'} data-theme={theme}>
+      <div className={keyboardOpen ? 'mini-root keyboard-open' : 'mini-root'} data-theme={theme} style={{ paddingTop: safeTop }}>
 
         <MiniTopBar
           provider={activeProvider}

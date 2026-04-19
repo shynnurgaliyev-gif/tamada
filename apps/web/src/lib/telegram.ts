@@ -20,6 +20,11 @@ export interface TelegramWebApp {
   };
   onEvent(eventType: string, handler: () => void): void;
   offEvent(eventType: string, handler: () => void): void;
+  safeAreaInset: { top: number; bottom: number; left: number; right: number };
+  contentSafeAreaInset: { top: number; bottom: number; left: number; right: number };
+  requestFullscreen(): void;
+  exitFullscreen(): void;
+  isFullscreen: boolean;
 }
 
 export type TgUser = {
