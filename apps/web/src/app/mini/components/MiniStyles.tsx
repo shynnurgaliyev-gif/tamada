@@ -15,6 +15,34 @@ export function MiniStyles() {
       }
       * { box-sizing: border-box; }
 
+      /* ── Octiqa Light theme ──────────────────────────────── */
+      .mini-root[data-theme="light"] {
+        --tg-theme-bg-color:           #f7f6ff;
+        --tg-theme-secondary-bg-color: #ffffff;
+        --tg-theme-text-color:         #0a0a0f;
+        --tg-theme-hint-color:         #6b7280;
+        --tg-theme-button-color:       #7c3aed;
+        --tg-theme-button-text-color:  #ffffff;
+        --tg-theme-link-color:         #7c3aed;
+        --mini-border:                 rgba(0,0,0,.07);
+        --mini-border-input:           rgba(0,0,0,.10);
+        --mini-border-strong:          rgba(0,0,0,.13);
+      }
+
+      /* ── Octiqa Dark theme ───────────────────────────────── */
+      .mini-root[data-theme="dark"] {
+        --tg-theme-bg-color:           #0f0e17;
+        --tg-theme-secondary-bg-color: #1a1928;
+        --tg-theme-text-color:         #f0effe;
+        --tg-theme-hint-color:         #8b87a4;
+        --tg-theme-button-color:       #7c3aed;
+        --tg-theme-button-text-color:  #ffffff;
+        --tg-theme-link-color:         #a78bfa;
+        --mini-border:                 rgba(255,255,255,.09);
+        --mini-border-input:           rgba(255,255,255,.13);
+        --mini-border-strong:          rgba(255,255,255,.18);
+      }
+
       /* ── Root container ───────────────────────────────────────── */
       .mini-root {
         height: 100dvh;
@@ -33,7 +61,7 @@ export function MiniStyles() {
         gap: 12px;
         padding: 8px 16px;
         background: var(--tg-theme-secondary-bg-color, #fff);
-        border-bottom: 1px solid rgba(0,0,0,.07);
+        border-bottom: 1px solid var(--mini-border);
         flex-shrink: 0;
         min-height: 42px;
       }
@@ -46,7 +74,7 @@ export function MiniStyles() {
         background: var(--tg-theme-bg-color, #f7f6ff);
         margin: 0 -16px 20px;
         padding: 12px 16px;
-        border-bottom: 1px solid rgba(0,0,0,.07);
+        border-bottom: 1px solid var(--mini-border);
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -81,7 +109,7 @@ export function MiniStyles() {
         display: flex;
         align-items: stretch;
         background: var(--tg-theme-secondary-bg-color, #fff);
-        border-top: 1px solid rgba(0,0,0,.07);
+        border-top: 1px solid var(--mini-border);
         padding-bottom: env(safe-area-inset-bottom, 6px);
         flex-shrink: 0;
         z-index: 10;
@@ -127,7 +155,7 @@ export function MiniStyles() {
       /* ── Cards ────────────────────────────────────────────────── */
       .mini-card {
         background: var(--tg-theme-secondary-bg-color, #fff);
-        border: 1px solid rgba(0,0,0,.07);
+        border: 1px solid var(--mini-border);
         border-radius: 16px;
         padding: 16px;
         margin-bottom: 12px;
@@ -180,7 +208,7 @@ export function MiniStyles() {
         display: flex; align-items: center; gap: 12px;
         padding: 13px 14px;
         background: var(--tg-theme-secondary-bg-color, #fff);
-        border: 1px solid rgba(0,0,0,.07);
+        border: 1px solid var(--mini-border);
         border-radius: 13px;
         text-decoration: none;
         color: inherit;
@@ -211,7 +239,7 @@ export function MiniStyles() {
       }
       .mini-stat {
         background: var(--tg-theme-secondary-bg-color, #fff);
-        border: 1px solid rgba(0,0,0,.07);
+        border: 1px solid var(--mini-border);
         border-radius: 14px;
         padding: 14px 12px;
       }
@@ -263,7 +291,7 @@ export function MiniStyles() {
       .mcal-legend {
         display: flex; flex-wrap: wrap; gap: 8px 16px;
         margin-top: 14px; padding-top: 12px;
-        border-top: 1px solid rgba(0,0,0,.07);
+        border-top: 1px solid var(--mini-border);
       }
       .mcal-legend-item {
         display: flex; align-items: center; gap: 5px;
@@ -296,7 +324,7 @@ export function MiniStyles() {
         line-height: 1; margin-top: -6px;
       }
       .mcal-hour-line {
-        flex: 1; border-top: 1px solid rgba(0,0,0,.07);
+        flex: 1; border-top: 1px solid var(--mini-border);
         height: 56px;
       }
       .mcal-hour-line[data-half=true] {
@@ -339,7 +367,7 @@ export function MiniStyles() {
       }
       .mcal-status-btn {
         padding: 10px 8px; border-radius: 12px;
-        border: 1.5px solid rgba(0,0,0,.08);
+        border: 1.5px solid var(--mini-border-input);
         background: var(--tg-theme-secondary-bg-color, #fff);
         font-family: inherit; font-size: 12px; font-weight: 700;
         cursor: pointer; text-align: center; display: flex;
@@ -413,7 +441,7 @@ export function MiniStyles() {
       .mini-input {
         width: 100%; padding: 12px 14px;
         background: var(--tg-theme-bg-color, #f7f6ff);
-        border: 1.5px solid rgba(0,0,0,.1);
+        border: 1.5px solid var(--mini-border-input);
         border-radius: 12px;
         font-family: inherit; font-size: 15px;
         color: var(--tg-theme-text-color, #0a0a0f);
@@ -427,7 +455,7 @@ export function MiniStyles() {
         display: flex; align-items: center; justify-content: space-between;
         padding: 12px 14px;
         background: var(--tg-theme-secondary-bg-color, #fff);
-        border: 1px solid rgba(0,0,0,.07);
+        border: 1px solid var(--mini-border);
         border-radius: 12px;
         margin-bottom: 8px;
       }
@@ -502,7 +530,7 @@ export function MiniStyles() {
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         gap: 4px; padding: 10px 6px;
         background: var(--tg-theme-secondary-bg-color, #fff);
-        border: 1.5px solid rgba(0,0,0,.08);
+        border: 1.5px solid var(--mini-border-input);
         border-radius: 12px;
         font-family: inherit; font-size: 11px; font-weight: 600;
         cursor: pointer; color: inherit;
@@ -517,7 +545,7 @@ export function MiniStyles() {
         display: flex; align-items: center; gap: 10px;
         padding: 11px 12px;
         background: var(--tg-theme-secondary-bg-color, #fff);
-        border: 1px solid rgba(0,0,0,.07);
+        border: 1px solid var(--mini-border);
         border-radius: 12px;
         margin-bottom: 8px;
       }
@@ -546,6 +574,14 @@ export function MiniStyles() {
         background-size: 600px 100%;
         animation: mini-shimmer 1.4s infinite;
         border-radius: 10px;
+      }
+      .mini-root[data-theme="dark"] .mini-skeleton {
+        background: linear-gradient(90deg,
+          rgba(255,255,255,.05) 25%,
+          rgba(255,255,255,.10) 50%,
+          rgba(255,255,255,.05) 75%
+        );
+        background-size: 600px 100%;
       }
     `}</style>
   );

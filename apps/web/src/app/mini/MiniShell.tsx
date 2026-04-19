@@ -3,6 +3,7 @@
 import { useState, useEffect }         from 'react';
 import { useSearchParams }              from 'next/navigation';
 
+import { getTelegramWebApp }             from '@/lib/telegram';
 import { useMiniApp }                   from './hooks/useMiniApp';
 import { MiniStyles }                   from './components/MiniStyles';
 import { MiniTopBar }                   from './components/MiniTopBar';
@@ -21,6 +22,18 @@ export default function MiniShell() {
   // useSearchParams must be called here (inside the Suspense boundary in page.tsx)
   const params  = useSearchParams();
   const tgFlow  = params.get('tg_flow');
+
+  // ── Theme detection (light / dark) ──────────────────────
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (getTelegramWebApp()?.colorScheme as 'light' | 'dark') ?? 'light';
+  });
+  useEffect(() => {
+    const tg = getTelegramWebApp();
+    if (!tg) return;
+    const handler = () => setTheme((tg.colorScheme as 'light' | 'dark') ?? 'light');
+    tg.onEvent('themeChanged', handler);
+    return () => tg.offEvent('themeChanged', handler);
+  }, []);
 
   // Hide bottom nav + scroll focused input when keyboard opens
   const [keyboardOpen, setKeyboardOpen] = useState(false);
@@ -150,7 +163,7 @@ export default function MiniShell() {
   return (
     <>
       <MiniStyles />
-      <div className={keyboardOpen ? 'mini-root keyboard-open' : 'mini-root'}>
+      <div className={keyboardOpen ? 'mini-root keyboard-open' : 'mini-root'} data-theme={theme}>
 
         <MiniTopBar
           provider={activeProvider}

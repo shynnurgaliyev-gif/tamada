@@ -18,6 +18,8 @@ export interface TelegramWebApp {
     onClick(fn: () => void): void;
     offClick(fn: () => void): void;
   };
+  onEvent(eventType: string, handler: () => void): void;
+  offEvent(eventType: string, handler: () => void): void;
 }
 
 export type TgUser = {
