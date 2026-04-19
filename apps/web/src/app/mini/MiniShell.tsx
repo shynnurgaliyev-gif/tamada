@@ -127,30 +127,40 @@ export default function MiniShell() {
 
   if (phase === 'guest') {
     return (
-      <MiniGuestGate
-        tgUser={tgUser}
-        authError={miniAuthError}
-        onCreateAccount={createGuestAccount}
-      />
+      <>
+        <MiniStyles />
+        <div style={{ paddingTop: safeTop }}>
+          <MiniGuestGate
+            tgUser={tgUser}
+            authError={miniAuthError}
+            onCreateAccount={createGuestAccount}
+          />
+        </div>
+      </>
     );
   }
 
   if (phase === 'onboarding') {
     return (
-      <MiniFirstProfileGate
-        tgUser={tgUser}
-        createProfile={createProfile}
-        onSkip={() => setPhase('shell')}
-        onDone={(_, action) => {
-          setPhase('shell');
-          if (action === 'calendar') {
-            handleTab('calendar');
-          } else if (action === 'photos') {
-            setOpenPhotosOnLoad(true);
-            handleTab('profiles');
-          }
-        }}
-      />
+      <>
+        <MiniStyles />
+        <div style={{ paddingTop: safeTop }}>
+          <MiniFirstProfileGate
+            tgUser={tgUser}
+            createProfile={createProfile}
+            onSkip={() => setPhase('shell')}
+            onDone={(_, action) => {
+              setPhase('shell');
+              if (action === 'calendar') {
+                handleTab('calendar');
+              } else if (action === 'photos') {
+                setOpenPhotosOnLoad(true);
+                handleTab('profiles');
+              }
+            }}
+          />
+        </div>
+      </>
     );
   }
 
@@ -162,20 +172,25 @@ export default function MiniShell() {
 
   if (showFirstProfileGate) {
     return (
-      <MiniFirstProfileGate
-        tgUser={tgUser}
-        createProfile={createProfile}
-        onSkip={() => setShowFirstProfileGate(false)}
-        onDone={(_, action) => {
-          setShowFirstProfileGate(false);
-          if (action === 'calendar') {
-            handleTab('calendar');
-          } else if (action === 'photos') {
-            setOpenPhotosOnLoad(true);
-            handleTab('profiles');
-          }
-        }}
-      />
+      <>
+        <MiniStyles />
+        <div style={{ paddingTop: safeTop }}>
+          <MiniFirstProfileGate
+            tgUser={tgUser}
+            createProfile={createProfile}
+            onSkip={() => setShowFirstProfileGate(false)}
+            onDone={(_, action) => {
+              setShowFirstProfileGate(false);
+              if (action === 'calendar') {
+                handleTab('calendar');
+              } else if (action === 'photos') {
+                setOpenPhotosOnLoad(true);
+                handleTab('profiles');
+              }
+            }}
+          />
+        </div>
+      </>
     );
   }
 
