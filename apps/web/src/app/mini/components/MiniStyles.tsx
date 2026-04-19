@@ -44,7 +44,7 @@ export function MiniStyles() {
         top: 0;
         z-index: 10;
         background: var(--tg-theme-bg-color, #f7f6ff);
-        margin: -16px -16px 20px;
+        margin: 0 -16px 20px;
         padding: 12px 16px;
         border-bottom: 1px solid rgba(0,0,0,.07);
         display: flex;
@@ -58,10 +58,14 @@ export function MiniStyles() {
         min-height: 0;
         overflow-y: auto;
         overflow-x: hidden;
-        padding: 16px;
-        padding-bottom: 32px;
+        padding: 0 16px 32px;
         -webkit-overflow-scrolling: touch;
         scroll-padding-bottom: 80px;
+      }
+
+      /* Top spacing for views that don't start with .mini-inline-header */
+      .mini-content > *:not(.mini-inline-header):first-child {
+        margin-top: 16px;
       }
 
       /* Ensure focused inputs scroll into view above keyboard (iOS keyboard ~300px) */
