@@ -22,6 +22,34 @@ import {
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 const MAX_PROFILES_PER_ACCOUNT = 3;
 
+/* ── Provider cache (localStorage) ───────────────────────────────────────── */
+
+const PCACHE_KEY = 'mc_prov_v2';
+const PCACHE_TTL = 10 * 60 * 1000; // 10 min
+
+function readProviderCache(userId?: number): { providers: Provider[]; permissions: MiniPermissions } | null {
+  if (!userId) return null;
+  try {
+    const raw = localStorage.getItem(`${PCACHE_KEY}_${userId}`);
+    if (!raw) return null;
+    const p = JSON.parse(raw) as { providers: Provider[]; permissions: MiniPermissions; ts: number };
+    if (Date.now() - p.ts > PCACHE_TTL) return null;
+    return { providers: p.providers, permissions: p.permissions };
+  } catch { return null; }
+}
+
+function writeProviderCache(userId: number, providers: Provider[], perms: MiniPermissions): void {
+  try {
+    localStorage.setItem(`${PCACHE_KEY}_${userId}`, JSON.stringify({ providers, permissions: perms, ts: Date.now() }));
+  } catch { /* storage full — non-fatal */ }
+}
+
+function isMiniTokenValid(): boolean {
+  const exp = localStorage.getItem('mini_auth_expires_at');
+  if (!exp) return false;
+  return new Date(exp).getTime() > Date.now() + 60_000; // 1 min buffer
+}
+
 function miniHeaders(): Record<string, string> {
   const token = localStorage.getItem('session_token') ?? '';
   const miniToken = localStorage.getItem('mini_auth_token') ?? '';
@@ -129,49 +157,71 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
     setVerifiedInitData(initData);
 
     if (initData) {
-      localStorage.removeItem('session_token');
-      localStorage.removeItem('mini_auth_token');
-      localStorage.removeItem('mini_auth_expires_at');
-      setProviders([]);
-      setActiveIdx(0);
-        fetch(`${API}/telegram/mini/auth`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ init_data: initData }),
-        })
-          .then(r => r.json())
-          .then((d: { ok: boolean; state?: 'guest' | 'authenticated'; providers?: Provider[]; role?: string | null; permissions?: MiniPermissions; mini_token?: string | null; expires_at?: string | null; error?: string }) => {
-            if (d.ok && d.state === 'authenticated' && d.mini_token) {
-              if (d.mini_token) {
-                localStorage.setItem('mini_auth_token', d.mini_token);
-                if (d.expires_at) localStorage.setItem('mini_auth_expires_at', d.expires_at);
-              }
-              const nextProviders = d.providers ?? [];
-              setPermissions(d.permissions ?? ASSISTANT_MINI_PERMISSIONS);
-              setProviders(nextProviders);
-              setActiveIdx(0);
-              setPhase(nextProviders.length > 0 ? 'shell' : 'onboarding');
-            } else if (d.ok && d.state === 'guest') {
-              localStorage.removeItem('mini_auth_token');
-              localStorage.removeItem('mini_auth_expires_at');
-              setPermissions(ASSISTANT_MINI_PERMISSIONS);
-              setProviders([]);
-              setActiveIdx(0);
-              setPhase('guest');
-            } else {
-              localStorage.removeItem('mini_auth_token');
-              localStorage.removeItem('mini_auth_expires_at');
-              if (d.error) setMiniAuthError(d.error);
-              setPhase('guest');
-            }
-          })
-          .catch(() => {
+      const userId = tg?.initDataUnsafe?.user?.id;
+
+      // ── Fast path: show shell immediately from cache ──────────────────
+      const cached  = readProviderCache(userId);
+      const tokenOk = isMiniTokenValid();
+      if (cached && cached.providers.length > 0 && tokenOk) {
+        setPermissions(cached.permissions);
+        setProviders(cached.providers);
+        setActiveIdx(0);
+        setPhase('shell');
+        // Don't clear the still-valid token — auth will refresh it in background
+      } else {
+        // No valid cache → clear stale tokens, keep showing loader
+        localStorage.removeItem('session_token');
+        localStorage.removeItem('mini_auth_token');
+        localStorage.removeItem('mini_auth_expires_at');
+        setProviders([]);
+        setActiveIdx(0);
+      }
+
+      // ── Always re-auth in background to refresh token + sync providers ─
+      fetch(`${API}/telegram/mini/auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ init_data: initData }),
+      })
+        .then(r => r.json())
+        .then((d: { ok: boolean; state?: 'guest' | 'authenticated'; providers?: Provider[]; role?: string | null; permissions?: MiniPermissions; mini_token?: string | null; expires_at?: string | null; error?: string }) => {
+          if (d.ok && d.state === 'authenticated' && d.mini_token) {
+            localStorage.removeItem('session_token');
+            localStorage.setItem('mini_auth_token', d.mini_token);
+            if (d.expires_at) localStorage.setItem('mini_auth_expires_at', d.expires_at);
+            const nextProviders = d.providers ?? [];
+            const nextPerms = d.permissions ?? ASSISTANT_MINI_PERMISSIONS;
+            setPermissions(nextPerms);
+            setProviders(nextProviders);
+            setActiveIdx(current => {
+              const cur = nextProviders[current];
+              if (cur && !cur.archived_at && !cur.pending_delete_at) return current;
+              const first = nextProviders.findIndex(p => !p.archived_at && !p.pending_delete_at);
+              return first >= 0 ? first : 0;
+            });
+            if (userId) writeProviderCache(userId, nextProviders, nextPerms);
+            setPhase(nextProviders.length > 0 ? 'shell' : 'onboarding');
+          } else if (d.ok && d.state === 'guest') {
             localStorage.removeItem('mini_auth_token');
             localStorage.removeItem('mini_auth_expires_at');
-            setMiniAuthError('Не удалось проверить вход через Telegram. Откройте Mini App заново из Telegram.');
+            setPermissions(ASSISTANT_MINI_PERMISSIONS);
+            setProviders([]);
+            setActiveIdx(0);
             setPhase('guest');
-          });
-        return;
+          } else {
+            localStorage.removeItem('mini_auth_token');
+            localStorage.removeItem('mini_auth_expires_at');
+            if (d.error) setMiniAuthError(d.error);
+            setPhase('guest');
+          }
+        })
+        .catch(() => {
+          localStorage.removeItem('mini_auth_token');
+          localStorage.removeItem('mini_auth_expires_at');
+          setMiniAuthError('Не удалось проверить вход через Telegram. Откройте Mini App заново из Telegram.');
+          setPhase('guest');
+        });
+      return;
     }
 
     const token = localStorage.getItem('session_token');
@@ -286,6 +336,21 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
   useEffect(() => {
     setSummary(null);
   }, [activeProvider?.id]);
+
+  // Background prefetch: start loading analytics ~1.2s after shell renders
+  // so it's ready when the user opens the analytics tab
+  useEffect(() => {
+    if (phase !== 'shell' || !activeProvider || !permissions.can_view_analytics) return;
+    const t = setTimeout(() => {
+      setSummary(prev => {
+        if (prev) return prev; // already loaded, skip
+        fetchAnalytics(analyticsDays);
+        return prev;
+      });
+    }, 1200);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, activeProvider?.id]);
 
   /* ── Tab change ───────────────────────────────────────────────────────── */
   const handleTab = useCallback((next: Tab) => {
