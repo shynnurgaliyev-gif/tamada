@@ -342,11 +342,7 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
   useEffect(() => {
     if (phase !== 'shell' || !activeProvider || !permissions.can_view_analytics) return;
     const t = setTimeout(() => {
-      setSummary(prev => {
-        if (prev) return prev; // already loaded, skip
-        fetchAnalytics(analyticsDays);
-        return prev;
-      });
+      fetchAnalytics(analyticsDays);
     }, 1200);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
