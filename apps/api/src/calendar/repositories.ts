@@ -32,7 +32,7 @@ export type CalendarEntryClient = {
 
 export type CalendarEntryWithClient = CalendarEntry & { client: CalendarEntryClient | null };
 
-const BLOCKING_STATUSES = ['busy', 'blocked', 'tentative'] as const;
+const BLOCKING_STATUSES = ['busy', 'tentative', 'vacation'] as const;
 
 export async function findEntriesByRange(
   db: Db,
