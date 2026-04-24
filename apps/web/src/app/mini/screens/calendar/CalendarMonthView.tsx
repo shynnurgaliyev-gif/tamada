@@ -182,7 +182,6 @@ export function CalendarMonthView({
           ['busy',     '#ef4444', 'Занят'],
           ['partial',  '#f97316', 'Частично'],
           ['tentative','#eab308', 'Под вопросом'],
-          ['free',     '#22c55e', 'Свободен'],
           ['vacation', '#06b6d4', 'Отпуск'],
         ] as const).map(([, color, label]) => (
           <div key={label} className="mcal-legend-item">
