@@ -66,11 +66,13 @@ function computeMonthDays(entries: repo.CalendarEntry[], year: number, month: nu
     } else if (dayEntries.length === 0) {
       status = 'free';
     } else {
-      const hasBusy = dayEntries.some(e => e.status === 'busy' || e.status === 'vacation');
+      const hasBusy      = dayEntries.some(e => e.status === 'busy');
+      const hasVacation  = dayEntries.some(e => e.status === 'vacation');
       const hasTentative = dayEntries.some(e => e.status === 'tentative');
-      if (hasBusy && hasTentative) status = 'partial';
-      else if (hasBusy) status = 'busy';
-      else status = 'tentative';
+      if ((hasBusy || hasVacation) && hasTentative) status = 'partial';
+      else if (hasBusy)     status = 'busy';
+      else if (hasVacation) status = 'vacation';
+      else                  status = 'tentative';
     }
     result.push({ date: dateStr, status, count: dayEntries.length });
   }

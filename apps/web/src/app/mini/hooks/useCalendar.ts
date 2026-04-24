@@ -90,11 +90,15 @@ export function useCalendar(providerId: string | null): CalendarHook {
   /* ── Month navigation ─────────────────────────────────────────────────── */
 
   const prevMonth = useCallback(() => {
+    setSelectedDate(null);
+    setDayEntries([]);
     if (month === 1) { setYear(y => y - 1); setMonth(12); }
     else             { setMonth(m => m - 1); }
   }, [month]);
 
   const nextMonth = useCallback(() => {
+    setSelectedDate(null);
+    setDayEntries([]);
     if (month === 12) { setYear(y => y + 1); setMonth(1); }
     else              { setMonth(m => m + 1); }
   }, [month]);
