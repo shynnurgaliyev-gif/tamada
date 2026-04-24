@@ -31,6 +31,7 @@ const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> =
   tentative: { label: 'Под вопросом',  color: '#ca8a04', bg: 'rgba(234,179,8,.1)'   },
   blocked:   { label: 'Заблокировано', color: '#6b7280', bg: 'rgba(107,114,128,.1)' },
   free:      { label: 'Свободен',      color: '#16a34a', bg: 'rgba(34,197,94,.1)'   },
+  vacation:  { label: '🏖️ Отпуск',     color: '#0891b2', bg: 'rgba(6,182,212,.1)'   },
 };
 
 /* ── Sub-components ───────────────────────────────────────────────────────── */

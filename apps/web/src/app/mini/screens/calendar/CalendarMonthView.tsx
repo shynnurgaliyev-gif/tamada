@@ -20,6 +20,7 @@ const STATUS_COLOR: Record<string, string> = {
   tentative:'#eab308',
   free:     'transparent',
   past:     'rgba(0,0,0,.08)',
+  vacation: '#06b6d4',
 };
 const STATUS_TEXT_COLOR: Record<string, string> = {
   busy:     '#ef4444',
@@ -32,6 +33,7 @@ const ENTRY_COLORS: Record<string, { border: string; bg: string; label: string }
   tentative: { border: '#eab308', bg: 'rgba(234,179,8,.08)',   label: 'Под вопросом'   },
   blocked:   { border: '#9ca3af', bg: 'rgba(107,114,128,.08)', label: 'Заблокировано'  },
   free:      { border: '#22c55e', bg: 'rgba(34,197,94,.08)',   label: 'Свободен'       },
+  vacation:  { border: '#06b6d4', bg: 'rgba(6,182,212,.08)',   label: '🏖️ Отпуск'      },
 };
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
@@ -181,6 +183,7 @@ export function CalendarMonthView({
           ['partial',  '#f97316', 'Частично'],
           ['tentative','#eab308', 'Под вопросом'],
           ['free',     '#22c55e', 'Свободен'],
+          ['vacation', '#06b6d4', 'Отпуск'],
         ] as const).map(([, color, label]) => (
           <div key={label} className="mcal-legend-item">
             <span className="mcal-legend-dot" style={{ background: color }} />

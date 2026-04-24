@@ -66,7 +66,7 @@ function computeMonthDays(entries: repo.CalendarEntry[], year: number, month: nu
     } else if (dayEntries.length === 0) {
       status = 'free';
     } else {
-      const hasBusy = dayEntries.some(e => e.status === 'busy' || e.status === 'blocked');
+      const hasBusy = dayEntries.some(e => e.status === 'busy' || e.status === 'blocked' || e.status === 'vacation');
       const hasTentative = dayEntries.some(e => e.status === 'tentative');
       if (hasBusy && hasTentative) status = 'partial';
       else if (hasBusy) status = 'busy';
@@ -134,12 +134,12 @@ export function createCalendarRoutes(db: Db, env: AppEnv) {
         return reply.code(400).send({ ok: false, error: 'starts_at must be before ends_at' });
       }
 
-      const validStatuses: repo.CalendarEntryStatus[] = ['busy', 'free', 'tentative', 'blocked'];
+      const validStatuses: repo.CalendarEntryStatus[] = ['busy', 'free', 'tentative', 'blocked', 'vacation'];
       if (!validStatuses.includes(status)) {
         return reply.code(400).send({ ok: false, error: 'Invalid status' });
       }
 
-      if (['busy', 'blocked', 'tentative'].includes(status)) {
+      if (['busy', 'blocked', 'tentative', 'vacation'].includes(status)) {
         const overlap = await repo.checkOverlap(db, id, startsAt, endsAt);
         if (overlap) return reply.code(409).send({ ok: false, error: 'Time slot overlaps with existing entry' });
       }

@@ -38,9 +38,10 @@ function buildAllDayEnd(dateStr: string): string {
 /* ── Status options ────────────────────────────────────────────────────────── */
 
 const STATUS_OPTIONS: { value: CalendarEntryStatus; icon: string; label: string }[] = [
-  { value: 'busy',      icon: '🔴', label: 'Занят' },
-  { value: 'tentative', icon: '🟡', label: 'Под вопросом' },
-  { value: 'blocked',   icon: '⛔', label: 'Заблокировано' },
+  { value: 'busy',      icon: '🔴', label: 'Занят'          },
+  { value: 'tentative', icon: '🟡', label: 'Под вопросом'   },
+  { value: 'blocked',   icon: '⛔', label: 'Заблокировано'  },
+  { value: 'vacation',  icon: '🏖️', label: 'Отпуск'         },
 ];
 
 /* ── Component ─────────────────────────────────────────────────────────────── */

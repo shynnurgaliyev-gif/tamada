@@ -1,6 +1,6 @@
 import type { Db } from '../db';
 
-export type CalendarEntryStatus = 'busy' | 'free' | 'tentative' | 'blocked';
+export type CalendarEntryStatus = 'busy' | 'free' | 'tentative' | 'blocked' | 'vacation';
 
 export type CalendarEntry = {
   id: string;
