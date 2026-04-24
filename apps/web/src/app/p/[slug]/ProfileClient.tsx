@@ -8,7 +8,7 @@ const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 type Provider = {
   id: string; display_name: string; slug: string; bio: string | null;
   city: string | null; region: string | null; is_verified: boolean;
-  provider_status: string;
+  provider_status: string; owner_name?: string | null;
 };
 type RelatedProfile = {
   id: string;
@@ -874,6 +874,15 @@ export default function ProfileClient({ slug }: { slug: string }) {
             </div>
           )}
         </div>
+
+        {/* Owner name (optional, set by specialist in settings) */}
+        {provider.owner_name && (
+          <div style={{ textAlign: 'center', paddingBottom: 8, paddingTop: 4 }}>
+            <span style={{ fontSize: 12, color: 'var(--ink-4)', letterSpacing: '.01em' }}>
+              Владелец: {provider.owner_name}
+            </span>
+          </div>
+        )}
 
       </div>
     </div>

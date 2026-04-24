@@ -203,6 +203,7 @@ export default function MiniShell() {
         <MiniTopBar
           provider={activeProvider}
           providers={providers}
+          ownerName={tgUser ? [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') || null : null}
           onToggleSwitch={() => setShowSwitch(s => !s)}
           onCreateFirstProfile={onCreateFirstProfile}
         />

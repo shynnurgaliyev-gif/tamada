@@ -25,6 +25,7 @@ export type Provider = {
   archive_reason: string | null;
   pending_delete_at: Date | null;
   show_related_profiles?: boolean;
+  show_owner_name?: boolean;
   primary_category?: string | null;
   primary_subcategory?: string | null;
   created_at: Date;

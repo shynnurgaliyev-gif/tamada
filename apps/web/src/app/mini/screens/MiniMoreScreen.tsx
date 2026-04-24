@@ -676,6 +676,7 @@ function SettingsTool({ tgUser, provider, canArchive, onProvidersChanged }: { tg
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [showOwnerName, setShowOwnerName] = useState(() => provider?.show_owner_name ?? false);
 
   useEffect(() => {
     fetch(`${API}/auth/me`, { headers: auth() })
@@ -764,6 +765,19 @@ function SettingsTool({ tgUser, provider, canArchive, onProvidersChanged }: { tg
     else if (previous) setAccount(previous);
   }
 
+  async function updateShowOwnerName(next: boolean) {
+    if (!provider) return;
+    setShowOwnerName(next);
+    const res = await fetch(`${API}/providers/${provider.id}`, {
+      method: 'PATCH',
+      headers: { ...auth(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ show_owner_name: next }),
+    }).catch(() => null);
+    const data = res ? await res.json() as { ok: boolean } : null;
+    if (!data?.ok) setShowOwnerName(!next); // rollback on error
+    else await onProvidersChanged?.();
+  }
+
   return (
     <div>
       <ToolTitle title="Настройки" subtitle="Аккаунт и поддержка" />
@@ -778,7 +792,7 @@ function SettingsTool({ tgUser, provider, canArchive, onProvidersChanged }: { tg
         <div style={{ fontSize: 13, color: 'var(--tg-theme-hint-color, #6b7280)', lineHeight: 1.45, marginBottom: 10 }}>
           Показывать на публичных профилях блок с другими видимыми профилями этого аккаунта.
         </div>
-        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, fontSize: 14, fontWeight: 800 }}>
+        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, fontSize: 14, fontWeight: 800, marginBottom: provider ? 10 : 0 }}>
           Связанные профили
           <input
             type="checkbox"
@@ -787,6 +801,17 @@ function SettingsTool({ tgUser, provider, canArchive, onProvidersChanged }: { tg
             style={{ width: 22, height: 22 }}
           />
         </label>
+        {provider && (
+          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, fontSize: 14, fontWeight: 800 }}>
+            Имя владельца профиля
+            <input
+              type="checkbox"
+              checked={showOwnerName}
+              onChange={e => void updateShowOwnerName(e.target.checked)}
+              style={{ width: 22, height: 22 }}
+            />
+          </label>
+        )}
       </div>
       <div className="mini-card">
         <div style={{ fontWeight: 900, marginBottom: 10 }}>Telegram</div>

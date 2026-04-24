@@ -121,6 +121,7 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
         region: 'region', city: 'city', district: 'district',
         address_text: 'address_text', timezone: 'timezone',
         provider_status: 'provider_status', publication_status: 'publication_status',
+        show_owner_name: 'show_owner_name',
       };
       for (const [key, col] of Object.entries(map)) {
         if (body[key] !== undefined) updates[col] = body[key];
@@ -474,17 +475,34 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
       ]);
       const relatedProfiles = await repo.findRelatedPublicProviders(db, provider);
 
+      // Derive owner name when the specialist opts in
+      let ownerName: string | null = null;
+      if (provider.show_owner_name) {
+        const rows = await db<{ first_name: string | null; last_name: string | null }[]>`
+          SELECT telegram_first_name AS first_name, telegram_last_name AS last_name
+          FROM telegram_accounts
+          WHERE account_id = ${provider.account_id}
+            AND is_primary = true
+            AND status = 'linked'
+          LIMIT 1
+        `;
+        if (rows[0]) {
+          ownerName = [rows[0].first_name, rows[0].last_name].filter(Boolean).join(' ') || null;
+        }
+      }
+
       // Strip private fields before sending public response
       // Links are NOT included here — returned only via POST reveal-contacts
       const {
         account_id: _a,
         show_related_profiles: _showRelated,
+        show_owner_name: _showOwner,
         ...publicProvider
-      } = provider as typeof provider & { account_id: unknown; show_related_profiles?: unknown };
+      } = provider as typeof provider & { account_id: unknown; show_related_profiles?: unknown; show_owner_name?: unknown };
 
       return reply.send({
         ok: true,
-        provider: publicProvider,
+        provider: { ...publicProvider, owner_name: ownerName },
         services: services.filter(s => s.is_active),
         photos: withPhotoUrls(env, photos),
         related_profiles: relatedProfiles,

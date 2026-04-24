@@ -28,6 +28,7 @@ export type Provider = {
   archived_by_account_id?: string | null;
   archive_reason?:    string | null;
   pending_delete_at?: string | null;
+  show_owner_name?:   boolean;
   primary_category?:  string | null;
   primary_subcategory?: string | null;
   is_featured:        boolean;
