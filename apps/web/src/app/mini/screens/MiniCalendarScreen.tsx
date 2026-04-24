@@ -1,6 +1,7 @@
 /* ── MiniCalendarScreen ────────────────────────────────────────────────────────
    Calendar tab orchestrator. View routing:
-     month → new-entry / edit-entry  (day entries shown inline on month view)
+     month → view-entry → edit-entry
+     month → new-entry
    Uses Telegram BackButton for back-navigation.
 ────────────────────────────────────────────────────────────────────────────── */
 
@@ -10,10 +11,11 @@ import { useEffect, useState, useCallback } from 'react';
 import { getTelegramWebApp }                from '@/lib/telegram';
 import { useCalendar }                      from '../hooks/useCalendar';
 import { CalendarMonthView }                from './calendar/CalendarMonthView';
+import { CalendarEntryView }                from './calendar/CalendarEntryView';
 import { CalendarEntryForm }                from './calendar/CalendarEntryForm';
 import type { Provider, CalendarEntryWithClient, EntryInput } from '../types';
 
-type CalView = 'month' | 'new-entry' | 'edit-entry';
+type CalView = 'month' | 'view-entry' | 'new-entry' | 'edit-entry';
 
 export function MiniCalendarScreen({
   provider,
@@ -28,6 +30,7 @@ export function MiniCalendarScreen({
 }) {
   const [view,         setView]         = useState<CalView>('month');
   const [editingEntry, setEditingEntry] = useState<CalendarEntryWithClient | null>(null);
+  const [deleting,     setDeleting]     = useState(false);
 
   const cal = useCalendar(provider?.id ?? null);
 
@@ -41,7 +44,11 @@ export function MiniCalendarScreen({
   }, [openNewEntry, onNewEntryHandled]);
 
   /* ── Telegram BackButton ──────────────────────────────────────────────── */
-  const goBack = useCallback(() => setView('month'), []);
+  const goBack = useCallback(() => {
+    if (view === 'view-entry') setView('month');
+    if (view === 'new-entry')  setView('month');
+    if (view === 'edit-entry') setView('view-entry');
+  }, [view]);
 
   useEffect(() => {
     const tg = getTelegramWebApp();
@@ -87,13 +94,21 @@ export function MiniCalendarScreen({
     if (result) {
       const localDate = new Date(result.starts_at).toLocaleDateString('sv-SE');
       cal.selectDate(localDate);
-      setView('month');
+      // After edit — go back to view; after new — go to month
+      if (view === 'edit-entry') {
+        setEditingEntry(result);
+        setView('view-entry');
+      } else {
+        setView('month');
+      }
     }
   }
 
   async function handleDelete() {
     if (!editingEntry) return;
+    setDeleting(true);
     const ok = await cal.deleteEntry(editingEntry.id);
+    setDeleting(false);
     if (ok) {
       setEditingEntry(null);
       setView('month');
@@ -117,8 +132,18 @@ export function MiniCalendarScreen({
           onNext={cal.nextMonth}
           dayEntries={cal.dayEntries}
           dayLoading={cal.dayLoading}
-          onEditEntry={entry => { setEditingEntry(entry); setView('edit-entry'); }}
+          onEditEntry={entry => { setEditingEntry(entry); setView('view-entry'); }}
           onAddEntry={() => { setEditingEntry(null); setView('new-entry'); }}
+        />
+      )}
+
+      {view === 'view-entry' && editingEntry && (
+        <CalendarEntryView
+          entry={editingEntry}
+          deleting={deleting}
+          onEdit={() => setView('edit-entry')}
+          onDelete={handleDelete}
+          onBack={() => setView('month')}
         />
       )}
 
