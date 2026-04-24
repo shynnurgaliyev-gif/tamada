@@ -112,7 +112,7 @@ export default function MiniShell() {
     tgUser, miniAuthError, permissions, createGuestAccount,
     providers, activeIdx, setActiveIdx, activeProvider,
     updateActiveProvider, refreshProviders, canManageProfiles, maxProfiles, createProfile, unarchiveProfile,
-    summary, sumLoading, loadAnalytics,
+    summary, sumLoading, analyticsDays, switchAnalyticsPeriod,
   } = useMiniApp(tgFlow);
 
   // ── Tab handler also closes overlays ────────────────────
@@ -225,7 +225,7 @@ export default function MiniShell() {
             />
           )}
           {tab === 'calendar'  && permissions.can_manage_calendar && <MiniCalendarScreen   provider={activeProvider} openNewEntry={calendarNewEntry} onNewEntryHandled={() => setCalendarNewEntry(false)} onCreateFirstProfile={onCreateFirstProfile} />}
-          {tab === 'analytics' && permissions.can_view_analytics && <MiniAnalyticsScreen  summary={summary} loading={sumLoading} onRetry={loadAnalytics} />}
+          {tab === 'analytics' && permissions.can_view_analytics && <MiniAnalyticsScreen summary={summary} loading={sumLoading} days={analyticsDays} onSwitchPeriod={switchAnalyticsPeriod} />}
           {tab === 'more'      && <MiniMoreScreen        tgUser={tgUser} permissions={permissions} activeProvider={activeProvider} onProvidersChanged={refreshProviders} />}
         </main>
 

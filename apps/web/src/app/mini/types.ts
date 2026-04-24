@@ -140,6 +140,7 @@ export type AnalyticsSummary = {
   contact_reveals: number;
   calendar_views:  number;
   conversion_pct:  number;
+  top_days: { date: string; contact_reveals: number; profile_views: number }[];
 };
 
 export type MiniPermissions = {

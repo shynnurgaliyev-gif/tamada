@@ -65,9 +65,11 @@ export interface MiniAppState {
   archiveProfile: (providerId: string) => Promise<boolean>;
   unarchiveProfile: (providerId: string) => Promise<boolean>;
   /* Analytics */
-  summary: AnalyticsSummary | null;
-  sumLoading: boolean;
-  loadAnalytics: () => void;
+  summary:              AnalyticsSummary | null;
+  sumLoading:           boolean;
+  analyticsDays:        number;
+  loadAnalytics:        () => void;
+  switchAnalyticsPeriod: (days: number) => void;
 }
 
 /* ── Hook ─────────────────────────────────────────────────────────────────── */
@@ -78,8 +80,9 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
   const [tgUser,     setTgUser]     = useState<TgUser | null>(null);
   const [providers,  setProviders]  = useState<Provider[]>([]);
   const [activeIdx,  setActiveIdx]  = useState(0);
-  const [summary,    setSummary]    = useState<AnalyticsSummary | null>(null);
-  const [sumLoading, setSumLoading] = useState(false);
+  const [summary,      setSummary]      = useState<AnalyticsSummary | null>(null);
+  const [sumLoading,   setSumLoading]   = useState(false);
+  const [analyticsDays, setAnalyticsDays] = useState(30);
   const [miniAuthError, setMiniAuthError] = useState<string | null>(null);
   const [permissions, setPermissions] = useState<MiniPermissions>(OWNER_MINI_PERMISSIONS);
   const [verifiedInitData, setVerifiedInitData] = useState('');
@@ -250,24 +253,35 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
       .catch(() => { /* non-fatal */ });
   }
 
-  /* ── Analytics — lazy-loaded when the analytics tab is opened ─────────── */
-  const loadAnalytics = useCallback(() => {
-    if (!permissions.can_view_analytics) return;
-    if (summary || sumLoading) return;
-    if (!activeProvider) return;
+  /* ── Analytics ─────────────────────────────────────────────────────────── */
+
+  // Raw fetch — always re-fetches with given days
+  const fetchAnalytics = useCallback((days: number) => {
+    if (!permissions.can_view_analytics || !activeProvider) return;
     const headers = miniHeaders();
     if (!headers['Authorization'] && !headers['X-Mini-Auth']) return;
     setSumLoading(true);
-    fetch(`${API}/dashboard/analytics/summary?provider_id=${activeProvider.id}&days=30`, {
-      headers,
-    })
+    fetch(`${API}/dashboard/analytics/summary?provider_id=${activeProvider.id}&days=${days}`, { headers })
       .then(r => r.json())
       .then((d: { ok: boolean; summary?: AnalyticsSummary | null }) => {
         if (d.ok) setSummary(d.summary ?? null);
       })
       .catch(() => null)
       .finally(() => setSumLoading(false));
-  }, [summary, sumLoading, activeProvider, permissions.can_view_analytics]);
+  }, [activeProvider, permissions.can_view_analytics]);
+
+  // Lazy load — skips if already loaded
+  const loadAnalytics = useCallback(() => {
+    if (summary || sumLoading) return;
+    fetchAnalytics(analyticsDays);
+  }, [summary, sumLoading, analyticsDays, fetchAnalytics]);
+
+  // Period switch — clears summary and re-fetches
+  const switchAnalyticsPeriod = useCallback((days: number) => {
+    setAnalyticsDays(days);
+    setSummary(null);
+    fetchAnalytics(days);
+  }, [fetchAnalytics]);
 
   useEffect(() => {
     setSummary(null);
@@ -398,6 +412,6 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
     createProfile,
     archiveProfile,
     unarchiveProfile,
-    summary, sumLoading, loadAnalytics,
+    summary, sumLoading, analyticsDays, loadAnalytics, switchAnalyticsPeriod,
   };
 }

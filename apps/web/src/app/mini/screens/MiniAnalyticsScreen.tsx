@@ -1,104 +1,275 @@
+/* ── MiniAnalyticsScreen ────────────────────────────────────────────────────
+   Analytics dashboard: period selector → hero metric → grid → top-days chart.
+────────────────────────────────────────────────────────────────────────────── */
+
 import type { AnalyticsSummary } from '../types';
 
-const STATS = [
-  { key: 'profile_views'   as const, icon: '👁',  label: 'Просмотры', color: '#7c3aed', bg: '#f5f3ff' },
-  { key: 'contact_reveals' as const, icon: '📲',  label: 'Контакты',  color: '#059669', bg: '#f0fdf4' },
-  { key: 'calendar_views'  as const, icon: '📅',  label: 'Календарь', color: '#d97706', bg: '#fffbeb' },
-  { key: 'conversion_pct'  as const, icon: '🎯',  label: 'Конверсия', color: '#0284c7', bg: '#eff6ff' },
+/* ── Helpers ──────────────────────────────────────────────────────────────── */
+
+const MONTH_SHORT = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+
+function fmtDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00');
+  return `${d.getDate()} ${MONTH_SHORT[d.getMonth()]}`;
+}
+
+const PERIODS = [
+  { days: 7,  label: '7 дней'  },
+  { days: 30, label: '30 дней' },
+  { days: 90, label: '90 дней' },
 ] as const;
+
+/* ── Sub-components ───────────────────────────────────────────────────────── */
+
+function SkeletonRect({ w, h, mb }: { w: string; h: number; mb?: number }) {
+  return (
+    <div className="mini-skeleton" style={{ width: w, height: h, borderRadius: 8, marginBottom: mb ?? 0 }} />
+  );
+}
+
+function SmallCard({
+  icon, value, label, color, iconBg,
+}: {
+  icon: string; value: string; label: string; color: string; iconBg: string;
+}) {
+  return (
+    <div style={{
+      background: 'var(--tg-theme-secondary-bg-color, #fff)',
+      border: '1px solid var(--mini-border)',
+      borderRadius: 16,
+      padding: '14px 16px',
+      display: 'flex', alignItems: 'center', gap: 12,
+    }}>
+      <div style={{
+        width: 40, height: 40, borderRadius: 11,
+        background: iconBg,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 18, flexShrink: 0,
+      }}>
+        {icon}
+      </div>
+      <div>
+        <div style={{ fontSize: 22, fontWeight: 900, color, letterSpacing: '-.03em', lineHeight: 1 }}>
+          {value}
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--tg-theme-hint-color, #6b7280)', marginTop: 3, fontWeight: 600 }}>
+          {label}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Component ────────────────────────────────────────────────────────────── */
 
 export function MiniAnalyticsScreen({
   summary,
   loading,
-  onRetry,
+  days,
+  onSwitchPeriod,
 }: {
-  summary: AnalyticsSummary | null;
-  loading: boolean;
-  onRetry: () => void;
+  summary:        AnalyticsSummary | null;
+  loading:        boolean;
+  days:           number;
+  onSwitchPeriod: (d: number) => void;
 }) {
-  /* ── Loading skeleton ─────────────────────────────── */
+  /* ── Period selector (always visible) ─────────────────────────────────── */
+  const periodRow = (
+    <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+      {PERIODS.map(p => {
+        const active = days === p.days;
+        return (
+          <button
+            key={p.days}
+            className="mini-tap"
+            onClick={() => onSwitchPeriod(p.days)}
+            style={{
+              padding: '7px 16px',
+              borderRadius: 20,
+              border: 'none',
+              background: active ? '#7c3aed' : 'rgba(124,58,237,.1)',
+              color: active ? '#fff' : '#7c3aed',
+              fontSize: 13, fontWeight: 700,
+              fontFamily: 'inherit', cursor: 'pointer',
+              transition: 'background .15s, color .15s',
+            }}
+          >
+            {p.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  /* ── Loading skeleton ──────────────────────────────────────────────────── */
   if (loading) {
     return (
       <div>
-        <div className="mini-section-label">За 30 дней</div>
-        <div className="mini-stats">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="mini-stat">
-              <div className="mini-skeleton" style={{ height: 16, width: '40%', marginBottom: 8 }} />
-              <div className="mini-skeleton" style={{ height: 32, width: '70%', marginBottom: 6 }} />
-              <div className="mini-skeleton" style={{ height: 12, width: '90%' }} />
+        {periodRow}
+        {/* Hero skeleton */}
+        <div style={{
+          background: 'var(--tg-theme-secondary-bg-color, #fff)',
+          border: '1px solid var(--mini-border)',
+          borderRadius: 18, padding: '20px', marginBottom: 10,
+          display: 'flex', alignItems: 'center', gap: 16,
+        }}>
+          <div className="mini-skeleton" style={{ width: 52, height: 52, borderRadius: 14, flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <SkeletonRect w="50%" h={34} mb={6} />
+            <SkeletonRect w="70%" h={13} />
+          </div>
+        </div>
+        {/* 2-col skeleton */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+          {[0,1].map(i => (
+            <div key={i} style={{ background: 'var(--tg-theme-secondary-bg-color,#fff)', border: '1px solid var(--mini-border)', borderRadius: 16, padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'center' }}>
+              <div className="mini-skeleton" style={{ width: 40, height: 40, borderRadius: 11, flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <SkeletonRect w="55%" h={22} mb={5} />
+                <SkeletonRect w="80%" h={11} />
+              </div>
             </div>
           ))}
         </div>
+        {/* Calendar row skeleton */}
+        <div style={{ background: 'var(--tg-theme-secondary-bg-color,#fff)', border: '1px solid var(--mini-border)', borderRadius: 16, padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
+          <div className="mini-skeleton" style={{ width: 40, height: 40, borderRadius: 11, flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <SkeletonRect w="40%" h={22} mb={5} />
+            <SkeletonRect w="65%" h={11} />
+          </div>
+        </div>
       </div>
     );
   }
 
-  /* ── Empty ─────────────────────────────────────────── */
+  /* ── Empty state ───────────────────────────────────────────────────────── */
   if (!summary) {
     return (
-      <div style={{ textAlign: 'center', paddingTop: 40 }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}>📊</div>
-        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Нет данных</div>
-        <div style={{
-          fontSize: 14,
-          color: 'var(--tg-theme-hint-color, #6b7280)',
-          marginBottom: 20,
-        }}>
-          Аналитика появится после первых просмотров профиля
+      <div>
+        {periodRow}
+        <div style={{ textAlign: 'center', paddingTop: 40 }}>
+          <div style={{ fontSize: 44, marginBottom: 14 }}>📊</div>
+          <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 8 }}>Нет данных</div>
+          <div style={{ fontSize: 14, color: 'var(--tg-theme-hint-color, #6b7280)', lineHeight: 1.55 }}>
+            Аналитика появится после первых просмотров профиля
+          </div>
         </div>
-        <button
-          onClick={onRetry}
-          className="mini-tap"
-          style={{
-            padding: '11px 24px',
-            background: 'rgba(124,58,237,.08)',
-            border: 'none',
-            borderRadius: 12,
-            fontFamily: 'inherit',
-            fontSize: 14,
-            fontWeight: 600,
-            color: '#7c3aed',
-            cursor: 'pointer',
-          }}
-        >
-          Обновить
-        </button>
       </div>
     );
   }
 
-  /* ── Stats ─────────────────────────────────────────── */
+  /* ── Top days bar chart ────────────────────────────────────────────────── */
+  const topDays = summary.top_days ?? [];
+  const maxViews = Math.max(...topDays.map(d => d.profile_views), 1);
+
+  /* ── Main render ───────────────────────────────────────────────────────── */
   return (
     <div>
-      <div className="mini-section-label">За 30 дней</div>
-      <div className="mini-stats">
-        {STATS.map(s => {
-          const raw   = summary[s.key];
-          const value = s.key === 'conversion_pct' ? `${raw}%` : String(raw);
-          return (
-            <div key={s.label} className="mini-stat" style={{ background: s.bg, border: 'none' }}>
-              <div style={{ fontSize: 20, marginBottom: 6 }}>{s.icon}</div>
-              <div style={{
-                fontSize: 26,
-                fontWeight: 900,
-                color: s.color,
-                letterSpacing: '-.03em',
-                lineHeight: 1,
-              }}>
-                {value}
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--tg-theme-hint-color, #6b7280)', marginTop: 4 }}>
-                {s.label}
-              </div>
-            </div>
-          );
-        })}
+      {periodRow}
+
+      {/* Hero: profile views */}
+      <div style={{
+        background: 'var(--tg-theme-secondary-bg-color, #fff)',
+        border: '1px solid rgba(124,58,237,.2)',
+        borderRadius: 18,
+        padding: '20px',
+        marginBottom: 10,
+        display: 'flex', alignItems: 'center', gap: 16,
+        backgroundImage: 'linear-gradient(135deg, rgba(124,58,237,.06) 0%, transparent 70%)',
+      }}>
+        <div style={{
+          width: 52, height: 52, borderRadius: 14,
+          background: 'rgba(124,58,237,.12)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 24, flexShrink: 0,
+        }}>
+          👁
+        </div>
+        <div>
+          <div style={{ fontSize: 38, fontWeight: 900, color: '#7c3aed', letterSpacing: '-.04em', lineHeight: 1 }}>
+            {summary.profile_views}
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--tg-theme-hint-color, #6b7280)', marginTop: 4, fontWeight: 600 }}>
+            просмотров профиля · за {days} дней
+          </div>
+        </div>
       </div>
 
-      <a href="/dashboard/analytics" className="mini-btn mini-btn-ghost mini-tap" style={{ marginTop: 4 }}>
-        Полная аналитика →
-      </a>
+      {/* 2-col: contacts + conversion */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+        <SmallCard
+          icon="📲"
+          value={String(summary.contact_reveals)}
+          label="Контакты"
+          color="#059669"
+          iconBg="rgba(5,150,105,.1)"
+        />
+        <SmallCard
+          icon="🎯"
+          value={`${summary.conversion_pct}%`}
+          label="Конверсия"
+          color="#0284c7"
+          iconBg="rgba(2,132,199,.1)"
+        />
+      </div>
+
+      {/* Calendar views */}
+      <SmallCard
+        icon="📅"
+        value={String(summary.calendar_views)}
+        label="Открытий календаря"
+        color="#d97706"
+        iconBg="rgba(217,119,6,.1)"
+      />
+
+      {/* Top days */}
+      {topDays.length > 0 && (
+        <div style={{
+          background: 'var(--tg-theme-secondary-bg-color, #fff)',
+          border: '1px solid var(--mini-border)',
+          borderRadius: 16,
+          padding: '14px 16px',
+          marginTop: 10,
+        }}>
+          <div style={{
+            fontSize: 11, fontWeight: 800, textTransform: 'uppercase',
+            letterSpacing: '.06em', color: 'var(--tg-theme-hint-color, #6b7280)',
+            marginBottom: 14,
+          }}>
+            Топ дней по просмотрам
+          </div>
+
+          {topDays.map((day, i) => {
+            const barPct = Math.round((day.profile_views / maxViews) * 100);
+            return (
+              <div key={day.date} style={{ marginBottom: i < topDays.length - 1 ? 12 : 0 }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: 5,
+                }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tg-theme-text-color, #0a0a0f)' }}>
+                    {fmtDate(day.date)}
+                  </span>
+                  <span style={{ fontSize: 12, color: 'var(--tg-theme-hint-color, #6b7280)', display: 'flex', gap: 10 }}>
+                    <span>{day.profile_views} 👁</span>
+                    <span>{day.contact_reveals} 📲</span>
+                  </span>
+                </div>
+                <div style={{ height: 6, background: 'var(--mini-border)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${barPct}%`,
+                    background: 'linear-gradient(90deg, #7c3aed, #a78bfa)',
+                    borderRadius: 3,
+                  }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <div style={{ height: 16 }} />
     </div>
