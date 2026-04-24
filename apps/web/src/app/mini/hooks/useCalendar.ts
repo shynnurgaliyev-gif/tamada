@@ -12,6 +12,34 @@ import type {
 } from '../types';
 
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
+
+/* ── Calendar month cache (localStorage) ─────────────────────────────────── */
+
+const CAL_KEY = 'mc_cal_v1';
+const CAL_TTL = 5 * 60 * 1000; // 5 min
+
+type CalCache = { days: DayInfo[]; timezone: string; ts: number };
+
+function readCalCache(pid: string, y: number, m: number): { days: DayInfo[]; timezone: string } | null {
+  try {
+    const raw = localStorage.getItem(`${CAL_KEY}_${pid}_${y}_${m}`);
+    if (!raw) return null;
+    const c = JSON.parse(raw) as CalCache;
+    if (Date.now() - c.ts > CAL_TTL) return null;
+    return { days: c.days, timezone: c.timezone };
+  } catch { return null; }
+}
+
+function writeCalCache(pid: string, y: number, m: number, days: DayInfo[], timezone: string): void {
+  try {
+    localStorage.setItem(`${CAL_KEY}_${pid}_${y}_${m}`, JSON.stringify({ days, timezone, ts: Date.now() }));
+  } catch { /* non-fatal */ }
+}
+
+function clearCalCache(pid: string, y: number, m: number): void {
+  try { localStorage.removeItem(`${CAL_KEY}_${pid}_${y}_${m}`); } catch { /* non-fatal */ }
+}
+
 function auth() {
   const token = localStorage.getItem('session_token') ?? '';
   const miniAuthToken = localStorage.getItem('mini_auth_token') ?? '';
@@ -70,15 +98,28 @@ export function useCalendar(providerId: string | null): CalendarHook {
 
   const reloadMonth = useCallback(() => {
     if (!providerId) return;
-    setMonthLoading(true);
+
+    // Fast path: show cached grid immediately (no spinner)
+    const cached = readCalCache(providerId, year, month);
+    if (cached) {
+      setDays(cached.days);
+      setTimezone(cached.timezone);
+    } else {
+      setMonthLoading(true);
+    }
+
+    // Always fetch fresh in background
     fetch(`${API}/providers/${providerId}/calendar/month?year=${year}&month=${month}`, {
       headers: auth(),
     })
       .then(r => r.json())
       .then((d: { ok: boolean; days?: DayInfo[]; timezone?: string }) => {
         if (d.ok) {
-          setDays(d.days ?? []);
-          if (d.timezone) setTimezone(d.timezone);
+          const freshDays = d.days ?? [];
+          const freshTz   = d.timezone ?? 'Asia/Almaty';
+          setDays(freshDays);
+          setTimezone(freshTz);
+          writeCalCache(providerId, year, month, freshDays, freshTz);
         }
       })
       .catch(() => {/* non-fatal */})
@@ -130,6 +171,7 @@ export function useCalendar(providerId: string | null): CalendarHook {
   /* ── Mutations ─────────────────────────────────────────────────────────── */
 
   async function afterMutation() {
+    if (providerId) clearCalCache(providerId, year, month);
     reloadMonth();
     if (selectedDate) selectDate(selectedDate);
   }
