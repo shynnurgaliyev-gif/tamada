@@ -92,6 +92,8 @@ export interface MiniAppState {
   createProfile: (input: CreateProfileInput) => Promise<Provider | null>;
   archiveProfile: (providerId: string) => Promise<boolean>;
   unarchiveProfile: (providerId: string) => Promise<boolean>;
+  /* Account */
+  accountFullName: string | null;
   /* Analytics */
   summary:              AnalyticsSummary | null;
   sumLoading:           boolean;
@@ -114,6 +116,7 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
   const [miniAuthError, setMiniAuthError] = useState<string | null>(null);
   const [permissions, setPermissions] = useState<MiniPermissions>(OWNER_MINI_PERMISSIONS);
   const [verifiedInitData, setVerifiedInitData] = useState('');
+  const [accountFullName, setAccountFullName] = useState<string | null>(null);
 
   const activeProvider = providers[activeIdx] ?? null;
   const activeProfileCount = providers.filter(p => !p.archived_at && !p.pending_delete_at).length;
@@ -201,6 +204,13 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
             });
             if (userId) writeProviderCache(userId, nextProviders, nextPerms);
             setPhase(nextProviders.length > 0 ? 'shell' : 'onboarding');
+            // Fetch account full_name in background (no spinner)
+            fetch(`${API}/auth/me`, { headers: miniHeaders() })
+              .then(r => r.json())
+              .then((me: { ok: boolean; account?: { full_name?: string | null } }) => {
+                if (me.ok) setAccountFullName(me.account?.full_name ?? null);
+              })
+              .catch(() => null);
           } else if (d.ok && d.state === 'guest') {
             localStorage.removeItem('mini_auth_token');
             localStorage.removeItem('mini_auth_expires_at');
@@ -473,6 +483,7 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
     createProfile,
     archiveProfile,
     unarchiveProfile,
+    accountFullName,
     summary, sumLoading, analyticsDays, loadAnalytics, switchAnalyticsPeriod,
   };
 }

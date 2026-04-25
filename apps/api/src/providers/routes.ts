@@ -476,18 +476,26 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
       const relatedProfiles = await repo.findRelatedPublicProviders(db, provider);
 
       // Derive owner name when the specialist opts in
+      // Priority: accounts.full_name → telegram_accounts primary name
       let ownerName: string | null = null;
       if (provider.show_owner_name) {
-        const rows = await db<{ first_name: string | null; last_name: string | null }[]>`
-          SELECT telegram_first_name AS first_name, telegram_last_name AS last_name
-          FROM telegram_accounts
-          WHERE account_id = ${provider.account_id}
-            AND is_primary = true
-            AND status = 'linked'
+        const rows = await db<{ full_name: string | null; tg_first: string | null; tg_last: string | null }[]>`
+          SELECT
+            a.full_name,
+            ta.telegram_first_name AS tg_first,
+            ta.telegram_last_name  AS tg_last
+          FROM accounts a
+          LEFT JOIN telegram_accounts ta
+            ON ta.account_id = a.id
+           AND ta.is_primary = true
+           AND ta.status = 'linked'
+          WHERE a.id = ${provider.account_id}
           LIMIT 1
         `;
         if (rows[0]) {
-          ownerName = [rows[0].first_name, rows[0].last_name].filter(Boolean).join(' ') || null;
+          ownerName = rows[0].full_name
+            ?? [rows[0].tg_first, rows[0].tg_last].filter(Boolean).join(' ')
+            || null;
         }
       }
 

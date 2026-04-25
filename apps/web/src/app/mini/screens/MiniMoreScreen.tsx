@@ -8,7 +8,7 @@ const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
 type MoreView = 'main' | 'subscription' | 'integrations' | 'team' | 'settings' | 'transfers' | 'activity';
 
-type Account = { id: string; username: string; phone: string; show_related_profiles: boolean };
+type Account = { id: string; username: string; phone: string; full_name: string | null; show_related_profiles: boolean };
 type Subscription = {
   id: string;
   status: string;
@@ -677,11 +677,18 @@ function SettingsTool({ tgUser, provider, canArchive, onProvidersChanged }: { tg
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [showOwnerName, setShowOwnerName] = useState(() => provider?.show_owner_name ?? false);
+  const [fullNameDraft, setFullNameDraft] = useState('');
+  const [fullNameSaving, setFullNameSaving] = useState(false);
 
   useEffect(() => {
     fetch(`${API}/auth/me`, { headers: auth() })
       .then(r => r.json())
-      .then((d: { ok: boolean; account?: Account }) => { if (d.ok) setAccount(d.account ?? null); })
+      .then((d: { ok: boolean; account?: Account }) => {
+        if (d.ok && d.account) {
+          setAccount(d.account);
+          setFullNameDraft(d.account.full_name ?? '');
+        }
+      })
       .catch(() => null);
   }, []);
 
@@ -765,6 +772,23 @@ function SettingsTool({ tgUser, provider, canArchive, onProvidersChanged }: { tg
     else if (previous) setAccount(previous);
   }
 
+  async function saveFullName() {
+    const trimmed = fullNameDraft.trim();
+    if (trimmed.length < 2) return;
+    setFullNameSaving(true);
+    const res = await fetch(`${API}/auth/account/profile`, {
+      method: 'PATCH',
+      headers: { ...auth(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ full_name: trimmed }),
+    }).catch(() => null);
+    const data = res ? await res.json() as { ok: boolean; account?: Account } : null;
+    if (data?.ok && data.account) {
+      setAccount(data.account);
+      setFullNameDraft(data.account.full_name ?? '');
+    }
+    setFullNameSaving(false);
+  }
+
   async function updateShowOwnerName(next: boolean) {
     if (!provider) return;
     setShowOwnerName(next);
@@ -786,6 +810,52 @@ function SettingsTool({ tgUser, provider, canArchive, onProvidersChanged }: { tg
         <InfoRow label="Логин" value={account?.username ?? '...'} />
         <InfoRow label="Телефон" value={account?.phone ?? '...'} />
         <InfoRow label="Активный профиль" value={provider?.display_name ?? 'Не выбран'} />
+        <div style={{ marginTop: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--tg-theme-hint-color, #6b7280)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>
+            ФИО
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              type="text"
+              value={fullNameDraft}
+              onChange={e => setFullNameDraft(e.target.value)}
+              placeholder="Введите ФИО"
+              maxLength={100}
+              style={{
+                flex: 1,
+                padding: '9px 12px',
+                borderRadius: 10,
+                border: '1px solid var(--mini-border)',
+                background: 'var(--tg-theme-bg-color, #f9f9f9)',
+                color: 'var(--tg-theme-text-color, #0a0a0f)',
+                fontSize: 14,
+                fontFamily: 'inherit',
+                outline: 'none',
+              }}
+            />
+            <button
+              className="mini-tap"
+              onClick={() => void saveFullName()}
+              disabled={fullNameSaving || fullNameDraft.trim().length < 2 || fullNameDraft.trim() === (account?.full_name ?? '')}
+              style={{
+                padding: '9px 14px',
+                borderRadius: 10,
+                border: 'none',
+                background: '#7c3aed',
+                color: '#fff',
+                fontSize: 13,
+                fontWeight: 700,
+                fontFamily: 'inherit',
+                cursor: 'pointer',
+                opacity: (fullNameSaving || fullNameDraft.trim().length < 2 || fullNameDraft.trim() === (account?.full_name ?? '')) ? 0.45 : 1,
+                transition: 'opacity .15s',
+                flexShrink: 0,
+              }}
+            >
+              {fullNameSaving ? '...' : 'Сохранить'}
+            </button>
+          </div>
+        </div>
       </div>
       <div className="mini-card">
         <div style={{ fontWeight: 900, marginBottom: 8 }}>Публичная страница</div>

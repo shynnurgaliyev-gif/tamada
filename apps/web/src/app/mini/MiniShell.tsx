@@ -112,6 +112,7 @@ export default function MiniShell() {
     tgUser, miniAuthError, permissions, createGuestAccount,
     providers, activeIdx, setActiveIdx, activeProvider,
     updateActiveProvider, refreshProviders, canManageProfiles, maxProfiles, createProfile, unarchiveProfile,
+    accountFullName,
     summary, sumLoading, analyticsDays, switchAnalyticsPeriod,
   } = useMiniApp(tgFlow);
 
@@ -203,7 +204,7 @@ export default function MiniShell() {
         <MiniTopBar
           provider={activeProvider}
           providers={providers}
-          ownerName={tgUser ? [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') || null : null}
+          ownerName={accountFullName ?? (tgUser ? [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') || null : null)}
           onToggleSwitch={() => setShowSwitch(s => !s)}
           onCreateFirstProfile={onCreateFirstProfile}
         />

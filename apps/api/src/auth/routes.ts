@@ -4,7 +4,7 @@ import type { WhatsAppProvider } from './whatsapp';
 import type { SupabaseClient } from '../supabase';
 import * as service from './service';
 import { hashToken } from './repositories';
-import { findAccountById, updateAccountPublicSettings } from './repositories';
+import { findAccountById, updateAccountPublicSettings, updateAccountProfile } from './repositories';
 import { getAuthAccount } from './middleware';
 import { getMiniSessionContext } from '../telegram/mini-session';
 
@@ -129,6 +129,26 @@ export function createAuthRoutes(db: Db, wa: WhatsAppProvider, supabase: Supabas
       }
 
       const updated = await updateAccountPublicSettings(db, accountId, { showRelatedProfiles });
+      return reply.send({ ok: true, account: updated });
+    });
+
+    // PATCH /auth/account/profile
+    app.patch('/auth/account/profile', async (req, reply) => {
+      const account = await getAuthAccount(db, req);
+      const mini = account ? null : await getMiniSessionContext(db, req, 'can_edit_profile');
+      const accountId = account?.id ?? mini?.accountId;
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+
+      const body = req.body as Record<string, unknown>;
+      const fullName = typeof body['full_name'] === 'string' ? body['full_name'].trim() : null;
+      if (!fullName || fullName.length < 2) {
+        return reply.code(400).send({ ok: false, error: 'full_name must be at least 2 characters' });
+      }
+      if (fullName.length > 100) {
+        return reply.code(400).send({ ok: false, error: 'full_name too long (max 100 characters)' });
+      }
+
+      const updated = await updateAccountProfile(db, accountId, { fullName });
       return reply.send({ ok: true, account: updated });
     });
 

@@ -23,6 +23,7 @@ export type Account = {
   id: string;
   username: string;
   phone: string;
+  full_name: string | null;
   phone_verified_at: Date | null;
   password_hash: string;
   status: AccountStatus;
@@ -70,6 +71,19 @@ export async function updateAccountPublicSettings(db: Db, id: string, data: {
   const rows = await db<Account[]>`
     UPDATE accounts SET
       show_related_profiles = ${data.showRelatedProfiles ?? false}
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  return rows[0] ?? null;
+}
+
+export async function updateAccountProfile(db: Db, id: string, data: {
+  fullName: string;
+}): Promise<Account | null> {
+  const rows = await db<Account[]>`
+    UPDATE accounts SET
+      full_name = ${data.fullName},
+      updated_at = NOW()
     WHERE id = ${id}
     RETURNING *
   `;
