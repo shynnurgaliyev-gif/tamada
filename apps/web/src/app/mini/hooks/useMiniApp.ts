@@ -44,6 +44,22 @@ function writeProviderCache(userId: number, providers: Provider[], perms: MiniPe
   } catch { /* storage full — non-fatal */ }
 }
 
+/* ── Account full_name cache (localStorage) ───────────────────────────────── */
+
+const ACACHE_KEY = 'mc_acc_fn_v1';
+
+function readAccountFullNameCache(userId?: number): string | null {
+  if (!userId) return null;
+  try { return localStorage.getItem(`${ACACHE_KEY}_${userId}`) ?? null; } catch { return null; }
+}
+
+function writeAccountFullNameCache(userId: number, fullName: string | null): void {
+  try {
+    if (fullName) localStorage.setItem(`${ACACHE_KEY}_${userId}`, fullName);
+    else localStorage.removeItem(`${ACACHE_KEY}_${userId}`);
+  } catch { /* non-fatal */ }
+}
+
 function isMiniTokenValid(): boolean {
   const exp = localStorage.getItem('mini_auth_expires_at');
   if (!exp) return false;
@@ -169,6 +185,7 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
         setPermissions(cached.permissions);
         setProviders(cached.providers);
         setActiveIdx(0);
+        setAccountFullName(readAccountFullNameCache(userId));
         setPhase('shell');
         // Don't clear the still-valid token — auth will refresh it in background
       } else {
@@ -208,7 +225,11 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
             fetch(`${API}/auth/me`, { headers: miniHeaders() })
               .then(r => r.json())
               .then((me: { ok: boolean; account?: { full_name?: string | null } }) => {
-                if (me.ok) setAccountFullName(me.account?.full_name ?? null);
+                if (me.ok) {
+                  const fn = me.account?.full_name ?? null;
+                  setAccountFullName(fn);
+                  if (userId) writeAccountFullNameCache(userId, fn);
+                }
               })
               .catch(() => null);
           } else if (d.ok && d.state === 'guest') {
