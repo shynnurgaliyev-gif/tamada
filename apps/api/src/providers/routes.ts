@@ -493,9 +493,9 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
           LIMIT 1
         `;
         if (rows[0]) {
-          ownerName = rows[0].full_name
-            ?? [rows[0].tg_first, rows[0].tg_last].filter(Boolean).join(' ')
-            || null;
+          const candidate = rows[0].full_name
+            ?? [rows[0].tg_first, rows[0].tg_last].filter(Boolean).join(' ');
+          ownerName = candidate || null;
         }
       }
 
