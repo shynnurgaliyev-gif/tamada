@@ -131,7 +131,7 @@ export async function getAnalyticsSummary(
     : 0;
 
   const top_days = [...rows]
-    .sort((a, b) => b.contact_reveals - a.contact_reveals)
+    .sort((a, b) => b.profile_views - a.profile_views)
     .slice(0, 5)
     .map(r => ({
       date: typeof r.date === 'string' ? r.date : (r.date as Date).toISOString().slice(0, 10),
