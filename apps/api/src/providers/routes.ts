@@ -414,8 +414,10 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
 
       const body = req.body as Record<string, unknown>;
       const linkType = typeof body['link_type'] === 'string' ? body['link_type'] : null;
-      const url = typeof body['url'] === 'string' ? body['url'] : null;
-      if (!linkType || !url) return reply.code(400).send({ ok: false, error: 'Необходимо указать тип ссылки и URL' });
+      const rawUrl = typeof body['url'] === 'string' ? body['url'].trim() : null;
+      if (!linkType || !rawUrl) return reply.code(400).send({ ok: false, error: 'Необходимо указать тип ссылки и URL' });
+      // Normalize: add https:// if no protocol scheme present (e.g. "2gis.kz/..." → "https://2gis.kz/...")
+      const url = /^[a-z][a-z0-9+\-.]*:/i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
 
       const link = await repo.createLink(db, {
         providerId: id,

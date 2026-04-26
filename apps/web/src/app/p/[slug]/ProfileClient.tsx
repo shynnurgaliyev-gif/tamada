@@ -840,7 +840,7 @@ export default function ProfileClient({ slug }: { slug: string }) {
                     return (
                       <a
                         key={lk.id}
-                        href={lk.url}
+                        href={/^[a-z][a-z0-9+\-.]*:/i.test(lk.url) ? lk.url : `https://${lk.url}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{
