@@ -436,10 +436,10 @@ export function MiniStyles() {
       .mini-scalein { animation: mini-scalein 0.22s cubic-bezier(.34,1.56,.64,1) both; }
 
       /* ── Forms ───────────────────────────────────────────────── */
-      .mini-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+      .mini-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; min-width: 0; }
       .mini-field label { font-size: 12px; font-weight: 700; color: var(--tg-theme-hint-color, #6b7280); text-transform: uppercase; letter-spacing: .06em; }
       .mini-input {
-        width: 100%; padding: 12px 14px;
+        width: 100%; min-width: 0; padding: 12px 14px;
         background: var(--tg-theme-bg-color, #f7f6ff);
         border: 1.5px solid var(--mini-border-input);
         border-radius: 12px;
