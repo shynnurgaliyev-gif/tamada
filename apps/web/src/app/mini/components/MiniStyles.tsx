@@ -446,6 +446,7 @@ export function MiniStyles() {
         font-family: inherit; font-size: 15px;
         color: var(--tg-theme-text-color, #0a0a0f);
         outline: none;
+        -webkit-appearance: none; appearance: none;
         -webkit-user-select: text; user-select: text;
       }
       .mini-input:focus { border-color: #7c3aed; }
