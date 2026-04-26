@@ -132,7 +132,10 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
   const [miniAuthError, setMiniAuthError] = useState<string | null>(null);
   const [permissions, setPermissions] = useState<MiniPermissions>(OWNER_MINI_PERMISSIONS);
   const [verifiedInitData, setVerifiedInitData] = useState('');
-  const [accountFullName, setAccountFullName] = useState<string | null>(null);
+  const [accountFullName, setAccountFullName] = useState<string | null>(() => {
+    const userId = getTelegramWebApp()?.initDataUnsafe?.user?.id;
+    return readAccountFullNameCache(userId);
+  });
 
   const activeProvider = providers[activeIdx] ?? null;
   const activeProfileCount = providers.filter(p => !p.archived_at && !p.pending_delete_at).length;
