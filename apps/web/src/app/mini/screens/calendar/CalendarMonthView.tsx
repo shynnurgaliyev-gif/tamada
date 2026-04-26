@@ -19,7 +19,7 @@ const STATUS_COLOR: Record<string, string> = {
   partial:  '#f97316',
   tentative:'#eab308',
   free:     'transparent',
-  past:     'rgba(0,0,0,.08)',
+  past:     '#9ca3af',
   vacation: '#06b6d4',
 };
 const STATUS_TEXT_COLOR: Record<string, string> = {

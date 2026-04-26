@@ -218,6 +218,9 @@ export function CalendarEntryForm({
             <label>С</label>
             <input type="date" className="mini-input" value={dateFrom}
               onChange={e => { setDateFrom(e.target.value); if (dateTo < e.target.value) setDateTo(e.target.value); }} />
+            {dateFrom < today && (
+              <div style={{ fontSize: 12, color: '#ca8a04', marginTop: 4 }}>⚠️ Дата в прошлом</div>
+            )}
           </div>
           <div className="mini-field" style={{ marginBottom: 0 }}>
             <label>По</label>
@@ -230,6 +233,9 @@ export function CalendarEntryForm({
           <div className="mini-field">
             <label>Дата</label>
             <input type="date" className="mini-input" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+            {dateFrom < today && (
+              <div style={{ fontSize: 12, color: '#ca8a04', marginTop: 4 }}>⚠️ Дата в прошлом</div>
+            )}
           </div>
 
           {/* All-day toggle */}
