@@ -71,7 +71,7 @@ export function createSearchRoutes(db: Db, env: AppEnv) {
     app.post('/search/parse', async (req, reply) => {
       const body  = req.body as Record<string, unknown>;
       const query = typeof body['query'] === 'string' ? body['query'].trim() : '';
-      if (!query) return reply.code(400).send({ ok: false, error: 'query required' });
+      if (!query) return reply.code(400).send({ ok: false, error: 'Необходимо указать поисковый запрос' });
 
       const result = await parseSearchQuery(query, env);
       return reply.send({ ok: true, ...result });
@@ -81,7 +81,7 @@ export function createSearchRoutes(db: Db, env: AppEnv) {
     app.post('/search/ai', async (req, reply) => {
       const body  = req.body as Record<string, unknown>;
       const query = typeof body['query'] === 'string' ? body['query'].trim() : '';
-      if (!query) return reply.code(400).send({ ok: false, error: 'query required' });
+      if (!query) return reply.code(400).send({ ok: false, error: 'Необходимо указать поисковый запрос' });
 
       const { filters, understood, mode } = await parseSearchQuery(query, env);
 

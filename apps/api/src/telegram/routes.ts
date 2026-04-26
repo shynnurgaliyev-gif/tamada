@@ -24,18 +24,18 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       const account = await getAuthAccount(db, req);
       const mini = account ? null : await getMiniSessionContext(db, req, 'can_manage_integrations');
       const accountId = account?.id ?? mini?.accountId;
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
 
       const body = req.body as Record<string, unknown>;
       const providerId = typeof body['provider_id'] === 'string' ? body['provider_id'] : null;
-      if (!providerId) return reply.code(400).send({ ok: false, error: 'provider_id required' });
+      if (!providerId) return reply.code(400).send({ ok: false, error: 'Необходимо указать provider_id' });
 
       const provider = await findProviderById(db, providerId);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
-      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
+      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
 
       const count = await repo.countLinkedAccounts(db, providerId);
-      if (count >= 3) return reply.code(400).send({ ok: false, error: 'Maximum 3 Telegram accounts per provider' });
+      if (count >= 3) return reply.code(400).send({ ok: false, error: 'Максимум 3 Telegram-аккаунта на профиль' });
 
       const tokenRow = await repo.createLinkToken(db, providerId, 'owner', accountId);
       const rawToken = tokenRow.id; // raw token returned in id field
@@ -50,12 +50,12 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       const account = await getAuthAccount(db, req);
       const mini = account ? null : await getMiniSessionContext(db, req, 'can_manage_team');
       const accountId = account?.id ?? mini?.accountId;
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
 
       const { id } = req.params as { id: string };
       const provider = await findProviderById(db, id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
-      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
+      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
 
       const tokenRow = await repo.createLinkToken(db, id, 'assistant', accountId);
       const rawToken = tokenRow.id;
@@ -80,13 +80,13 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       const initData = typeof body['init_data'] === 'string'
         ? body['init_data']
         : typeof body['initData'] === 'string' ? body['initData'] : '';
-      if (!initData) return reply.code(400).send({ ok: false, error: 'init_data required' });
+      if (!initData) return reply.code(400).send({ ok: false, error: 'Необходимо передать init_data' });
 
       const token = env.TELEGRAM_BOT_TOKEN ?? '';
-      if (!token) return reply.code(503).send({ ok: false, error: 'Telegram Mini App auth is not configured' });
+      if (!token) return reply.code(503).send({ ok: false, error: 'Авторизация через Telegram Mini App не настроена' });
 
       const verified = verifyTelegramInitData(initData, token);
-      if (!verified) return reply.code(401).send({ ok: false, error: 'Invalid Telegram Mini App auth data' });
+      if (!verified) return reply.code(401).send({ ok: false, error: 'Неверные данные авторизации Telegram Mini App' });
 
       const tgAccount = await repo.findLinkedAccountByTelegramUserId(db, verified.user.id);
       if (!tgAccount) {
@@ -147,17 +147,17 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
         ? body['init_data']
         : typeof body['initData'] === 'string' ? body['initData'] : '';
       const fullName = typeof body['full_name'] === 'string' ? body['full_name'].trim() : '';
-      if (!initData) return reply.code(400).send({ ok: false, error: 'init_data required' });
-      if (fullName.length < 2) return reply.code(400).send({ ok: false, error: 'full_name required' });
+      if (!initData) return reply.code(400).send({ ok: false, error: 'Необходимо передать init_data' });
+      if (fullName.length < 2) return reply.code(400).send({ ok: false, error: 'Необходимо указать ФИО' });
 
       const token = env.TELEGRAM_BOT_TOKEN ?? '';
-      if (!token) return reply.code(503).send({ ok: false, error: 'Telegram Mini App auth is not configured' });
+      if (!token) return reply.code(503).send({ ok: false, error: 'Авторизация через Telegram Mini App не настроена' });
 
       const verified = verifyTelegramInitData(initData, token);
-      if (!verified) return reply.code(401).send({ ok: false, error: 'Invalid Telegram Mini App auth data' });
+      if (!verified) return reply.code(401).send({ ok: false, error: 'Неверные данные авторизации Telegram Mini App' });
 
       const linked = await repo.findLinkedAccountByTelegramUserId(db, verified.user.id);
-      if (linked) return reply.code(409).send({ ok: false, error: 'Telegram user already has account access' });
+      if (linked) return reply.code(409).send({ ok: false, error: 'Этот Telegram-аккаунт уже привязан к системе' });
 
       await ensureMiniGuestAccountSchema(db);
 
@@ -186,7 +186,7 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
             telegramFirstName: verified.user.first_name ?? fullName,
             telegramLastName: verified.user.last_name,
           });
-      if (!tgAccount) return reply.code(500).send({ ok: false, error: 'Failed to link Telegram account' });
+      if (!tgAccount) return reply.code(500).send({ ok: false, error: 'Не удалось привязать Telegram-аккаунт' });
 
       const rawSessionToken = repo.generateMiniSessionToken();
       const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000);
@@ -213,7 +213,7 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
     // GET /telegram/mini/transfers/incoming
     app.get('/telegram/mini/transfers/incoming', async (req, reply) => {
       const mini = await getMiniSessionContext(db, req);
-      if (!mini) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      if (!mini) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
 
       const requests = await repo.findIncomingOwnershipTransferRequests(db, mini.accountId);
       return reply.send({ ok: true, transfer_requests: requests });
@@ -222,7 +222,7 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
     // GET /telegram/mini/transfers/outgoing
     app.get('/telegram/mini/transfers/outgoing', async (req, reply) => {
       const mini = await getMiniSessionContext(db, req, 'can_archive_profile');
-      if (!mini) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      if (!mini) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
 
       const query = req.query as Record<string, string | undefined>;
       const providerId = typeof query['provider_id'] === 'string' ? query['provider_id'] : undefined;
@@ -233,12 +233,12 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
     // GET /providers/:id/activity
     app.get('/providers/:id/activity', async (req, reply) => {
       const mini = await getMiniSessionContext(db, req, 'can_manage_team');
-      if (!mini) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      if (!mini) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
 
       const { id } = req.params as { id: string };
       const provider = await findProviderById(db, id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
-      if (provider.account_id !== mini.accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
+      if (provider.account_id !== mini.accountId) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
 
       const query = req.query as Record<string, string | undefined>;
       const categoryRaw = query['category'];
@@ -253,18 +253,18 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
     // POST /telegram/mini/active-provider
     app.post('/telegram/mini/active-provider', async (req, reply) => {
       const mini = await getMiniSessionContext(db, req);
-      if (!mini) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      if (!mini) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
 
       const body = req.body as Record<string, unknown>;
       const providerId = typeof body['provider_id'] === 'string' ? body['provider_id'] : null;
-      if (!providerId) return reply.code(400).send({ ok: false, error: 'provider_id required' });
+      if (!providerId) return reply.code(400).send({ ok: false, error: 'Необходимо указать provider_id' });
 
       const accessibleIds = await repo.findAccessibleProviderIdsForTelegramAccount(db, mini.telegramAccount);
-      if (!accessibleIds.includes(providerId)) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (!accessibleIds.includes(providerId)) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
 
       const provider = await findProviderById(db, providerId);
       if (!provider || provider.archived_at || provider.pending_delete_at) {
-        return reply.code(404).send({ ok: false, error: 'Provider not found' });
+        return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
       }
 
       const session = await repo.findBotSession(db, mini.telegramAccount.id);
@@ -276,34 +276,34 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
     // POST /telegram/mini/transfers/:requestId/accept
     app.post('/telegram/mini/transfers/:requestId/accept', async (req, reply) => {
       const mini = await getMiniSessionContext(db, req, 'can_create_profile');
-      if (!mini) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      if (!mini) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
 
       const { requestId } = req.params as { requestId: string };
       const request = await repo.findAcceptableOwnershipTransferRequest(db, requestId, mini.accountId);
-      if (!request) return reply.code(404).send({ ok: false, error: 'Transfer request not found' });
-      if (request.status !== 'pending') return reply.code(400).send({ ok: false, error: `Transfer request is ${request.status}` });
-      if (new Date(request.expires_at).getTime() <= Date.now()) return reply.code(400).send({ ok: false, error: 'Transfer request expired' });
-      if (request.from_account_id === mini.accountId) return reply.code(400).send({ ok: false, error: 'Cannot accept own transfer request' });
+      if (!request) return reply.code(404).send({ ok: false, error: 'Запрос на передачу не найден' });
+      if (request.status !== 'pending') return reply.code(400).send({ ok: false, error: `Запрос на передачу профиля имеет статус: ${request.status}` });
+      if (new Date(request.expires_at).getTime() <= Date.now()) return reply.code(400).send({ ok: false, error: 'Срок действия запроса на передачу истёк' });
+      if (request.from_account_id === mini.accountId) return reply.code(400).send({ ok: false, error: 'Нельзя принять собственный запрос на передачу' });
 
       const provider = await findProviderById(db, request.provider_id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
       if (provider.account_id !== request.from_account_id) {
-        return reply.code(409).send({ ok: false, error: 'Provider ownership already changed' });
+        return reply.code(409).send({ ok: false, error: 'Владелец профиля уже изменён' });
       }
-      if (provider.pending_delete_at) return reply.code(400).send({ ok: false, error: 'Provider is pending deletion' });
+      if (provider.pending_delete_at) return reply.code(400).send({ ok: false, error: 'Профиль ожидает удаления' });
 
       const activeCount = await countActiveProvidersByAccountId(db, mini.accountId);
       if (!provider.archived_at && activeCount >= 3) {
-        return reply.code(400).send({ ok: false, error: 'Target account has maximum active profiles' });
+        return reply.code(400).send({ ok: false, error: 'У получателя достигнут лимит активных профилей' });
       }
 
       const accepted = await repo.acceptOwnershipTransferRequest(db, requestId, mini.accountId);
-      if (!accepted) return reply.code(409).send({ ok: false, error: 'Transfer request is no longer active' });
+      if (!accepted) return reply.code(409).send({ ok: false, error: 'Запрос на передачу профиля больше не активен' });
 
       await repo.revokeAllProfileAccessForProvider(db, provider.id);
       await repo.revokeLinkTokensForProvider(db, provider.id);
       const transferred = await transferProviderToAccount(db, provider.id, mini.accountId);
-      if (!transferred) return reply.code(500).send({ ok: false, error: 'Failed to transfer provider' });
+      if (!transferred) return reply.code(500).send({ ok: false, error: 'Не удалось передать профиль' });
       await repo.upsertProfileAccess(db, {
         telegramAccountId: mini.telegramAccount.id,
         providerId: provider.id,
@@ -328,16 +328,16 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
     // POST /telegram/mini/transfers/:requestId/reject
     app.post('/telegram/mini/transfers/:requestId/reject', async (req, reply) => {
       const mini = await getMiniSessionContext(db, req);
-      if (!mini) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      if (!mini) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
 
       const { requestId } = req.params as { requestId: string };
       const request = await repo.findAcceptableOwnershipTransferRequest(db, requestId, mini.accountId);
-      if (!request) return reply.code(404).send({ ok: false, error: 'Transfer request not found' });
-      if (request.status !== 'pending') return reply.code(400).send({ ok: false, error: `Transfer request is ${request.status}` });
-      if (request.from_account_id === mini.accountId) return reply.code(400).send({ ok: false, error: 'Cannot reject own transfer request' });
+      if (!request) return reply.code(404).send({ ok: false, error: 'Запрос на передачу не найден' });
+      if (request.status !== 'pending') return reply.code(400).send({ ok: false, error: `Запрос на передачу профиля имеет статус: ${request.status}` });
+      if (request.from_account_id === mini.accountId) return reply.code(400).send({ ok: false, error: 'Нельзя отклонить собственный запрос на передачу' });
 
       const rejected = await repo.rejectOwnershipTransferRequest(db, requestId, mini.accountId);
-      if (!rejected) return reply.code(409).send({ ok: false, error: 'Transfer request is no longer active' });
+      if (!rejected) return reply.code(409).send({ ok: false, error: 'Запрос на передачу профиля больше не активен' });
       await repo.logActivity(db, {
         providerId: request.provider_id,
         actorType: 'telegram',
@@ -877,22 +877,22 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       const account = await getAuthAccount(db, req);
       const mini = account ? null : await getMiniSessionContext(db, req, 'can_manage_integrations');
       const accountId = account?.id ?? mini?.accountId;
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
 
       const body = req.body as Record<string, unknown>;
       const telegramAccountId = typeof body['telegram_account_id'] === 'string' ? body['telegram_account_id'] : null;
-      if (!telegramAccountId) return reply.code(400).send({ ok: false, error: 'telegram_account_id required' });
+      if (!telegramAccountId) return reply.code(400).send({ ok: false, error: 'Необходимо указать telegram_account_id' });
 
       const tgAccount = await db<repo.TelegramAccount[]>`SELECT * FROM telegram_accounts WHERE id = ${telegramAccountId} LIMIT 1`;
       const ta = tgAccount[0];
-      if (!ta) return reply.code(404).send({ ok: false, error: 'Not found' });
+      if (!ta) return reply.code(404).send({ ok: false, error: 'Не найдено' });
 
       // Ownership check: either the account's primary provider belongs to accountId,
       // or the account itself belongs to accountId (guest-gate accounts have provider_id = NULL).
       let logProviderId: string | null = null;
       if (ta.provider_id) {
         const provider = await findProviderById(db, ta.provider_id);
-        if (!provider || provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+        if (!provider || provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
         logProviderId = provider.id;
       } else if (ta.account_id !== accountId) {
         // No direct provider link — verify via profile access table
@@ -903,7 +903,7 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
             AND p.account_id = ${accountId}
           LIMIT 1
         `;
-        if (!accessRows[0]) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+        if (!accessRows[0]) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
         logProviderId = accessRows[0].provider_id;
       }
 
@@ -926,12 +926,12 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       const account = await getAuthAccount(db, req);
       const mini = account ? null : await getMiniSessionContext(db, req, 'can_manage_integrations');
       const accountId = account?.id ?? mini?.accountId;
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
 
       const { id } = req.params as { id: string };
       const provider = await findProviderById(db, id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
-      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
+      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
 
       const accounts = await repo.findAllAccountsByProvider(db, id);
       return reply.send({ ok: true, accounts });
@@ -942,12 +942,12 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       const account = await getAuthAccount(db, req);
       const mini = account ? null : await getMiniSessionContext(db, req, 'can_manage_team');
       const accountId = account?.id ?? mini?.accountId;
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
 
       const { id } = req.params as { id: string };
       const provider = await findProviderById(db, id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
-      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
+      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
 
       const rows = await db<Array<repo.TelegramAccount & { access_role: repo.TelegramRole | null; access_status: string | null; access_granted_at: Date | null }>>`
         SELECT ta.*, tpa.role AS access_role, tpa.status AS access_status, tpa.granted_at AS access_granted_at
@@ -972,17 +972,17 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       const account = await getAuthAccount(db, req);
       const mini = account ? null : await getMiniSessionContext(db, req, 'can_manage_team');
       const accountId = account?.id ?? mini?.accountId;
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
 
       const { id, telegramAccountId } = req.params as { id: string; telegramAccountId: string };
       const provider = await findProviderById(db, id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
-      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
+      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
 
       const rows = await db<repo.TelegramAccount[]>`SELECT * FROM telegram_accounts WHERE id = ${telegramAccountId} LIMIT 1`;
       const tgAccount = rows[0];
-      if (!tgAccount) return reply.code(404).send({ ok: false, error: 'Telegram account not found' });
-      if (tgAccount.is_primary) return reply.code(400).send({ ok: false, error: 'Primary owner cannot be revoked' });
+      if (!tgAccount) return reply.code(404).send({ ok: false, error: 'Telegram-аккаунт не найден' });
+      if (tgAccount.is_primary) return reply.code(400).send({ ok: false, error: 'Нельзя отозвать доступ у основного владельца' });
 
       await repo.revokeProfileAccess(db, telegramAccountId, id);
       await repo.revokeMiniSessionsForTelegramAccount(db, telegramAccountId);
@@ -1004,12 +1004,12 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       const account = await getAuthAccount(db, req);
       const mini = account ? null : await getMiniSessionContext(db, req, 'can_manage_team');
       const accountId = account?.id ?? mini?.accountId;
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
 
       const { id, telegramAccountId } = req.params as { id: string; telegramAccountId: string };
       const provider = await findProviderById(db, id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
-      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
+      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
 
       const rows = await db<repo.TelegramAccount[]>`
         SELECT ta.* FROM telegram_accounts ta
@@ -1024,10 +1024,10 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
         LIMIT 1
       `;
       const target = rows[0];
-      if (!target) return reply.code(404).send({ ok: false, error: 'Telegram account not found' });
+      if (!target) return reply.code(404).send({ ok: false, error: 'Telegram-аккаунт не найден' });
 
       const updated = await repo.replacePrimaryTelegramOwner(db, accountId, telegramAccountId);
-      if (!updated) return reply.code(400).send({ ok: false, error: 'Cannot replace primary owner' });
+      if (!updated) return reply.code(400).send({ ok: false, error: 'Нельзя заменить основного владельца' });
       await repo.upsertProfileAccess(db, { telegramAccountId, providerId: id, role: 'owner', grantedByAccountId: accountId });
       await repo.logActivity(db, {
         providerId: id,

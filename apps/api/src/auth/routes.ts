@@ -22,7 +22,7 @@ export function createAuthRoutes(db: Db, wa: WhatsAppProvider, supabase: Supabas
     app.post('/auth/signup/request-code', async (req, reply) => {
       const body = req.body as Record<string, unknown>;
       const phone = typeof body['phone'] === 'string' ? body['phone'] : null;
-      if (!phone) return reply.code(400).send({ ok: false, error: 'phone required' });
+      if (!phone) return reply.code(400).send({ ok: false, error: 'Необходимо указать номер телефона' });
 
       const result = await service.requestSignupCode(db, wa, phone);
       return reply.code(result.ok ? 200 : 400).send(result);
@@ -37,7 +37,7 @@ export function createAuthRoutes(db: Db, wa: WhatsAppProvider, supabase: Supabas
       const password = typeof body['password'] === 'string' ? body['password'] : null;
 
       if (!phone || !code || !username || !password) {
-        return reply.code(400).send({ ok: false, error: 'phone, code, username, password required' });
+        return reply.code(400).send({ ok: false, error: 'Необходимо указать телефон, код, имя пользователя и пароль' });
       }
 
       const result = await service.confirmSignup(
@@ -55,7 +55,7 @@ export function createAuthRoutes(db: Db, wa: WhatsAppProvider, supabase: Supabas
       const password = typeof body['password'] === 'string' ? body['password'] : null;
 
       if (!username || !password) {
-        return reply.code(400).send({ ok: false, error: 'username and password required' });
+        return reply.code(400).send({ ok: false, error: 'Необходимо указать имя пользователя и пароль' });
       }
 
       const result = await service.login(
@@ -77,7 +77,7 @@ export function createAuthRoutes(db: Db, wa: WhatsAppProvider, supabase: Supabas
     app.post('/auth/password/reset/request-code', async (req, reply) => {
       const body = req.body as Record<string, unknown>;
       const phone = typeof body['phone'] === 'string' ? body['phone'] : null;
-      if (!phone) return reply.code(400).send({ ok: false, error: 'phone required' });
+      if (!phone) return reply.code(400).send({ ok: false, error: 'Необходимо указать номер телефона' });
 
       const result = await service.requestPasswordResetCode(db, wa, phone);
       return reply.send(result);
@@ -91,7 +91,7 @@ export function createAuthRoutes(db: Db, wa: WhatsAppProvider, supabase: Supabas
       const newPassword = typeof body['new_password'] === 'string' ? body['new_password'] : null;
 
       if (!phone || !code || !newPassword) {
-        return reply.code(400).send({ ok: false, error: 'phone, code, new_password required' });
+        return reply.code(400).send({ ok: false, error: 'Необходимо указать телефон, код и новый пароль' });
       }
 
       const result = await service.confirmPasswordReset(db, { phone, code, newPassword });
@@ -103,9 +103,9 @@ export function createAuthRoutes(db: Db, wa: WhatsAppProvider, supabase: Supabas
       const token = extractToken(req);
       if (!token) {
         const mini = await getMiniSessionContext(db, req);
-        if (!mini) return reply.code(401).send({ ok: false, error: { code: 'UNAUTHORIZED', message: 'No token' } });
+        if (!mini) return reply.code(401).send({ ok: false, error: { code: 'UNAUTHORIZED', message: 'Токен не указан' } });
         const account = await findAccountById(db, mini.accountId);
-        if (!account) return reply.code(401).send({ ok: false, error: { code: 'ACCOUNT_NOT_FOUND', message: 'Account not found' } });
+        if (!account) return reply.code(401).send({ ok: false, error: { code: 'ACCOUNT_NOT_FOUND', message: 'Аккаунт не найден' } });
         return reply.send({ ok: true, account });
       }
 
@@ -118,14 +118,14 @@ export function createAuthRoutes(db: Db, wa: WhatsAppProvider, supabase: Supabas
       const account = await getAuthAccount(db, req);
       const mini = account ? null : await getMiniSessionContext(db, req, 'can_manage_subscription');
       const accountId = account?.id ?? mini?.accountId;
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
 
       const body = req.body as Record<string, unknown>;
       const showRelatedProfiles = typeof body['show_related_profiles'] === 'boolean'
         ? body['show_related_profiles']
         : undefined;
       if (showRelatedProfiles === undefined) {
-        return reply.code(400).send({ ok: false, error: 'show_related_profiles required' });
+        return reply.code(400).send({ ok: false, error: 'Необходимо указать show_related_profiles' });
       }
 
       const updated = await updateAccountPublicSettings(db, accountId, { showRelatedProfiles });
@@ -137,15 +137,15 @@ export function createAuthRoutes(db: Db, wa: WhatsAppProvider, supabase: Supabas
       const account = await getAuthAccount(db, req);
       const mini = account ? null : await getMiniSessionContext(db, req, 'can_edit_profile');
       const accountId = account?.id ?? mini?.accountId;
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
 
       const body = req.body as Record<string, unknown>;
       const fullName = typeof body['full_name'] === 'string' ? body['full_name'].trim() : null;
       if (!fullName || fullName.length < 2) {
-        return reply.code(400).send({ ok: false, error: 'full_name must be at least 2 characters' });
+        return reply.code(400).send({ ok: false, error: 'ФИО должно содержать не менее 2 символов' });
       }
       if (fullName.length > 100) {
-        return reply.code(400).send({ ok: false, error: 'full_name too long (max 100 characters)' });
+        return reply.code(400).send({ ok: false, error: 'ФИО слишком длинное (максимум 100 символов)' });
       }
 
       const updated = await updateAccountProfile(db, accountId, { fullName });
@@ -155,11 +155,11 @@ export function createAuthRoutes(db: Db, wa: WhatsAppProvider, supabase: Supabas
     // DELETE /auth/account  — permanently delete account + all data
     app.delete('/auth/account', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      if (!account) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
 
       const body = req.body as Record<string, unknown>;
       const password = typeof body['password'] === 'string' ? body['password'] : null;
-      if (!password) return reply.code(400).send({ ok: false, error: 'password required' });
+      if (!password) return reply.code(400).send({ ok: false, error: 'Необходимо указать пароль' });
 
       const result = await service.deleteAccount(db, supabase, account.id, password);
       return reply.code(result.ok ? 200 : 400).send(result);

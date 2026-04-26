@@ -40,7 +40,7 @@ export async function requestSignupCode(
 ): Promise<Ok | Fail> {
   const existing = await repo.findAccountByPhone(db, phone);
   if (existing?.status === 'active') {
-    return fail('PHONE_TAKEN', 'Phone already registered');
+    return fail('PHONE_TAKEN', 'Номер телефона уже зарегистрирован');
   }
 
   const code = repo.generateCode();
@@ -62,19 +62,19 @@ export async function confirmSignup(
   meta: { userAgent: string | null; ipAddress: string | null },
 ): Promise<Ok<{ token: string; account: repo.Account; expires_at: string }> | Fail> {
   const verification = await repo.findValidVerificationCode(db, data.phone, 'signup');
-  if (!verification) return fail('CODE_INVALID', 'Code expired or not found');
+  if (!verification) return fail('CODE_INVALID', 'Код истёк или не найден');
 
   const attempts = await repo.incrementVerificationAttempt(db, verification.id);
-  if (attempts > MAX_ATTEMPTS) return fail('TOO_MANY_ATTEMPTS', 'Too many attempts');
+  if (attempts > MAX_ATTEMPTS) return fail('TOO_MANY_ATTEMPTS', 'Слишком много попыток');
 
   if (repo.hashToken(data.code) !== verification.code_hash) {
-    return fail('CODE_INVALID', 'Invalid code');
+    return fail('CODE_INVALID', 'Неверный код');
   }
 
   await repo.markVerificationCodeUsed(db, verification.id);
 
   if (await repo.findAccountByUsername(db, data.username)) {
-    return fail('USERNAME_TAKEN', 'Username already taken');
+    return fail('USERNAME_TAKEN', 'Имя пользователя уже занято');
   }
 
   const pwErr = validatePassword(data.password);
@@ -107,11 +107,11 @@ export async function login(
   meta: { userAgent: string | null; ipAddress: string | null },
 ): Promise<Ok<{ token: string; account: repo.Account; expires_at: string }> | Fail> {
   const account = await repo.findAccountByUsername(db, data.username);
-  if (!account) return fail('INVALID_CREDENTIALS', 'Invalid username or password');
-  if (account.status !== 'active') return fail('ACCOUNT_INACTIVE', 'Account is not active');
+  if (!account) return fail('INVALID_CREDENTIALS', 'Неверное имя пользователя или пароль');
+  if (account.status !== 'active') return fail('ACCOUNT_INACTIVE', 'Аккаунт неактивен');
 
   const valid = await bcrypt.compare(data.password, account.password_hash);
-  if (!valid) return fail('INVALID_CREDENTIALS', 'Invalid username or password');
+  if (!valid) return fail('INVALID_CREDENTIALS', 'Неверное имя пользователя или пароль');
 
   const token = repo.generateToken();
   const expiresAt = sessionExpiresAt();
@@ -161,19 +161,19 @@ export async function confirmPasswordReset(
   data: { phone: string; code: string; newPassword: string },
 ): Promise<Ok | Fail> {
   const verification = await repo.findValidVerificationCode(db, data.phone, 'reset_password');
-  if (!verification) return fail('CODE_INVALID', 'Code expired or not found');
+  if (!verification) return fail('CODE_INVALID', 'Код истёк или не найден');
 
   const attempts = await repo.incrementVerificationAttempt(db, verification.id);
-  if (attempts > MAX_ATTEMPTS) return fail('TOO_MANY_ATTEMPTS', 'Too many attempts');
+  if (attempts > MAX_ATTEMPTS) return fail('TOO_MANY_ATTEMPTS', 'Слишком много попыток');
 
   if (repo.hashToken(data.code) !== verification.code_hash) {
-    return fail('CODE_INVALID', 'Invalid code');
+    return fail('CODE_INVALID', 'Неверный код');
   }
 
   await repo.markVerificationCodeUsed(db, verification.id);
 
   const account = await repo.findAccountByPhone(db, data.phone);
-  if (!account) return fail('ACCOUNT_NOT_FOUND', 'Account not found');
+  if (!account) return fail('ACCOUNT_NOT_FOUND', 'Аккаунт не найден');
 
   const pwErr = validatePassword(data.newPassword);
   if (pwErr) return fail('WEAK_PASSWORD', pwErr);
@@ -193,7 +193,7 @@ export async function deleteAccount(
   password: string,
 ): Promise<Ok | Fail> {
   const account = await repo.findAccountById(db, accountId);
-  if (!account) return fail('ACCOUNT_NOT_FOUND', 'Account not found');
+  if (!account) return fail('ACCOUNT_NOT_FOUND', 'Аккаунт не найден');
 
   const valid = await bcrypt.compare(password, account.password_hash);
   if (!valid) return fail('INVALID_PASSWORD', 'Неверный пароль');
@@ -224,10 +224,10 @@ export async function getMe(
   tokenHash: string,
 ): Promise<Ok<{ account: repo.Account }> | Fail> {
   const session = await repo.findValidSession(db, tokenHash);
-  if (!session) return fail('UNAUTHORIZED', 'Invalid or expired session');
+  if (!session) return fail('UNAUTHORIZED', 'Сессия недействительна или истекла');
 
   const account = await repo.findAccountById(db, session.account_id);
-  if (!account) return fail('ACCOUNT_NOT_FOUND', 'Account not found');
+  if (!account) return fail('ACCOUNT_NOT_FOUND', 'Аккаунт не найден');
 
   return { ok: true, account };
 }

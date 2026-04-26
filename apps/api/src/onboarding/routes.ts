@@ -18,7 +18,7 @@ export function createOnboardingRoutes(db: Db) {
     // GET /dashboard/onboarding — computed onboarding progress
     app.get('/dashboard/onboarding', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      if (!account) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
 
       const query = req.query as Record<string, string>;
       let providerId = query['provider_id'] ?? '';
@@ -26,7 +26,7 @@ export function createOnboardingRoutes(db: Db) {
       if (providerId) {
         const p = await findProviderById(db, providerId);
         if (!p || p.account_id !== account.id) {
-          return reply.code(403).send({ ok: false, error: 'Forbidden' });
+          return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
         }
       } else {
         const providers = await findProvidersByAccountId(db, account.id);
@@ -79,19 +79,19 @@ export function createOnboardingRoutes(db: Db) {
     // PATCH /dashboard/onboarding — save progress
     app.patch('/dashboard/onboarding', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      if (!account) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
 
       const body = req.body as Record<string, unknown>;
       const providerId = typeof body['provider_id'] === 'string' ? body['provider_id'] : null;
       const step = typeof body['step'] === 'number' ? body['step'] : null;
 
       if (!providerId || !step) {
-        return reply.code(400).send({ ok: false, error: 'provider_id and step required' });
+        return reply.code(400).send({ ok: false, error: 'Необходимо указать provider_id и шаг' });
       }
 
       const provider = await findProviderById(db, providerId);
       if (!provider || provider.account_id !== account.id) {
-        return reply.code(403).send({ ok: false, error: 'Forbidden' });
+        return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
       }
 
       const row = await repo.upsertOnboarding(db, providerId, step);
@@ -101,15 +101,15 @@ export function createOnboardingRoutes(db: Db) {
     // POST /dashboard/onboarding/complete
     app.post('/dashboard/onboarding/complete', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      if (!account) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
 
       const body = req.body as Record<string, unknown>;
       const providerId = typeof body['provider_id'] === 'string' ? body['provider_id'] : null;
-      if (!providerId) return reply.code(400).send({ ok: false, error: 'provider_id required' });
+      if (!providerId) return reply.code(400).send({ ok: false, error: 'Необходимо указать provider_id' });
 
       const provider = await findProviderById(db, providerId);
       if (!provider || provider.account_id !== account.id) {
-        return reply.code(403).send({ ok: false, error: 'Forbidden' });
+        return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
       }
 
       await repo.completeOnboarding(db, providerId);

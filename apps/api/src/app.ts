@@ -54,7 +54,7 @@ export function createApp(env: AppEnv, db: Db, supabase: SupabaseClient, wa: imp
     global: true,
     max: 120,
     timeWindow: 60_000,
-    errorResponseBuilder: () => ({ ok: false, error: 'Too many requests, please slow down' }),
+    errorResponseBuilder: () => ({ ok: false, error: 'Слишком много запросов, пожалуйста, сбавьте темп' }),
     keyGenerator: (req) => req.ip,
   });
 
@@ -75,7 +75,7 @@ export function createApp(env: AppEnv, db: Db, supabase: SupabaseClient, wa: imp
     void authScope.register(rateLimit, {
       max: 15,
       timeWindow: 15 * 60_000,
-      errorResponseBuilder: () => ({ ok: false, error: 'Too many attempts, try again in 15 minutes' }),
+      errorResponseBuilder: () => ({ ok: false, error: 'Слишком много попыток, повторите через 15 минут' }),
       keyGenerator: (req) => req.ip,
     });
     void authScope.register(createAuthRoutes(db, wa, supabase));
@@ -86,7 +86,7 @@ export function createApp(env: AppEnv, db: Db, supabase: SupabaseClient, wa: imp
     void searchScope.register(rateLimit, {
       max: 30,
       timeWindow: 60_000,
-      errorResponseBuilder: () => ({ ok: false, error: 'Too many search requests, please slow down' }),
+      errorResponseBuilder: () => ({ ok: false, error: 'Слишком много поисковых запросов, пожалуйста, сбавьте темп' }),
       keyGenerator: (req) => req.ip,
     });
     void searchScope.register(createSearchRoutes(db, env));
@@ -113,14 +113,14 @@ export function createApp(env: AppEnv, db: Db, supabase: SupabaseClient, wa: imp
     void reply.code(status).send({
       ok: false,
       error: status >= 500 && env.NODE_ENV === 'production'
-        ? 'Internal server error'
-        : (error.message ?? 'Unknown error'),
+        ? 'Внутренняя ошибка сервера'
+        : (error.message ?? 'Неизвестная ошибка'),
     });
   });
 
   // ── 404 ────────────────────────────────────────────────────────────────
   app.setNotFoundHandler((_req, reply) => {
-    void reply.code(404).send({ ok: false, error: 'Not found' });
+    void reply.code(404).send({ ok: false, error: 'Не найдено' });
   });
 
   return app;

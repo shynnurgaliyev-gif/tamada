@@ -1,0 +1,326 @@
+=========================================================================
+ TAMADA / OCTIQA — Все сообщения об ошибках и их переводы на русский язык
+ Дата: 2026-04-25
+=========================================================================
+
+─────────────────────────────────────────────────────────────────────────
+ apps/api/src/app.ts  (rate limits & global handlers)
+─────────────────────────────────────────────────────────────────────────
+'Too many requests, please slow down'
+  → 'Слишком много запросов, пожалуйста, сбавьте темп'
+
+'Too many attempts, try again in 15 minutes'
+  → 'Слишком много попыток, повторите через 15 минут'
+
+'Too many search requests, please slow down'
+  → 'Слишком много поисковых запросов, пожалуйста, сбавьте темп'
+
+'Internal server error'
+  → 'Внутренняя ошибка сервера'
+
+'Unknown error'
+  → 'Неизвестная ошибка'
+
+'Not found'  (404 handler)
+  → 'Не найдено'
+
+─────────────────────────────────────────────────────────────────────────
+ apps/api/src/auth/service.ts  (business logic errors, returned as { code, message })
+─────────────────────────────────────────────────────────────────────────
+'Phone already registered'
+  → 'Номер телефона уже зарегистрирован'
+
+'Code expired or not found'
+  → 'Код истёк или не найден'
+
+'Too many attempts'
+  → 'Слишком много попыток'
+
+'Invalid code'
+  → 'Неверный код'
+
+'Username already taken'
+  → 'Имя пользователя уже занято'
+
+'Invalid username or password'
+  → 'Неверное имя пользователя или пароль'
+
+'Account is not active'
+  → 'Аккаунт неактивен'
+
+'Invalid or expired session'
+  → 'Сессия недействительна или истекла'
+
+'Account not found'
+  → 'Аккаунт не найден'
+
+─────────────────────────────────────────────────────────────────────────
+ apps/api/src/auth/routes.ts
+─────────────────────────────────────────────────────────────────────────
+'phone required'
+  → 'Необходимо указать номер телефона'
+
+'phone, code, username, password required'
+  → 'Необходимо указать телефон, код, имя пользователя и пароль'
+
+'username and password required'
+  → 'Необходимо указать имя пользователя и пароль'
+
+'phone, code, new_password required'
+  → 'Необходимо указать телефон, код и новый пароль'
+
+'No token'  (в объекте ошибки { code: 'UNAUTHORIZED', message: ... })
+  → 'Токен не указан'
+
+'Account not found'  (в объекте ошибки { code: 'ACCOUNT_NOT_FOUND', message: ... })
+  → 'Аккаунт не найден'
+
+'Unauthorized'
+  → 'Нет доступа'
+
+'show_related_profiles required'
+  → 'Необходимо указать show_related_profiles'
+
+'full_name must be at least 2 characters'
+  → 'ФИО должно содержать не менее 2 символов'
+
+'full_name too long (max 100 characters)'
+  → 'ФИО слишком длинное (максимум 100 символов)'
+
+'password required'
+  → 'Необходимо указать пароль'
+
+─────────────────────────────────────────────────────────────────────────
+ apps/api/src/calendar/routes.ts
+─────────────────────────────────────────────────────────────────────────
+'Forbidden'
+  → 'Доступ запрещён'
+
+'Provider not found'
+  → 'Профиль не найден'
+
+'Invalid starts_at or ends_at'
+  → 'Неверная дата начала или окончания'
+
+'starts_at must be before ends_at'
+  → 'Время начала должно быть раньше времени окончания'
+
+'Invalid status'
+  → 'Неверный статус записи'
+
+'Time slot overlaps with existing entry'  ← видно пользователям!
+  → 'Это время пересекается с существующей записью'
+
+'Entry not found'
+  → 'Запись не найдена'
+
+─────────────────────────────────────────────────────────────────────────
+ apps/api/src/providers/routes.ts
+─────────────────────────────────────────────────────────────────────────
+'Unauthorized'
+  → 'Нет доступа'
+
+'display_name and slug required'
+  → 'Необходимо указать название и адрес страницы'
+
+'slug must be lowercase letters, numbers, hyphens'
+  → 'Адрес страницы должен содержать только строчные латинские буквы, цифры и дефисы'
+
+'slug already taken'
+  → 'Такой адрес страницы уже занят'
+
+`Maximum ${MAX_PROFILES_PER_ACCOUNT} profiles per account`
+  → `Максимум ${MAX_PROFILES_PER_ACCOUNT} профилей на аккаунт`
+
+'Provider not found'
+  → 'Профиль не найден'
+
+'Forbidden'
+  → 'Доступ запрещён'
+
+'confirm_text must match profile display_name'
+  → 'Текст подтверждения должен совпадать с названием профиля'
+
+'to_phone or to_account_id required'
+  → 'Необходимо указать to_phone или to_account_id'
+
+'category required'
+  → 'Необходимо указать категорию'
+
+'Service not found'
+  → 'Услуга не найдена'
+
+`Maximum ${MAX_PHOTOS} photos allowed`
+  → `Максимум ${MAX_PHOTOS} фотографий`
+
+'No file uploaded'
+  → 'Файл не загружен'
+
+'Only JPEG, PNG, WebP allowed'
+  → 'Допустимы только форматы JPEG, PNG, WebP'
+
+'Upload failed'
+  → 'Ошибка загрузки файла'
+
+'link_type and url required'
+  → 'Необходимо указать тип ссылки и URL'
+
+'Photo not found'
+  → 'Фото не найдено'
+
+'Link not found'
+  → 'Ссылка не найдена'
+
+─────────────────────────────────────────────────────────────────────────
+ apps/api/src/search/routes.ts
+─────────────────────────────────────────────────────────────────────────
+'query required'
+  → 'Необходимо указать поисковый запрос'
+
+─────────────────────────────────────────────────────────────────────────
+ apps/api/src/telegram/routes.ts
+─────────────────────────────────────────────────────────────────────────
+'Unauthorized'
+  → 'Нет доступа'
+
+'provider_id required'
+  → 'Необходимо указать provider_id'
+
+'Provider not found'
+  → 'Профиль не найден'
+
+'Forbidden'
+  → 'Доступ запрещён'
+
+'Maximum 3 Telegram accounts per provider'
+  → 'Максимум 3 Telegram-аккаунта на профиль'
+
+'init_data required'
+  → 'Необходимо передать init_data'
+
+'Telegram Mini App auth is not configured'
+  → 'Авторизация через Telegram Mini App не настроена'
+
+'Invalid Telegram Mini App auth data'
+  → 'Неверные данные авторизации Telegram Mini App'
+
+'full_name required'
+  → 'Необходимо указать ФИО'
+
+'Telegram user already has account access'
+  → 'Этот Telegram-аккаунт уже привязан к системе'
+
+'Failed to link Telegram account'
+  → 'Не удалось привязать Telegram-аккаунт'
+
+`Transfer request is ${request.status}`
+  → `Запрос на передачу профиля имеет статус: ${request.status}`
+
+'Transfer request expired'
+  → 'Срок действия запроса на передачу истёк'
+
+'Cannot accept own transfer request'
+  → 'Нельзя принять собственный запрос на передачу'
+
+'Provider ownership already changed'
+  → 'Владелец профиля уже изменён'
+
+'Provider is pending deletion'
+  → 'Профиль ожидает удаления'
+
+'Target account has maximum active profiles'
+  → 'У получателя достигнут лимит активных профилей'
+
+'Transfer request is no longer active'
+  → 'Запрос на передачу профиля больше не активен'
+
+'Failed to transfer provider'
+  → 'Не удалось передать профиль'
+
+'Transfer request not found'
+  → 'Запрос на передачу не найден'
+
+'Cannot reject own transfer request'
+  → 'Нельзя отклонить собственный запрос на передачу'
+
+'telegram_account_id required'
+  → 'Необходимо указать telegram_account_id'
+
+'Not found'
+  → 'Не найдено'
+
+'Telegram account not found'
+  → 'Telegram-аккаунт не найден'
+
+'Primary owner cannot be revoked'
+  → 'Нельзя отозвать доступ у основного владельца'
+
+'Cannot replace primary owner'
+  → 'Нельзя заменить основного владельца'
+
+─────────────────────────────────────────────────────────────────────────
+ apps/api/src/subscription/routes.ts
+─────────────────────────────────────────────────────────────────────────
+'Unauthorized'
+  → 'Нет доступа'
+
+'Subscription already exists'
+  → 'Подписка уже существует'
+
+'phone required'
+  → 'Необходимо указать номер телефона'
+
+'Provider not found'
+  → 'Профиль не найден'
+
+'Forbidden'
+  → 'Доступ запрещён'
+
+'Invalid webhook payload'
+  → 'Неверные данные вебхука'
+
+'Payment not found'
+  → 'Платёж не найден'
+
+─────────────────────────────────────────────────────────────────────────
+ apps/api/src/onboarding/routes.ts
+─────────────────────────────────────────────────────────────────────────
+'Unauthorized'
+  → 'Нет доступа'
+
+'Forbidden'
+  → 'Доступ запрещён'
+
+'provider_id and step required'
+  → 'Необходимо указать provider_id и шаг'
+
+'provider_id required'
+  → 'Необходимо указать provider_id'
+
+─────────────────────────────────────────────────────────────────────────
+ apps/api/src/analytics/routes.ts
+─────────────────────────────────────────────────────────────────────────
+'Provider not found'
+  → 'Профиль не найден'
+
+'Unauthorized'
+  → 'Нет доступа'
+
+'Forbidden'
+  → 'Доступ запрещён'
+
+─────────────────────────────────────────────────────────────────────────
+ apps/api/src/jobs/routes.ts
+─────────────────────────────────────────────────────────────────────────
+'Forbidden'
+  → 'Доступ запрещён'
+
+'Provider not found'
+  → 'Профиль не найден'
+
+'Unauthorized'
+  → 'Нет доступа'
+
+=========================================================================
+ Итого: ~77 уникальных сообщений об ошибках переведены на русский язык.
+=========================================================================

@@ -18,7 +18,7 @@ export function createJobsRoutes(db: Db, env: AppEnv) {
 
     // POST /internal/jobs/enqueue-reminders
     app.post('/internal/jobs/enqueue-reminders', async (req, reply) => {
-      if (!checkSecret(req)) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (!checkSecret(req)) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
 
       const [eventCount, subCount, staleCount] = await Promise.all([
         enqueueEventReminders(db, env.DEFAULT_MORNING_REMINDER_HOUR),
@@ -34,7 +34,7 @@ export function createJobsRoutes(db: Db, env: AppEnv) {
 
     // POST /internal/jobs/process-reminders
     app.post('/internal/jobs/process-reminders', async (req, reply) => {
-      if (!checkSecret(req)) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (!checkSecret(req)) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
 
       const result = await processReminders(db, env);
       return reply.send({ ok: true, ...result });
@@ -43,13 +43,13 @@ export function createJobsRoutes(db: Db, env: AppEnv) {
     // GET /providers/:id/notifications  (auth, for web dashboard)
     app.get('/providers/:id/notifications', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Unauthorized' });
+      if (!account) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
 
       const { id } = req.params as { id: string };
       const { findProviderById } = await import('../providers/repositories');
       const provider = await findProviderById(db, id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
-      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
+      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
 
       const logs = await findAllRecentLogs(db, 20);
       const filtered = logs.filter(l => l.provider_id === id);

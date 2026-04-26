@@ -99,9 +99,9 @@ export function createCalendarRoutes(db: Db, env: AppEnv) {
     app.get('/providers/:id/calendar', async (req, reply) => {
       const { id } = req.params as { id: string };
       const access = await canAccessProvider(db, req, id);
-      if (!access.ok) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (!access.ok) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
       const provider = await findProviderById(db, id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
 
       const query = req.query as Record<string, string>;
       const from = query['from'] ? new Date(query['from']) : new Date(Date.now() - 30 * 86400000);
@@ -120,9 +120,9 @@ export function createCalendarRoutes(db: Db, env: AppEnv) {
     app.post('/providers/:id/calendar', async (req, reply) => {
       const { id } = req.params as { id: string };
       const access = await canAccessProvider(db, req, id);
-      if (!access.ok) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (!access.ok) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
       const provider = await findProviderById(db, id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
 
       const body = req.body as Record<string, unknown>;
       const startsAt = new Date(body['starts_at'] as string);
@@ -130,20 +130,20 @@ export function createCalendarRoutes(db: Db, env: AppEnv) {
       const status = (body['status'] as repo.CalendarEntryStatus) ?? 'busy';
 
       if (isNaN(startsAt.getTime()) || isNaN(endsAt.getTime())) {
-        return reply.code(400).send({ ok: false, error: 'Invalid starts_at or ends_at' });
+        return reply.code(400).send({ ok: false, error: 'Неверная дата начала или окончания' });
       }
       if (startsAt >= endsAt) {
-        return reply.code(400).send({ ok: false, error: 'starts_at must be before ends_at' });
+        return reply.code(400).send({ ok: false, error: 'Время начала должно быть раньше времени окончания' });
       }
 
       const validStatuses: repo.CalendarEntryStatus[] = ['busy', 'free', 'tentative', 'vacation'];
       if (!validStatuses.includes(status)) {
-        return reply.code(400).send({ ok: false, error: 'Invalid status' });
+        return reply.code(400).send({ ok: false, error: 'Неверный статус записи' });
       }
 
       if (['busy', 'tentative', 'vacation'].includes(status)) {
         const overlap = await repo.checkOverlap(db, id, startsAt, endsAt);
-        if (overlap) return reply.code(409).send({ ok: false, error: 'Time slot overlaps with existing entry' });
+        if (overlap) return reply.code(409).send({ ok: false, error: 'Это время пересекается с существующей записью' });
       }
 
       const entry = await repo.createEntry(db, {
@@ -195,12 +195,12 @@ export function createCalendarRoutes(db: Db, env: AppEnv) {
     app.patch('/providers/:id/calendar/:entryId', async (req, reply) => {
       const { id, entryId } = req.params as { id: string; entryId: string };
       const access = await canAccessProvider(db, req, id);
-      if (!access.ok) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (!access.ok) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
       const provider = await findProviderById(db, id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
 
       const entry = await repo.findEntryById(db, entryId);
-      if (!entry || entry.provider_id !== id) return reply.code(404).send({ ok: false, error: 'Entry not found' });
+      if (!entry || entry.provider_id !== id) return reply.code(404).send({ ok: false, error: 'Запись не найдена' });
 
       const body = req.body as Record<string, unknown>;
       const updates: Record<string, unknown> = { updated_by_account_id: access.accountId ?? provider.account_id };
@@ -214,13 +214,13 @@ export function createCalendarRoutes(db: Db, env: AppEnv) {
       const newStartsAt = (updates['starts_at'] as Date | undefined) ?? entry.starts_at;
       const newEndsAt = (updates['ends_at'] as Date | undefined) ?? entry.ends_at;
       if (newStartsAt >= newEndsAt) {
-        return reply.code(400).send({ ok: false, error: 'starts_at must be before ends_at' });
+        return reply.code(400).send({ ok: false, error: 'Время начала должно быть раньше времени окончания' });
       }
 
       const newStatus = (updates['status'] as repo.CalendarEntryStatus | undefined) ?? entry.status;
       if (['busy', 'blocked', 'tentative'].includes(newStatus)) {
         const overlap = await repo.checkOverlap(db, id, newStartsAt, newEndsAt, entryId);
-        if (overlap) return reply.code(409).send({ ok: false, error: 'Time slot overlaps with existing entry' });
+        if (overlap) return reply.code(409).send({ ok: false, error: 'Это время пересекается с существующей записью' });
       }
 
       const updated = await repo.updateEntry(db, entryId, updates);
@@ -266,12 +266,12 @@ export function createCalendarRoutes(db: Db, env: AppEnv) {
     app.delete('/providers/:id/calendar/:entryId', async (req, reply) => {
       const { id, entryId } = req.params as { id: string; entryId: string };
       const access = await canAccessProvider(db, req, id);
-      if (!access.ok) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (!access.ok) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
       const provider = await findProviderById(db, id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
 
       const entry = await repo.findEntryById(db, entryId);
-      if (!entry || entry.provider_id !== id) return reply.code(404).send({ ok: false, error: 'Entry not found' });
+      if (!entry || entry.provider_id !== id) return reply.code(404).send({ ok: false, error: 'Запись не найдена' });
 
       await repo.deleteEntry(db, entryId);
       publishCalendarChange({
@@ -298,9 +298,9 @@ export function createCalendarRoutes(db: Db, env: AppEnv) {
     app.get('/providers/:id/calendar/month', async (req, reply) => {
       const { id } = req.params as { id: string };
       const access = await canAccessProvider(db, req, id);
-      if (!access.ok) return reply.code(403).send({ ok: false, error: 'Forbidden' });
+      if (!access.ok) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
       const provider = await findProviderById(db, id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
 
       const q = req.query as Record<string, string>;
       const year = parseInt(q['year'] ?? String(new Date().getFullYear()), 10);
@@ -316,7 +316,7 @@ export function createCalendarRoutes(db: Db, env: AppEnv) {
     app.get('/public/providers/:slug/calendar/month', async (req, reply) => {
       const { slug } = req.params as { slug: string };
       const provider = await findProviderBySlug(db, slug);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
 
       const q = req.query as Record<string, string>;
       const year = parseInt(q['year'] ?? String(new Date().getFullYear()), 10);
@@ -332,7 +332,7 @@ export function createCalendarRoutes(db: Db, env: AppEnv) {
     app.get('/public/providers/:slug/calendar/stream', async (req, reply) => {
       const { slug } = req.params as { slug: string };
       const provider = await findProviderBySlug(db, slug);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
 
       reply.hijack();
       reply.raw.writeHead(200, {
@@ -365,7 +365,7 @@ export function createCalendarRoutes(db: Db, env: AppEnv) {
     app.get('/public/providers/:slug/calendar', async (req, reply) => {
       const { slug } = req.params as { slug: string };
       const provider = await findProviderBySlug(db, slug);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Provider not found' });
+      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
 
       const query = req.query as Record<string, string>;
       const from = query['from'] ? new Date(query['from']) : new Date();
