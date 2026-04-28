@@ -43,6 +43,7 @@ pnpm dev          # run all apps in parallel
 pnpm build        # build all
 pnpm typecheck    # type check all
 pnpm lint         # lint all
+pnpm test         # run unit tests (vitest, currently apps/api only)
 /qa               # run QA agent — full static + live API tests
 ```
 
