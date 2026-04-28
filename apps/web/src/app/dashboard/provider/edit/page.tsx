@@ -4,10 +4,13 @@ import { normalizeLinkUrl, cleanPastedUrl, safeLinkHref } from '@/lib/linkUrl';
 
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
+import type { ProviderPhoto as Photo, ProviderLink as Link } from '@tamada/types';
+
+// Local types — diverge from domain (Service.price_from is a form-edit string,
+// RefSubcategory has page-specific category_id, etc.). Keep these page-local
+// until the domain layer evolves to cover them.
 type Provider = { id: string; display_name: string; slug: string; bio: string | null; city: string | null; region: string | null; timezone: string; publication_status: string; };
 type Service = { id: string; category: string; title: string; price_from: string | null; currency: string; };
-type Photo = { id: string; url: string; is_cover: boolean; };
-type Link = { id: string; link_type: string; url: string; label: string | null; };
 
 type RefRegion     = { id: string; name_ru: string; region_type: string; };
 type RefCity       = { id: string; name_ru: string; region_id: string; };

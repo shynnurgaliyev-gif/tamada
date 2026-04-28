@@ -7,14 +7,11 @@ import { normalizeLinkUrl, cleanPastedUrl } from '@/lib/linkUrl';
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
 // ── Types ────────────────────────────────────────────────────────────────────
-type Provider    = { id: string; display_name: string; slug: string; city: string | null; region: string | null };
-type RefRegion   = { id: string; name_ru: string };
-type RefCity     = { id: string; name_ru: string; region_id: string };
-type RefCategory = { id: string; name_ru: string; code: string; icon: string | null };
-type RefSubcat   = { id: string; name_ru: string; category_code: string };
-type Photo       = { id: string; url: string; is_cover: boolean };
-type Link        = { id: string; link_type: string; url: string; label: string | null };
-type TgAccount   = { id: string; telegram_username: string | null; telegram_first_name: string | null; status: string };
+import type {
+  Provider, ProviderPhoto as Photo, ProviderLink as Link,
+  RefRegion, RefCity, RefCategory, RefSubcategory as RefSubcat,
+} from '@tamada/types';
+type TgAccount = { id: string; telegram_username: string | null; telegram_first_name: string | null; status: string };
 
 const FALLBACK_CATEGORIES: RefCategory[] = [
   { id: 'tamada',       code: 'tamada',       name_ru: 'Тамада',    icon: '🎤' },

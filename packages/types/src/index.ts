@@ -1,5 +1,7 @@
 // Domain types — add as the project grows
 
+export * from './domain';
+
 export type ApiResponse<T> = {
   ok: true;
   data: T;

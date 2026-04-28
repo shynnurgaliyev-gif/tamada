@@ -6,6 +6,10 @@ import { safeLinkHref } from '@/lib/linkUrl';
 
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
+import type { ProviderPhoto as Photo, ProviderLink as Link, DayInfo } from '@tamada/types';
+
+// Local types — Provider/Service/RelatedProfile diverge from domain and
+// belong to the public-profile API contract. Keep page-local for now.
 type Provider = {
   id: string; display_name: string; slug: string; bio: string | null;
   city: string | null; region: string | null; is_verified: boolean;
@@ -20,9 +24,6 @@ type RelatedProfile = {
   primary_subcategory: string | null;
 };
 type Service = { id: string; category: string; title: string; description: string | null; price_from: string | null; price_to: string | null; currency: string; };
-type Photo = { id: string; url: string; is_cover: boolean; };
-type Link = { id: string; link_type: string; url: string; label: string | null; };
-type DayInfo = { date: string; status: string; count: number };
 type PublicCalendarEntry = {
   id: string;
   starts_at: string;
