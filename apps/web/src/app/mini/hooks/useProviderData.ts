@@ -13,7 +13,7 @@ import type {
   LinkType,
 } from '../types';
 
-const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
+import { API_URL as API } from '@/lib/env';
 
 function miniHeaders(): Record<string, string> {
   const sessionToken = localStorage.getItem('session_token') ?? '';

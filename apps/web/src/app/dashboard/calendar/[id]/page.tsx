@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 
-const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
+import { API_URL as API } from '@/lib/env';
 
 type Entry = {
   id: string; starts_at: string; ends_at: string;

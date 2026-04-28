@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { normalizeLinkUrl, cleanPastedUrl, safeLinkHref } from '@/lib/linkUrl';
 
-const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
+import { API_URL as API } from '@/lib/env';
 
 import type { ProviderPhoto as Photo, ProviderLink as Link } from '@tamada/types';
 

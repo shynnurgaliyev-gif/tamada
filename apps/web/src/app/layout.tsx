@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 
-const WEB_URL = process.env['NEXT_PUBLIC_WEB_URL'] ?? 'https://octiqa.kz';
+import { WEB_URL } from '@/lib/env';
 
 export const metadata: Metadata = {
   title: {

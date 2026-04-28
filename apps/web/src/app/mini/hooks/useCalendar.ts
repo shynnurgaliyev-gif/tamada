@@ -11,7 +11,7 @@ import type {
   EntryInput,
 } from '../types';
 
-const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
+import { API_URL as API } from '@/lib/env';
 
 /* ── Calendar month cache (localStorage) ─────────────────────────────────── */
 

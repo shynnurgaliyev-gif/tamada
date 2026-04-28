@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { OctiMark } from '@/components/OctiLogo';
 
-const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
+import { API_URL as API } from '@/lib/env';
 
 // ── Password strength ─────────────────────────────────────────────────────────
 function passwordScore(p: string) {

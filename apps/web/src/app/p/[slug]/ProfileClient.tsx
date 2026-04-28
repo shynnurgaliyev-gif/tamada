@@ -4,7 +4,7 @@ import { FaWhatsapp, FaTelegram, FaInstagram, FaYoutube, FaTiktok, FaGlobe, FaPh
 import { OctiMark } from '@/components/OctiLogo';
 import { safeLinkHref } from '@/lib/linkUrl';
 
-const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
+import { API_URL as API } from '@/lib/env';
 
 import type { ProviderPhoto as Photo, ProviderLink as Link, DayInfo } from '@tamada/types';
 

@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { OctiMark } from '@/components/OctiLogo';
 
-const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
+import { API_URL as API } from '@/lib/env';
 
 type Provider = {
   id: string; display_name: string; slug: string;

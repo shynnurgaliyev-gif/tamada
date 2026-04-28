@@ -19,7 +19,7 @@ import {
   ASSISTANT_MINI_PERMISSIONS,
 } from '../types';
 
-const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
+import { API_URL as API } from '@/lib/env';
 const MAX_PROFILES_PER_ACCOUNT = 3;
 
 /* ── Provider cache (localStorage) ───────────────────────────────────────── */

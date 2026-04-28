@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import ProfileClient from './ProfileClient';
 
-const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
+import { API_URL as API } from '@/lib/env';
 
 type ProviderPublic = {
   display_name: string;

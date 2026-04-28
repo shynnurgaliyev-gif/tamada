@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 
-const WEB_URL = process.env['NEXT_PUBLIC_WEB_URL'] ?? 'https://linkora.kz';
-const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? '';
+import { WEB_URL } from '@/lib/env';
+import { API_URL } from '@/lib/env';
 
 export const revalidate = 3600; // regenerate every hour
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { MiniPermissions, Provider, TgUser } from '../types';
 
-const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
+import { API_URL as API } from '@/lib/env';
 
 type MoreView = 'main' | 'subscription' | 'integrations' | 'team' | 'settings' | 'transfers' | 'activity';
 

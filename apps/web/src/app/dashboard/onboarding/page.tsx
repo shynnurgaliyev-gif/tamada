@@ -4,7 +4,7 @@ import { FaWhatsapp, FaTelegram, FaInstagram, FaGlobe, FaPhone } from 'react-ico
 import { OctiMark } from '@/components/OctiLogo';
 import { normalizeLinkUrl, cleanPastedUrl } from '@/lib/linkUrl';
 
-const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
+import { API_URL as API } from '@/lib/env';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 import type {

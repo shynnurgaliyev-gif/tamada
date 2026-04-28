@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 
-const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
+import { API_URL as API } from '@/lib/env';
 function getToken() { return localStorage.getItem('session_token') ?? ''; }
 function authH() { return { Authorization: `Bearer ${getToken()}` }; }
 
