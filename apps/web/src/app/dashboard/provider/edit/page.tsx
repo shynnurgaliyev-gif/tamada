@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
+import { normalizeLinkUrl, cleanPastedUrl, safeLinkHref } from '@/lib/linkUrl';
 
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
@@ -296,13 +297,26 @@ export default function EditProviderPage() {
       setTimeout(() => setLinkMsg(''), 3000);
       return;
     }
+    const check = normalizeLinkUrl(linkForm.url);
+    if (!check.ok) {
+      setLinkMsg(`❌ ${check.error}`);
+      setTimeout(() => setLinkMsg(''), 3000);
+      return;
+    }
     try {
-      const res = await fetch(`${API}/providers/${providerId}/links`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(linkForm) });
-      const data = await res.json() as { ok: boolean; link?: Link };
+      const res = await fetch(`${API}/providers/${providerId}/links`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ ...linkForm, url: check.url }),
+      });
+      const data = await res.json() as { ok: boolean; link?: Link; error?: string };
       if (data.ok && data.link) {
         setLinks(prev => [...prev, data.link!]);
         setLinkForm({ link_type: linkTypes[0]?.code ?? 'instagram', url: '', label: '' });
         setLinkMsg('✓ Ссылка добавлена');
+        setTimeout(() => setLinkMsg(''), 3000);
+      } else {
+        setLinkMsg(`❌ ${data.error ?? 'Ошибка'}`);
         setTimeout(() => setLinkMsg(''), 3000);
       }
     } catch { /* ignore */ }
@@ -440,7 +454,7 @@ export default function EditProviderPage() {
             {links.map(lk => (
               <div key={lk.id} style={s.row}>
                 <span style={s.linkType}>{linkTypes.find(t => t.code === lk.link_type)?.name_ru ?? lk.link_type}</span>
-                <a href={lk.url} target="_blank" style={s.linkUrl}>{lk.url}</a>
+                <a href={safeLinkHref(lk.url) ?? '#'} target="_blank" rel="noopener noreferrer" style={s.linkUrl}>{lk.url}</a>
                 <button onClick={() => void deleteLink(lk.id)} style={s.del}>✕</button>
               </div>
             ))}
@@ -448,7 +462,26 @@ export default function EditProviderPage() {
               <select style={s.inputSm} value={linkForm.link_type} onChange={e => setLinkForm(f => ({ ...f, link_type: e.target.value }))}>
                 {linkTypes.map(t => <option key={t.id} value={t.code}>{t.name_ru}</option>)}
               </select>
-              <input style={s.inputSm} placeholder="URL" value={linkForm.url} onChange={e => setLinkForm(f => ({ ...f, url: e.target.value }))} required />
+              <input
+                style={s.inputSm}
+                placeholder="URL"
+                value={linkForm.url}
+                inputMode="url"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                onChange={e => setLinkForm(f => ({ ...f, url: e.target.value }))}
+                onPaste={e => {
+                  const pasted = e.clipboardData.getData('text');
+                  if (!pasted) return;
+                  const cleaned = cleanPastedUrl(pasted);
+                  if (cleaned !== pasted) {
+                    e.preventDefault();
+                    setLinkForm(f => ({ ...f, url: cleaned }));
+                  }
+                }}
+                required
+              />
               <input style={s.inputSm} placeholder="Подпись" value={linkForm.label} onChange={e => setLinkForm(f => ({ ...f, label: e.target.value }))} />
               <button type="submit" style={s.btnSm}>+ Добавить</button>
             </form>

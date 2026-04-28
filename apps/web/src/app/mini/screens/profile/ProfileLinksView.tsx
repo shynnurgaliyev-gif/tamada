@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import type { ProviderLink, LinkType } from '../../types';
+import { normalizeLinkUrl, cleanPastedUrl } from '@/lib/linkUrl';
 
 const LINK_META: { type: LinkType; icon: string; label: string; placeholder: string }[] = [
   { type: 'instagram', icon: '📸', label: 'Instagram',  placeholder: 'https://instagram.com/…' },
@@ -25,20 +26,23 @@ export function ProfileLinksView({
 }: {
   links:    ProviderLink[];
   saving:   boolean;
-  onAdd:    (link_type: LinkType, url: string, label?: string) => Promise<boolean>;
+  onAdd:    (link_type: LinkType, url: string, label?: string) => Promise<{ ok: boolean; error?: string }>;
   onDelete: (linkId: string) => Promise<boolean>;
 }) {
   const [selected, setSelected] = useState<LinkType | null>(null);
   const [url,      setUrl]      = useState('');
-  const [urlErr,   setUrlErr]   = useState(false);
+  const [urlErr,   setUrlErr]   = useState<string | null>(null);
 
   const meta = LINK_META.find(m => m.type === selected);
 
   async function handleAdd() {
-    if (!selected || !url.trim()) { setUrlErr(true); return; }
-    setUrlErr(false);
-    const ok = await onAdd(selected, url.trim());
-    if (ok) { setUrl(''); setSelected(null); }
+    if (!selected) return;
+    const check = normalizeLinkUrl(url);
+    if (!check.ok) { setUrlErr(check.error); return; }
+    setUrlErr(null);
+    const res = await onAdd(selected, check.url);
+    if (res.ok) { setUrl(''); setSelected(null); }
+    else setUrlErr(res.error ?? 'Не удалось сохранить ссылку');
   }
 
   return (
@@ -81,7 +85,7 @@ export function ProfileLinksView({
             key={m.type}
             className="mini-link-type-btn mini-tap"
             data-selected={selected === m.type}
-            onClick={() => { setSelected(m.type); setUrl(''); setUrlErr(false); }}
+            onClick={() => { setSelected(m.type); setUrl(''); setUrlErr(null); }}
           >
             <span className="mini-link-type-icon">{m.icon}</span>
             {m.label}
@@ -95,13 +99,27 @@ export function ProfileLinksView({
             <label>{meta?.label ?? 'URL'}</label>
             <input
               className="mini-input"
-              data-error={urlErr}
+              data-error={!!urlErr}
               value={url}
               placeholder={meta?.placeholder}
-              onChange={e => { setUrl(e.target.value); setUrlErr(false); }}
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              onChange={e => { setUrl(e.target.value); setUrlErr(null); }}
+              onPaste={e => {
+                const pasted = e.clipboardData.getData('text');
+                if (!pasted) return;
+                const cleaned = cleanPastedUrl(pasted);
+                if (cleaned !== pasted) {
+                  e.preventDefault();
+                  setUrl(cleaned);
+                  setUrlErr(null);
+                }
+              }}
               autoFocus
             />
-            {urlErr && <div className="mini-error-msg">Введите URL</div>}
+            {urlErr && <div className="mini-error-msg">{urlErr}</div>}
           </div>
           <button
             className="mini-btn mini-btn-primary mini-tap"

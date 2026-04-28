@@ -38,7 +38,7 @@ export interface ProviderDataState {
   updateBasic:     (fields: ProviderUpdate) => Promise<Provider | null>;
   uploadPhoto:     (file: File)             => Promise<boolean>;
   deletePhoto:     (photoId: string)        => Promise<boolean>;
-  addLink:         (link_type: LinkType, url: string, label?: string) => Promise<boolean>;
+  addLink:         (link_type: LinkType, url: string, label?: string) => Promise<{ ok: boolean; error?: string }>;
   deleteLink:      (linkId: string)         => Promise<boolean>;
   updateCategory:  (category: string, subcategory?: string) => Promise<boolean>;
 }
@@ -141,8 +141,8 @@ export function useProviderData(providerId: string | null): ProviderDataState {
     link_type: LinkType,
     url: string,
     label?: string,
-  ): Promise<boolean> => {
-    if (!providerId) return false;
+  ): Promise<{ ok: boolean; error?: string }> => {
+    if (!providerId) return { ok: false, error: 'Профиль не найден' };
     setSaving(true);
     try {
       const r = await fetch(`${API}/providers/${providerId}/links`, {
@@ -150,11 +150,14 @@ export function useProviderData(providerId: string | null): ProviderDataState {
         headers: { ...miniHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ link_type, url, label }),
       });
-      const d: { ok: boolean; link?: ProviderLink } = await r.json();
-      if (d.ok && d.link) { setLinks(prev => [...prev, d.link!]); }
-      return d.ok;
+      const d: { ok: boolean; link?: ProviderLink; error?: string } = await r.json();
+      if (d.ok && d.link) {
+        setLinks(prev => [...prev, d.link!]);
+        return { ok: true };
+      }
+      return { ok: false, ...(d.error ? { error: d.error } : {}) };
     } catch {
-      return false;
+      return { ok: false, error: 'Нет соединения' };
     } finally {
       setSaving(false);
     }

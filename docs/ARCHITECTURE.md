@@ -62,7 +62,7 @@ Supabase (PostgreSQL + Auth + Storage)
 ## Database
 
 - Provider: Supabase (PostgreSQL)
-- Migrations: /supabase/migrations/ (versioned SQL files, 001–011)
+- Migrations: /supabase/migrations/ (versioned SQL files, 001–026)
 - Schema reference: /supabase/schema.sql
 - Connection: postgres.js with `prepare: false` (PgBouncer compatible)
 - Key view: `public_providers_search` — only active + subscribed providers

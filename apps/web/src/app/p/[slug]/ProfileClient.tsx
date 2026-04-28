@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { FaWhatsapp, FaTelegram, FaInstagram, FaYoutube, FaTiktok, FaGlobe, FaPhone, FaLink, FaMapMarkerAlt, FaComments } from 'react-icons/fa';
 import { OctiMark } from '@/components/OctiLogo';
+import { safeLinkHref } from '@/lib/linkUrl';
 
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
@@ -837,10 +838,12 @@ export default function ProfileClient({ slug }: { slug: string }) {
                     const cfg = LINK_CFG[lk.link_type] ?? LINK_CFG['other']!;
                     const isLight = cfg.bg.startsWith('var(--surface');
                     const { Icon } = cfg;
+                    const href = safeLinkHref(lk.url);
+                    if (!href) return null;
                     return (
                       <a
                         key={lk.id}
-                        href={/^[a-z][a-z0-9+\-.]*:/i.test(lk.url) ? lk.url : `https://${lk.url}`}
+                        href={href}
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{

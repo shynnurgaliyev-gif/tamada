@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { FaWhatsapp, FaTelegram, FaInstagram, FaGlobe, FaPhone } from 'react-icons/fa';
 import { OctiMark } from '@/components/OctiLogo';
+import { normalizeLinkUrl, cleanPastedUrl } from '@/lib/linkUrl';
 
 const API = process.env['NEXT_PUBLIC_API_URL'] ?? '';
 
@@ -519,13 +520,14 @@ function Step3Contacts({ provider, onNext, onBack }: { provider: Provider; onNex
   }, [provider.id]);
 
   async function addLink() {
-    if (!url.trim()) { setError('Введите ссылку'); return; }
+    const check = normalizeLinkUrl(url);
+    if (!check.ok) { setError(check.error); return; }
     setAdding(true); setError('');
     try {
       const res = await fetch(`${API}/providers/${provider.id}/links`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ link_type: type, url }),
+        body: JSON.stringify({ link_type: type, url: check.url }),
       });
       const d = await res.json() as { ok: boolean; link?: Link; error?: string };
       if (d.ok && d.link) { setLinks(prev => [...prev, d.link!]); setUrl(''); }
@@ -571,7 +573,21 @@ function Step3Contacts({ provider, onNext, onBack }: { provider: Provider; onNex
             className="input"
             style={{ flex: 1 }}
             value={url}
-            onChange={e => setUrl(e.target.value)}
+            inputMode="url"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            onChange={e => { setUrl(e.target.value); if (error) setError(''); }}
+            onPaste={e => {
+              const pasted = e.clipboardData.getData('text');
+              if (!pasted) return;
+              const cleaned = cleanPastedUrl(pasted);
+              if (cleaned !== pasted) {
+                e.preventDefault();
+                setUrl(cleaned);
+                if (error) setError('');
+              }
+            }}
             placeholder={selectedOpt.placeholder}
             onKeyDown={e => { if (e.key === 'Enter') void addLink(); }}
           />
