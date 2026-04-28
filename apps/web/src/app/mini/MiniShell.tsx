@@ -167,9 +167,9 @@ export default function MiniShell() {
 
   // ── First-profile gate (in-shell, any entry point) ──────
   const noActiveProfiles = providers.filter(p => !p.archived_at && !p.pending_delete_at).length === 0;
-  const onCreateFirstProfile = noActiveProfiles
-    ? () => setShowFirstProfileGate(true)
-    : undefined;
+  const firstProfileProps = noActiveProfiles
+    ? { onCreateFirstProfile: () => setShowFirstProfileGate(true) }
+    : {};
 
   if (showFirstProfileGate) {
     return (
@@ -206,7 +206,7 @@ export default function MiniShell() {
           providers={providers}
           ownerName={accountFullName ?? (tgUser ? [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') || null : null)}
           onToggleSwitch={() => setShowSwitch(s => !s)}
-          onCreateFirstProfile={onCreateFirstProfile}
+          {...firstProfileProps}
         />
 
         <main className="mini-content mini-fadein" key={tab}>
@@ -223,10 +223,10 @@ export default function MiniShell() {
               onProviderUpdated={updateActiveProvider}
               openPhotosOnLoad={openPhotosOnLoad}
               onPhotosOpened={() => setOpenPhotosOnLoad(false)}
-              onCreateFirstProfile={onCreateFirstProfile}
+              {...firstProfileProps}
             />
           )}
-          {tab === 'calendar'  && permissions.can_manage_calendar && <MiniCalendarScreen   provider={activeProvider} openNewEntry={calendarNewEntry} onNewEntryHandled={() => setCalendarNewEntry(false)} onCreateFirstProfile={onCreateFirstProfile} />}
+          {tab === 'calendar'  && permissions.can_manage_calendar && <MiniCalendarScreen   provider={activeProvider} openNewEntry={calendarNewEntry} onNewEntryHandled={() => setCalendarNewEntry(false)} {...firstProfileProps} />}
           {tab === 'analytics' && permissions.can_view_analytics && <MiniAnalyticsScreen summary={summary} loading={sumLoading} days={analyticsDays} onSwitchPeriod={switchAnalyticsPeriod} />}
           {tab === 'more'      && <MiniMoreScreen        tgUser={tgUser} permissions={permissions} activeProvider={activeProvider} onProvidersChanged={refreshProviders} />}
         </main>
@@ -248,7 +248,7 @@ export default function MiniShell() {
               handleTab('calendar');
               setCalendarNewEntry(true);
             }}
-            onCreateFirstProfile={onCreateFirstProfile}
+            {...firstProfileProps}
           />
         )}
 

@@ -115,15 +115,17 @@ export function CalendarEntryForm({
       starts_at, ends_at, status,
       title: title.trim() || null,
       notes: notes.trim() || null,
-      client: hasClient ? {
-        client_name:   clientName.trim()  || null,
-        client_phone:  clientPhone.trim() || null,
-        event_type:    eventType.trim()   || null,
-        location_text: location.trim()    || null,
-        price_amount:  price.trim()       || null,
-        currency,
-        notes:         clientNotes.trim() || null,
-      } : undefined,
+      ...(hasClient ? {
+        client: {
+          client_name:   clientName.trim()  || null,
+          client_phone:  clientPhone.trim() || null,
+          event_type:    eventType.trim()   || null,
+          location_text: location.trim()    || null,
+          price_amount:  price.trim()       || null,
+          currency,
+          notes:         clientNotes.trim() || null,
+        },
+      } : {}),
     });
   }
 

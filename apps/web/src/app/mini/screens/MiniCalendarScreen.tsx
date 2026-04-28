@@ -154,7 +154,7 @@ export function MiniCalendarScreen({
           saving={cal.saving}
           saveError={cal.saveError}
           onSave={handleSave}
-          onDelete={view === 'edit-entry' ? handleDelete : undefined}
+          {...(view === 'edit-entry' ? { onDelete: handleDelete } : {})}
           onCancel={goBack}
         />
       )}

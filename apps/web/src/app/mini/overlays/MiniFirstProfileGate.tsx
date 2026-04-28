@@ -61,11 +61,13 @@ export function MiniFirstProfileGate({
     setError(null);
     setSaving(true);
     try {
+      const sub = subcategory.trim();
+      const cit = city.trim();
       const provider = await createProfile({
         display_name: displayName.trim(),
         category: category.trim() || 'Другое',
-        subcategory: subcategory.trim() || undefined,
-        city: city.trim() || undefined,
+        ...(sub ? { subcategory: sub } : {}),
+        ...(cit ? { city: cit } : {}),
       });
       if (!provider) {
         setError('Не удалось создать профиль. Попробуйте ещё раз.');

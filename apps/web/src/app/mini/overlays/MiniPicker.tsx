@@ -238,7 +238,8 @@ function WheelScroll({
     snapTimer.current = setTimeout(() => {
       if (!ref.current) return;
       const idx = clamp(Math.round(ref.current.scrollTop / ITEM_H));
-      onChange(options[idx]);
+      const value = options[idx];
+      if (value !== undefined) onChange(value);
     }, 100);
   }
 
@@ -246,7 +247,8 @@ function WheelScroll({
 
   function scrollToIdx(i: number) {
     const idx = clamp(i);
-    onChange(options[idx]);
+    const value = options[idx];
+    if (value !== undefined) onChange(value);
     ref.current?.scrollTo({ top: idx * ITEM_H, behavior: 'smooth' });
   }
 
