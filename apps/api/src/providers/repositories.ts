@@ -63,6 +63,7 @@ export type ProviderLink = {
   url: string;
   label: string | null;
   created_at: Date;
+  updated_at: Date;
 };
 
 // ---- Providers ----
