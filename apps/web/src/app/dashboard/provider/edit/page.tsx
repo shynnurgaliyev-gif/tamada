@@ -4,20 +4,15 @@ import { normalizeLinkUrl, cleanPastedUrl, safeLinkHref } from '@/lib/linkUrl';
 
 import { API_URL as API } from '@/lib/env';
 
-import type { ProviderPhoto as Photo, ProviderLink as Link } from '@tamada/types';
+import type {
+  ProviderPhoto as Photo, ProviderLink as Link,
+  RefRegion, RefCity, RefCategory, RefSubcategory, RefCurrency, RefLinkType,
+} from '@tamada/types';
 
-// Local types — diverge from domain (Service.price_from is a form-edit string,
-// RefSubcategory has page-specific category_id, etc.). Keep these page-local
-// until the domain layer evolves to cover them.
+// Page-local: diverges from domain (Service.price_from is form-edit string,
+// Provider is a narrow read-only subset). Kept local intentionally.
 type Provider = { id: string; display_name: string; slug: string; bio: string | null; city: string | null; region: string | null; timezone: string; publication_status: string; };
 type Service = { id: string; category: string; title: string; price_from: string | null; currency: string; };
-
-type RefRegion     = { id: string; name_ru: string; region_type: string; };
-type RefCity       = { id: string; name_ru: string; region_id: string; };
-type RefCategory   = { id: string; name_ru: string; code: string; icon: string | null; };
-type RefSubcategory = { id: string; name_ru: string; category_id: string; category_code: string; };
-type RefCurrency   = { id: string; code: string; symbol: string; };
-type RefLinkType   = { id: string; code: string; name_ru: string; };
 
 function getToken() { return localStorage.getItem('session_token') ?? ''; }
 function authHeaders() { return { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' }; }
