@@ -13,7 +13,6 @@ octiqa-api (Fastify, Render)
 Supabase (PostgreSQL + Auth + Storage)
 ```
 
-> Note: internal package scope is still `@tamada/*` (not renamed to avoid breaking builds).
 > Service display names: `octiqa-web`, `octiqa-api`.
 
 ## Apps
@@ -22,7 +21,7 @@ Supabase (PostgreSQL + Auth + Storage)
 - Fastify v5
 - Entry: src/main.ts → parseEnv() → createApp() → listen()
 - Health: GET /health, GET /api/health → { status, service, env, uptime }
-- Reads env via @tamada/config (Zod)  <!-- internal scope, not renamed -->
+- Reads env via @octiqa/config (Zod)
 - Security: @fastify/helmet + @fastify/rate-limit + CORS (CORS_ORIGINS)
 - Body limit: 512 KB JSON, 10 MB multipart
 
@@ -55,9 +54,9 @@ Supabase (PostgreSQL + Auth + Storage)
 
 | Package           | Purpose                              |
 |-------------------|--------------------------------------|
-| @tamada/config    | Zod env schema + parseEnv()          |
-| @tamada/types     | Shared TypeScript types              |
-| @tamada/utils     | Shared utility functions             |
+| @octiqa/config    | Zod env schema + parseEnv()          |
+| @octiqa/types     | Shared TypeScript types              |
+| @octiqa/utils     | Shared utility functions             |
 
 ## Database
 

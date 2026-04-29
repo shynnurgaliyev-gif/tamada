@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import bcrypt from 'bcryptjs';
 import type { Db } from '../db';
-import type { AppEnv } from '@tamada/config';
+import type { AppEnv } from '@octiqa/config';
 import { getAuthAccount } from '../auth/middleware';
 import * as authRepo from '../auth/repositories';
 import { countActiveProvidersByAccountId, findProviderById, transferProviderToAccount, type Provider } from '../providers/repositories';

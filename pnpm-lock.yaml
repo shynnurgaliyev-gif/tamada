@@ -22,15 +22,15 @@ importers:
       '@fastify/rate-limit':
         specifier: ^10.3.0
         version: 10.3.0
+      '@octiqa/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@octiqa/types':
+        specifier: workspace:*
+        version: link:../../packages/types
       '@supabase/supabase-js':
         specifier: ^2.49.4
         version: 2.103.0
-      '@tamada/config':
-        specifier: workspace:*
-        version: link:../../packages/config
-      '@tamada/types':
-        specifier: workspace:*
-        version: link:../../packages/types
       bcryptjs:
         specifier: ^2.4.3
         version: 2.4.3
@@ -59,7 +59,7 @@ importers:
 
   apps/web:
     dependencies:
-      '@tamada/types':
+      '@octiqa/types':
         specifier: workspace:*
         version: link:../../packages/types
       next:

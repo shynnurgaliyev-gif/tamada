@@ -18,8 +18,8 @@ COPY apps/web/ ./apps/web/
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
-RUN pnpm --filter @tamada/types build
-RUN pnpm --filter @tamada/web build
+RUN pnpm --filter @octiqa/types build
+RUN pnpm --filter @octiqa/web build
 
 # ---- Runner ----
 FROM node:22-alpine AS runner

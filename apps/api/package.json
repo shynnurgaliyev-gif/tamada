@@ -1,5 +1,5 @@
 {
-  "name": "@tamada/api",
+  "name": "@octiqa/api",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -17,8 +17,8 @@
     "@fastify/multipart": "^9.0.0",
     "@fastify/rate-limit": "^10.3.0",
     "@supabase/supabase-js": "^2.49.4",
-    "@tamada/config": "workspace:*",
-    "@tamada/types": "workspace:*",
+    "@octiqa/config": "workspace:*",
+    "@octiqa/types": "workspace:*",
     "bcryptjs": "^2.4.3",
     "fastify": "^5.0.0",
     "postgres": "^3.4.4"

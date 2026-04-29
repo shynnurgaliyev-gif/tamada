@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import type { FastifyInstance } from 'fastify';
-import type { AppEnv } from '@tamada/config';
+import type { AppEnv } from '@octiqa/config';
 import type { Db } from '../db';
 import type { SupabaseClient } from '../supabase';
 import { PHOTOS_BUCKET, photoPublicUrl } from '../supabase';

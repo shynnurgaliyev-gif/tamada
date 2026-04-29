@@ -22,13 +22,13 @@ COPY packages/utils/ ./packages/utils/
 COPY apps/api/ ./apps/api/
 
 # Build packages in order
-RUN pnpm --filter @tamada/types build
-RUN pnpm --filter @tamada/config build
-RUN pnpm --filter @tamada/utils build
-RUN pnpm --filter @tamada/api build
+RUN pnpm --filter @octiqa/types build
+RUN pnpm --filter @octiqa/config build
+RUN pnpm --filter @octiqa/utils build
+RUN pnpm --filter @octiqa/api build
 
 # Create lightweight production bundle
-RUN pnpm --filter @tamada/api deploy --legacy /deploy
+RUN pnpm --filter @octiqa/api deploy --legacy /deploy
 RUN cp -r apps/api/dist /deploy/dist
 
 # ---- Runner ----

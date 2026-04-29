@@ -1,4 +1,4 @@
-import type { AppEnv } from '@tamada/config';
+import type { AppEnv } from '@octiqa/config';
 import { type ParsedFilters, type ParseResult, parseQueryRuleBased } from './parser';
 import { CITIES, CATEGORIES } from './aliases';
 

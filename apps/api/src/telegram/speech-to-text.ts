@@ -1,4 +1,4 @@
-import type { AppEnv } from '@tamada/config';
+import type { AppEnv } from '@octiqa/config';
 
 export type AudioFile = {
   data: Buffer;

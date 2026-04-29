@@ -1,5 +1,5 @@
 import type { Db } from '../db';
-import type { AppEnv } from '@tamada/config';
+import type { AppEnv } from '@octiqa/config';
 import { pickPendingJobs, markJobSent, markJobFailed, insertLog } from './repositories';
 import { findLinkedAccountsByProvider } from '../telegram/repositories';
 import { findClientByEntryId, findEntryById } from '../calendar/repositories';

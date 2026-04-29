@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import type { Db } from '../db';
-import type { AppEnv } from '@tamada/config';
+import type { AppEnv } from '@octiqa/config';
 import { getAuthAccount } from '../auth/middleware';
 import { findProviderById } from '../providers/repositories';
 import * as repo from './repositories';

@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import type { Db } from '../db';
-import type { AppEnv } from '@tamada/config';
+import type { AppEnv } from '@octiqa/config';
 import { searchProviders, getSearchMeta, type SortOption } from './repositories';
 import { photoPublicUrl } from '../supabase';
 import { parseSearchQuery } from './ai-parser';

@@ -7,7 +7,7 @@ import { API_URL as API } from '@/lib/env';
 import type {
   ProviderPhoto as Photo, ProviderLink as Link,
   RefRegion, RefCity, RefCategory, RefSubcategory, RefCurrency, RefLinkType,
-} from '@tamada/types';
+} from '@octiqa/types';
 
 // Page-local: diverges from domain (Service.price_from is form-edit string,
 // Provider is a narrow read-only subset). Kept local intentionally.

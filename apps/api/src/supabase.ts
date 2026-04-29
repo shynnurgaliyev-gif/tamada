@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import type { AppEnv } from '@tamada/config';
+import type { AppEnv } from '@octiqa/config';
 
 export type SupabaseClient = ReturnType<typeof createClient>;
 

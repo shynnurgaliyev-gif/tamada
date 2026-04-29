@@ -1,4 +1,4 @@
-import type { AppEnv } from '@tamada/config';
+import type { AppEnv } from '@octiqa/config';
 
 export interface WhatsAppProvider {
   sendVerificationCode(phone: string, code: string, purpose: 'signup' | 'reset_password'): Promise<void>;

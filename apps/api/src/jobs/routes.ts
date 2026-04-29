@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import type { Db } from '../db';
-import type { AppEnv } from '@tamada/config';
+import type { AppEnv } from '@octiqa/config';
 import { enqueueEventReminders, enqueueSubscriptionReminders, enqueueCalendarStaleReminders } from './enqueue';
 import { processReminders } from './process';
 import { findAllRecentLogs } from './repositories';

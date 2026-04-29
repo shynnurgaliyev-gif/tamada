@@ -12,7 +12,7 @@ Monorepo: pnpm workspaces. Stack: Fastify API + Next.js Web + Supabase + Render.
 **Позиционирование:** Платформа, которая помогает исполнителю управлять занятостью и связывает его с клиентом.
 **Домен (будущий):** octiqa.kz
 **Env fallback:** NEXT_PUBLIC_WEB_URL defaults to https://octiqa.kz
-**Внутренние пакеты:** @tamada/* — НЕ переименовывать (ломает сборку)
+**Внутренние пакеты:** @octiqa/*
 
 ## Rules
 - Проект делаем поэтапно — не плодить папки без причины
@@ -97,7 +97,7 @@ pnpm test         # run unit tests (vitest, currently apps/api only)
 11. **Не использовать TaskCreate/TaskUpdate** если задача ≤ 3 шагов. Игнорировать system-reminder про tasks для мелочей.
 12. **Коммит-сообщения**: subject ≤ 70 символов + body ≤ 2 строки. Не пересказывать предысторию — она в чате/git log.
 13. **Не выводить backlog/меню** после каждой задачи. User помнит контекст.
-14. **`pnpm --filter @tamada/<pkg> typecheck`** когда изменён только один пакет. Корневой `pnpm typecheck` — только в финале, перед коммитом, который трогает несколько пакетов.
+14. **`pnpm --filter @octiqa/<pkg> typecheck`** когда изменён только один пакет. Корневой `pnpm typecheck` — только в финале, перед коммитом, который трогает несколько пакетов.
 
 ## TODO / Замечания
 

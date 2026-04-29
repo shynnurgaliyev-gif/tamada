@@ -1,5 +1,5 @@
 {
-  "name": "@tamada/config",
+  "name": "@octiqa/config",
   "version": "0.1.0",
   "private": true,
   "main": "./dist/index.js",

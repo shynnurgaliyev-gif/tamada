@@ -1,5 +1,5 @@
 /* ── Mini App — shared types ─────────────────────────────────────────────────
-   Domain types live in @tamada/types (packages/types/src/domain.ts).
+   Domain types live in @octiqa/types (packages/types/src/domain.ts).
    This file only holds mini-app-specific UI/permission/navigation types.
 ────────────────────────────────────────────────────────────────────────────── */
 
@@ -11,7 +11,7 @@ export type {
   CalendarEntry, CalendarEntryClient, CalendarEntryWithClient,
   CalendarEntryStatus, DayInfo, EntryInput,
   AnalyticsSummary,
-} from '@tamada/types';
+} from '@octiqa/types';
 
 /* ── Mini-app UI ─────────────────────────────────────────────────────────── */
 

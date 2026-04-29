@@ -10,7 +10,7 @@ import { API_URL as API } from '@/lib/env';
 import type {
   Provider, ProviderPhoto as Photo, ProviderLink as Link,
   RefRegion, RefCity, RefCategory, RefSubcategory as RefSubcat,
-} from '@tamada/types';
+} from '@octiqa/types';
 type TgAccount = { id: string; telegram_username: string | null; telegram_first_name: string | null; status: string };
 
 const FALLBACK_CATEGORIES: RefCategory[] = [

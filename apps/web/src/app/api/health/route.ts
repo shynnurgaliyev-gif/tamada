@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import type { HealthResponse } from '@tamada/types';
+import type { HealthResponse } from '@octiqa/types';
 
 export function GET() {
   const body: HealthResponse = {

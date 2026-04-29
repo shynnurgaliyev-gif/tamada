@@ -1,4 +1,4 @@
-import { parseEnv } from '@tamada/config';
+import { parseEnv } from '@octiqa/config';
 import { createApp } from './app';
 import { createDb } from './db';
 import { createSupabaseClient } from './supabase';

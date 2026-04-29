@@ -6,7 +6,7 @@ import { safeLinkHref } from '@/lib/linkUrl';
 
 import { API_URL as API } from '@/lib/env';
 
-import type { ProviderPhoto as Photo, ProviderLink as Link, DayInfo } from '@tamada/types';
+import type { ProviderPhoto as Photo, ProviderLink as Link, DayInfo } from '@octiqa/types';
 
 // Local types — Provider/Service/RelatedProfile diverge from domain and
 // belong to the public-profile API contract. Keep page-local for now.

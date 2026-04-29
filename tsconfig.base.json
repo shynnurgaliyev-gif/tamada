@@ -18,9 +18,9 @@
     "outDir": "dist",
     "baseUrl": ".",
     "paths": {
-      "@tamada/config/*": ["packages/config/src/*"],
-      "@tamada/types/*": ["packages/types/src/*"],
-      "@tamada/utils/*": ["packages/utils/src/*"]
+      "@octiqa/config/*": ["packages/config/src/*"],
+      "@octiqa/types/*": ["packages/types/src/*"],
+      "@octiqa/utils/*": ["packages/utils/src/*"]
     }
   }
 }

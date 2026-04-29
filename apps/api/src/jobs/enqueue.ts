@@ -1,5 +1,5 @@
 import type { Db } from '../db';
-import type { AppEnv } from '@tamada/config';
+import type { AppEnv } from '@octiqa/config';
 import { insertJobIfNotExists } from './repositories';
 
 // Convert local time (hour:00) on a given date to UTC, using the provider's timezone
