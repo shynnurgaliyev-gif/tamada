@@ -10,6 +10,7 @@ import type { MiniPermissionKey } from '../telegram/permissions';
 import * as telegramRepo from '../telegram/repositories';
 import * as repo from './repositories';
 import { normalizeLinkUrl } from './normalizeLinkUrl';
+import { badRequest, unauthorized, forbidden, notFound, conflict, serverError } from '../replies';
 
 const MAX_PHOTOS = 5;
 const MAX_PROFILES_PER_ACCOUNT = 3;
@@ -37,20 +38,20 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
       const account = await getAuthAccount(db, req);
       const mini = account ? null : await getMiniSessionContext(db, req, 'can_create_profile');
       const accountId = account?.id ?? mini?.accountId;
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!accountId) return unauthorized(reply);
 
       const body = req.body as Record<string, unknown>;
       const displayName = typeof body['display_name'] === 'string' ? body['display_name'] : null;
       const slug = typeof body['slug'] === 'string' ? body['slug'] : null;
       if (!displayName || !slug) {
-        return reply.code(400).send({ ok: false, error: 'Необходимо указать название и адрес страницы' });
+        return badRequest(reply, 'Необходимо указать название и адрес страницы');
       }
       if (!/^[a-z0-9-]+$/.test(slug)) {
-        return reply.code(400).send({ ok: false, error: 'Адрес страницы должен содержать только строчные латинские буквы, цифры и дефисы' });
+        return badRequest(reply, 'Адрес страницы должен содержать только строчные латинские буквы, цифры и дефисы');
       }
 
       const existing = await repo.findProviderBySlug(db, slug);
-      if (existing) return reply.code(400).send({ ok: false, error: 'Такой адрес страницы уже занят' });
+      if (existing) return badRequest(reply, 'Такой адрес страницы уже занят');
 
       const profileCount = await repo.countActiveProvidersByAccountId(db, accountId);
       if (profileCount >= MAX_PROFILES_PER_ACCOUNT) {
@@ -95,7 +96,7 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
       const account = await getAuthAccount(db, req);
       const mini = account ? null : await getMiniSessionContext(db, req, 'can_view_profile');
       const accountId = account?.id ?? mini?.accountId;
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!accountId) return unauthorized(reply);
 
       const query = req.query as Record<string, string>;
       const includeArchived = query['include_archived'] === '1' || query['include_archived'] === 'true';
@@ -108,12 +109,12 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
     // PATCH /providers/:id
     app.patch('/providers/:id', async (req, reply) => {
       const { accountId } = await getOwnerContext(req, 'can_edit_profile');
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!accountId) return unauthorized(reply);
 
       const { id } = req.params as { id: string };
       const provider = await repo.findProviderById(db, id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
-      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
+      if (!provider) return notFound(reply, 'Профиль не найден');
+      if (provider.account_id !== accountId) return forbidden(reply);
 
       const body = req.body as Record<string, unknown>;
       const updates: Record<string, unknown> = {};
@@ -136,12 +137,12 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
     // POST /providers/:id/archive
     app.post('/providers/:id/archive', async (req, reply) => {
       const { accountId, telegramAccountId } = await getOwnerContext(req, 'can_archive_profile');
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!accountId) return unauthorized(reply);
 
       const { id } = req.params as { id: string };
       const provider = await repo.findProviderById(db, id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
-      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
+      if (!provider) return notFound(reply, 'Профиль не найден');
+      if (provider.account_id !== accountId) return forbidden(reply);
 
       const body = req.body as Record<string, unknown>;
       const reason = typeof body['reason'] === 'string' ? body['reason'] : undefined;
@@ -163,12 +164,12 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
     // POST /providers/:id/unarchive
     app.post('/providers/:id/unarchive', async (req, reply) => {
       const { accountId, telegramAccountId } = await getOwnerContext(req, 'can_archive_profile');
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!accountId) return unauthorized(reply);
 
       const { id } = req.params as { id: string };
       const provider = await repo.findProviderById(db, id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
-      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
+      if (!provider) return notFound(reply, 'Профиль не найден');
+      if (provider.account_id !== accountId) return forbidden(reply);
 
       const restored = await repo.unarchiveProvider(db, id);
       await telegramRepo.logActivity(db, {
@@ -187,17 +188,17 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
     // Safety step: finalizes as hidden + pending_delete, revokes profile-scoped access/invites.
     app.post('/providers/:id/hard-delete', async (req, reply) => {
       const { accountId, telegramAccountId } = await getOwnerContext(req, 'can_archive_profile');
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!accountId) return unauthorized(reply);
 
       const { id } = req.params as { id: string };
       const provider = await repo.findProviderById(db, id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
-      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
+      if (!provider) return notFound(reply, 'Профиль не найден');
+      if (provider.account_id !== accountId) return forbidden(reply);
 
       const body = req.body as Record<string, unknown>;
       const confirm = typeof body['confirm_text'] === 'string' ? body['confirm_text'].trim() : '';
       if (confirm !== provider.display_name) {
-        return reply.code(400).send({ ok: false, error: 'Текст подтверждения должен совпадать с названием профиля' });
+        return badRequest(reply, 'Текст подтверждения должен совпадать с названием профиля');
       }
 
       await telegramRepo.revokeAssistantAccessForProvider(db, id);
@@ -218,17 +219,17 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
     // POST /providers/:id/transfer-request
     app.post('/providers/:id/transfer-request', async (req, reply) => {
       const { accountId, telegramAccountId } = await getOwnerContext(req, 'can_archive_profile');
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!accountId) return unauthorized(reply);
 
       const { id } = req.params as { id: string };
       const provider = await repo.findProviderById(db, id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
-      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
+      if (!provider) return notFound(reply, 'Профиль не найден');
+      if (provider.account_id !== accountId) return forbidden(reply);
 
       const body = req.body as Record<string, unknown>;
       const toPhone = typeof body['to_phone'] === 'string' ? body['to_phone'].trim() : '';
       const toAccountId = typeof body['to_account_id'] === 'string' ? body['to_account_id'] : undefined;
-      if (!toPhone && !toAccountId) return reply.code(400).send({ ok: false, error: 'Необходимо указать to_phone или to_account_id' });
+      if (!toPhone && !toAccountId) return badRequest(reply, 'Необходимо указать to_phone или to_account_id');
 
       const request = await telegramRepo.createOwnershipTransferRequest(db, {
         providerId: id,
@@ -254,12 +255,12 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
     // DELETE /providers/:id
     app.delete('/providers/:id', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!account) return unauthorized(reply);
 
       const { id } = req.params as { id: string };
       const provider = await repo.findProviderById(db, id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
-      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
+      if (!provider) return notFound(reply, 'Профиль не найден');
+      if (provider.account_id !== account.id) return forbidden(reply);
 
       await repo.deleteProvider(db, id);
       return reply.send({ ok: true });
@@ -268,11 +269,11 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
     // GET /providers/:id/data  (authenticated — works for drafts too)
     app.get('/providers/:id/data', async (req, reply) => {
       const { accountId } = await getOwnerContext(req, 'can_view_profile');
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!accountId) return unauthorized(reply);
 
       const { id } = req.params as { id: string };
       const provider = await repo.findProviderById(db, id);
-      if (!provider || provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
+      if (!provider || provider.account_id !== accountId) return forbidden(reply);
 
       const [services, photos, links] = await Promise.all([
         repo.findServicesByProviderId(db, id),
@@ -293,17 +294,17 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
       const account = await getAuthAccount(db, req);
       const mini = account ? null : await getMiniSessionContext(db, req, 'can_edit_profile');
       const accountId = account?.id ?? mini?.accountId;
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!accountId) return unauthorized(reply);
 
       const { id } = req.params as { id: string };
       const provider = await repo.findProviderById(db, id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
-      if (provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
+      if (!provider) return notFound(reply, 'Профиль не найден');
+      if (provider.account_id !== accountId) return forbidden(reply);
 
       const body = req.body as Record<string, unknown>;
       const category = typeof body['category'] === 'string' ? body['category'] : null;
       if (!category) {
-        return reply.code(400).send({ ok: false, error: 'Необходимо указать категорию' });
+        return badRequest(reply, 'Необходимо указать категорию');
       }
       // title defaults to subcategory or category name if not provided
       const rawTitle = typeof body['title'] === 'string' ? body['title'].trim() : '';
@@ -325,11 +326,11 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
     // PATCH /providers/:id/services/:serviceId
     app.patch('/providers/:id/services/:serviceId', async (req, reply) => {
       const { accountId } = await getOwnerContext(req, 'can_edit_profile');
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!accountId) return unauthorized(reply);
 
       const { id, serviceId } = req.params as { id: string; serviceId: string };
       const provider = await repo.findProviderById(db, id);
-      if (!provider || provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
+      if (!provider || provider.account_id !== accountId) return forbidden(reply);
 
       const service = await repo.findServiceById(db, serviceId);
       if (!service || service.provider_id !== id) return reply.code(404).send({ ok: false, error: 'Услуга не найдена' });
@@ -347,11 +348,11 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
     // POST /providers/:id/photos (multipart)
     app.post('/providers/:id/photos', async (req, reply) => {
       const { accountId } = await getOwnerContext(req, 'can_edit_profile');
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!accountId) return unauthorized(reply);
 
       const { id } = req.params as { id: string };
       const provider = await repo.findProviderById(db, id);
-      if (!provider || provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
+      if (!provider || provider.account_id !== accountId) return forbidden(reply);
 
       const count = await repo.countPhotosByProviderId(db, id);
       if (count >= MAX_PHOTOS) {
@@ -359,9 +360,9 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
       }
 
       const file = await req.file();
-      if (!file) return reply.code(400).send({ ok: false, error: 'Файл не загружен' });
+      if (!file) return badRequest(reply, 'Файл не загружен');
       if (!ALLOWED_MIME.includes(file.mimetype)) {
-        return reply.code(400).send({ ok: false, error: 'Допустимы только форматы JPEG, PNG, WebP' });
+        return badRequest(reply, 'Допустимы только форматы JPEG, PNG, WebP');
       }
 
       const ext = file.mimetype === 'image/png' ? 'png' : file.mimetype === 'image/webp' ? 'webp' : 'jpg';
@@ -373,7 +374,7 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
         .upload(storagePath, buffer, { contentType: file.mimetype });
 
       if (uploadError) {
-        return reply.code(500).send({ ok: false, error: 'Ошибка загрузки файла' });
+        return serverError(reply, 'Ошибка загрузки файла');
       }
 
       const photo = await repo.createPhoto(db, {
@@ -389,11 +390,11 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
     // DELETE /providers/:id/photos/:photoId
     app.delete('/providers/:id/photos/:photoId', async (req, reply) => {
       const { accountId } = await getOwnerContext(req, 'can_edit_profile');
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!accountId) return unauthorized(reply);
 
       const { id, photoId } = req.params as { id: string; photoId: string };
       const provider = await repo.findProviderById(db, id);
-      if (!provider || provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
+      if (!provider || provider.account_id !== accountId) return forbidden(reply);
 
       const photo = await repo.findPhotoById(db, photoId);
       if (!photo || photo.provider_id !== id) return reply.code(404).send({ ok: false, error: 'Фото не найдено' });
@@ -407,15 +408,15 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
     // POST /providers/:id/links
     app.post('/providers/:id/links', async (req, reply) => {
       const { accountId } = await getOwnerContext(req, 'can_edit_profile');
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!accountId) return unauthorized(reply);
 
       const { id } = req.params as { id: string };
       const provider = await repo.findProviderById(db, id);
-      if (!provider || provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
+      if (!provider || provider.account_id !== accountId) return forbidden(reply);
 
       const body = req.body as Record<string, unknown>;
       const linkType = typeof body['link_type'] === 'string' ? body['link_type'] : null;
-      if (!linkType) return reply.code(400).send({ ok: false, error: 'Необходимо указать тип ссылки' });
+      if (!linkType) return badRequest(reply, 'Необходимо указать тип ссылки');
 
       const normalized = normalizeLinkUrl(body['url']);
       if (!normalized.ok) return reply.code(400).send({ ok: false, error: normalized.error });
@@ -433,11 +434,11 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
     // DELETE /providers/:id/links/:linkId
     app.delete('/providers/:id/links/:linkId', async (req, reply) => {
       const { accountId } = await getOwnerContext(req, 'can_edit_profile');
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!accountId) return unauthorized(reply);
 
       const { id, linkId } = req.params as { id: string; linkId: string };
       const provider = await repo.findProviderById(db, id);
-      if (!provider || provider.account_id !== accountId) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
+      if (!provider || provider.account_id !== accountId) return forbidden(reply);
 
       const link = await repo.findLinkById(db, linkId);
       if (!link || link.provider_id !== id) return reply.code(404).send({ ok: false, error: 'Ссылка не найдена' });
@@ -458,14 +459,14 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
         provider.archived_at ||
         provider.pending_delete_at
       ) {
-        return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
+        return notFound(reply, 'Профиль не найден');
       }
 
       // Check subscription visibility
       const { getSubscriptionStatus } = await import('../subscription/routes');
       const subInfo = await getSubscriptionStatus(db, provider.id);
       if (!subInfo.is_visible && subInfo.status !== null) {
-        return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
+        return notFound(reply, 'Профиль не найден');
       }
 
       // Track profile view — fire-and-forget, never blocks response

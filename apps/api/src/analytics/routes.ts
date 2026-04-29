@@ -4,6 +4,7 @@ import { getAuthAccount } from '../auth/middleware';
 import { getMiniSessionContext } from '../telegram/mini-session';
 import { findProviderBySlug, findProviderById, findProvidersByAccountId, findLinksByProviderId } from '../providers/repositories';
 import * as repo from './repositories';
+import { badRequest, unauthorized, forbidden, notFound, conflict, serverError } from '../replies';
 
 export function createAnalyticsRoutes(db: Db) {
   const plugin: FastifyPluginAsync = async (app) => {
@@ -14,7 +15,7 @@ export function createAnalyticsRoutes(db: Db) {
       const { slug } = req.params as { slug: string };
       const provider = await findProviderBySlug(db, slug);
       if (!provider || provider.publication_status !== 'visible') {
-        return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
+        return notFound(reply, 'Профиль не найден');
       }
 
       const body = (req.body ?? {}) as Record<string, unknown>;
@@ -59,7 +60,7 @@ export function createAnalyticsRoutes(db: Db) {
       const account = await getAuthAccount(db, req);
       const mini = account ? null : await getMiniSessionContext(db, req, 'can_view_analytics');
       const accountId = account?.id ?? mini?.accountId;
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!accountId) return unauthorized(reply);
 
       const query = req.query as Record<string, string>;
       const days = parseInt(query['days'] ?? '30', 10);
@@ -69,7 +70,7 @@ export function createAnalyticsRoutes(db: Db) {
       if (providerId) {
         const p = await findProviderById(db, providerId);
         if (!p || p.account_id !== accountId) {
-          return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
+          return forbidden(reply);
         }
       } else {
         const providers = await findProvidersByAccountId(db, accountId);
@@ -84,7 +85,7 @@ export function createAnalyticsRoutes(db: Db) {
     // GET /dashboard/analytics/daily?provider_id=&from=&to=
     app.get('/dashboard/analytics/daily', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!account) return unauthorized(reply);
 
       const query = req.query as Record<string, string>;
       const from = query['from'] ? new Date(query['from']) : new Date(Date.now() - 30 * 86400000);
@@ -94,7 +95,7 @@ export function createAnalyticsRoutes(db: Db) {
       if (providerId) {
         const p = await findProviderById(db, providerId);
         if (!p || p.account_id !== account.id) {
-          return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
+          return forbidden(reply);
         }
       } else {
         const providers = await findProvidersByAccountId(db, account.id);

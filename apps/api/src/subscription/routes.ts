@@ -6,6 +6,7 @@ import { findProviderById } from '../providers/repositories';
 import * as repo from './repositories';
 import { createPaymentProvider } from './payment-provider';
 import { getMiniSessionContext } from '../telegram/mini-session';
+import { badRequest, unauthorized, forbidden, notFound, conflict, serverError } from '../replies';
 
 export function createSubscriptionRoutes(db: Db, env: AppEnv) {
   const plugin: FastifyPluginAsync = async (app) => {
@@ -19,7 +20,7 @@ export function createSubscriptionRoutes(db: Db, env: AppEnv) {
       const account = await getAuthAccount(db, req);
       const mini = account ? null : await getMiniSessionContext(db, req, 'can_manage_subscription');
       const accountId = account?.id ?? mini?.accountId;
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!accountId) return unauthorized(reply);
 
       const sub = await repo.findActiveSubscriptionByAccount(db, accountId);
       if (!sub) return reply.send({ ok: true, subscription: null, plan_limits: repo.planLimits(null) });
@@ -39,10 +40,10 @@ export function createSubscriptionRoutes(db: Db, env: AppEnv) {
       const account = await getAuthAccount(db, req);
       const mini = account ? null : await getMiniSessionContext(db, req, 'can_manage_subscription');
       const accountId = account?.id ?? mini?.accountId;
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!accountId) return unauthorized(reply);
 
       const existing = await repo.findActiveSubscriptionByAccount(db, accountId);
-      if (existing) return reply.code(400).send({ ok: false, error: 'Подписка уже существует' });
+      if (existing) return badRequest(reply, 'Подписка уже существует');
 
       const sub = await repo.startTrial(db, accountId);
       await repo.logEvent(db, { accountId, subscriptionId: sub.id, eventType: 'trial_started' });
@@ -54,11 +55,11 @@ export function createSubscriptionRoutes(db: Db, env: AppEnv) {
       const account = await getAuthAccount(db, req);
       const mini = account ? null : await getMiniSessionContext(db, req, 'can_manage_subscription');
       const accountId = account?.id ?? mini?.accountId;
-      if (!accountId) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!accountId) return unauthorized(reply);
 
       const body = req.body as Record<string, unknown>;
       const phone = typeof body['phone'] === 'string' ? body['phone'] : null;
-      if (!phone) return reply.code(400).send({ ok: false, error: 'Необходимо указать номер телефона' });
+      if (!phone) return badRequest(reply, 'Необходимо указать номер телефона');
 
       const sub = await repo.findActiveSubscriptionByAccount(db, accountId);
       const amount = repo.SUBSCRIPTION_PRICE;
@@ -104,12 +105,12 @@ export function createSubscriptionRoutes(db: Db, env: AppEnv) {
     // GET /providers/:id/subscription
     app.get('/providers/:id/subscription', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!account) return unauthorized(reply);
 
       const { id } = req.params as { id: string };
       const provider = await findProviderById(db, id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
-      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
+      if (!provider) return notFound(reply, 'Профиль не найден');
+      if (provider.account_id !== account.id) return forbidden(reply);
 
       // Subscription is at account level
       const sub = await repo.findActiveSubscriptionByAccount(db, account.id);
@@ -128,15 +129,15 @@ export function createSubscriptionRoutes(db: Db, env: AppEnv) {
     // POST /providers/:id/subscription/start-trial
     app.post('/providers/:id/subscription/start-trial', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!account) return unauthorized(reply);
 
       const { id } = req.params as { id: string };
       const provider = await findProviderById(db, id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
-      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
+      if (!provider) return notFound(reply, 'Профиль не найден');
+      if (provider.account_id !== account.id) return forbidden(reply);
 
       const existing = await repo.findActiveSubscriptionByAccount(db, account.id);
-      if (existing) return reply.code(400).send({ ok: false, error: 'Подписка уже существует' });
+      if (existing) return badRequest(reply, 'Подписка уже существует');
 
       const sub = await repo.startTrial(db, account.id);
       await repo.logEvent(db, { accountId: account.id, subscriptionId: sub.id, eventType: 'trial_started' });
@@ -146,12 +147,12 @@ export function createSubscriptionRoutes(db: Db, env: AppEnv) {
     // GET /providers/:id/subscription/days-left
     app.get('/providers/:id/subscription/days-left', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!account) return unauthorized(reply);
 
       const { id } = req.params as { id: string };
       const provider = await findProviderById(db, id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
-      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
+      if (!provider) return notFound(reply, 'Профиль не найден');
+      if (provider.account_id !== account.id) return forbidden(reply);
 
       const sub = await repo.findActiveSubscriptionByAccount(db, account.id);
       if (!sub) return reply.send({ ok: true, days_left: 0, status: null });
@@ -162,16 +163,16 @@ export function createSubscriptionRoutes(db: Db, env: AppEnv) {
     // POST /providers/:id/payments/create-invoice (legacy, kept for compatibility)
     app.post('/providers/:id/payments/create-invoice', async (req, reply) => {
       const account = await getAuthAccount(db, req);
-      if (!account) return reply.code(401).send({ ok: false, error: 'Нет доступа' });
+      if (!account) return unauthorized(reply);
 
       const { id } = req.params as { id: string };
       const provider = await findProviderById(db, id);
-      if (!provider) return reply.code(404).send({ ok: false, error: 'Профиль не найден' });
-      if (provider.account_id !== account.id) return reply.code(403).send({ ok: false, error: 'Доступ запрещён' });
+      if (!provider) return notFound(reply, 'Профиль не найден');
+      if (provider.account_id !== account.id) return forbidden(reply);
 
       const body = req.body as Record<string, unknown>;
       const phone = typeof body['phone'] === 'string' ? body['phone'] : null;
-      if (!phone) return reply.code(400).send({ ok: false, error: 'Необходимо указать номер телефона' });
+      if (!phone) return badRequest(reply, 'Необходимо указать номер телефона');
 
       const sub = await repo.findActiveSubscriptionByAccount(db, account.id);
       const amount = repo.SUBSCRIPTION_PRICE;
@@ -216,7 +217,7 @@ export function createSubscriptionRoutes(db: Db, env: AppEnv) {
     // POST /payments/webhook (called by payment provider)
     app.post('/payments/webhook', async (req, reply) => {
       const result = paymentProvider.parseWebhook(req.body);
-      if (!result) return reply.code(400).send({ ok: false, error: 'Неверные данные вебхука' });
+      if (!result) return badRequest(reply, 'Неверные данные вебхука');
 
       const payment = await repo.findPaymentByInvoiceId(db, result.invoiceId);
       if (!payment) return reply.code(404).send({ ok: false, error: 'Платёж не найден' });
