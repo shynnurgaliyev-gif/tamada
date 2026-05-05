@@ -101,7 +101,10 @@ pnpm test         # run unit tests (vitest, currently apps/api only)
 
 ## TODO / Замечания
 
-(пусто — пополняется по правилу #6)
+- `apps/web/src/app/mini/MiniShell.tsx:60-` — собственный `visualViewport` listener
+  с `keyboardOpen` boolean (через `initH` capture). При рефакторинге C мы вынесли
+  общий хук `@/lib/useVisibleViewport`, но MiniShell не мигрировали — у него
+  derived state, требует дополнительной аккуратности.
 
 ## Reference Data (Task 11)
 - GET /reference/countries, /regions?country_id=, /cities?region_id=
@@ -109,3 +112,37 @@ pnpm test         # run unit tests (vitest, currently apps/api only)
 - All public, no auth required, cached by CDN
 - Migrations 009 (tables + seed) + 010 (FK columns on providers, provider_services, provider_links)
 - Dashboard edit page uses reference selects for region, city, category, subcategory, currency, link_type
+
+## История после Task 11
+> По коммитам, без чтения кода. Подробный разбор Tasks 12–48 — в `docs/tasks-archive.md`.
+
+- Tasks 13–18 — профиль/субкатегории/контакты исполнителя, единообразие dropdown'ов, удаление аккаунта, календарь для клиента и исполнителя.
+- Task 19 — ребрендинг `@tamada/*` → Octiqa.
+- Tasks 21–22 — landing разбит по аудиториям, AI-страница убрана, структура упрощена.
+- Tasks 23–46 — крупная серия фич (содержание в логе короткое).
+- Task 47 + Hotfix — Unify First Profile Creation Flow.
+- Task 48 (+48.2–48.7) — серия инкрементов одной фичи.
+- Bot fixes (a1f2a7d…a9489d6) — фиксы регистраций, токена, последствий Codex-правок.
+- Mobile UX серия (b5a40a4…ddef1c7) — клавиатура/visible viewport/Action bar/border-radius/responsive grid под iOS/Android.
+- Календарь — статусы (занят/под вопросом/отпуск), диапазоны дат, fullscreen, "воздух", localStorage кеш месяца.
+- Аналитика — редизайн (переключатель периода, hero, топ дней), фоновый prefetch, кеш провайдеров.
+- Аккаунт ФИО (b44ffcc, 352d828, e44927b) — редактируемое, в topbar и на публичном профиле, localStorage кеш.
+- API — перевод сообщений об ошибках на русский (35629fa), унификация через `src/replies` (9cb128b).
+- Links — normalize URL + защита от label-префикса (9d564ba, ced8aed).
+- Types SSOT — домен в `@octiqa/types`, унификация `Ref*` (7e81456, eeed549).
+- Web — Zod-валидация публичных env (61e1ac4), TS strict из `tsconfig.base` (d050bc7).
+- DB — `updated_at` на `provider_links` + явный формат миграций в docs (7502485).
+- Tests — vitest + 16 кейсов `normalizeLinkUrl` (9f1b955).
+- Docs — ужесточение правил экономии токенов: правила #11–14 (351da6f).
+- Cleanup — удалён `error_messages_ru.txt`, gitignore `tsbuildinfo` и `.claude/settings.local.json`.
+- Onboarding/profile рефакторинг (последняя серия, 70f5ecb…0e3bfca) — `ProfileClient` → helpers; onboarding `page.tsx` → `Step1Basics`/`Step2`/…/shared helpers; повторный rename `@tamada/*` → `@octiqa/*`.
+
+## Где остановились (на 2026-05-05)
+После Task 11 был большой объём работы: Tasks 12–48, крупный мобильный полировочный цикл, редизайн аналитики, ребрендинг в Octiqa. Последняя серия — рефакторинг "на чистоту": вынесены чистые helpers из `ProfileClient` и `onboarding/page.tsx` в отдельные Step-файлы, унифицированы типы в `@octiqa/types`, унифицированы ответы API через `src/replies`.
+
+**Текущая сессия (2026-05-05):**
+- (A) `MiniMoreScreen.tsx` 1103→137 строк: 6 Tool-компонентов в `screens/more/{Subscription,Integrations,Team,Activity,Transfers,Settings}Tool.tsx`, общее (типы/labels/auth/8 tiny components) в `screens/more/_shared.tsx`.
+- (B) Vitest подключён к `@octiqa/web` (script `test`). Тесты: `profileHelpers.test.ts` (28 кейсов), `_shared.test.ts` для onboarding (10 кейсов на `toSlug` — вынесен в отдельный `slug.ts` чтобы не цеплять JSX). Всего 38 кейсов.
+- (C) Дублирующийся `visualViewport` listener вынесен в `@/lib/useVisibleViewport`. Применён в `MiniPicker`, `MiniFirstProfileGate`, `MiniGuestGate`. `MiniShell` оставлен (см. TODO).
+
+Typecheck `@octiqa/web` и `pnpm --filter @octiqa/web test` — clean.
