@@ -9,6 +9,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { getTelegramWebApp } from '@/lib/telegram';
+import { useVisibleViewport } from '@/lib/useVisibleViewport';
 
 /* ── Subcategory presets ───────────────────────────────────────────────────── */
 export const SUBCATEGORIES: Record<string, string[]> = {
@@ -58,21 +59,8 @@ export function MiniPicker({
   const isCustom   = selected === CUSTOM_LABEL;
   const canConfirm = isCustom ? !!customText.trim() : !!selected;
 
-  // Track visual viewport height — shrinks when keyboard opens on iOS/Android.
-  // This keeps the card centered in the *visible* area, not the full screen.
-  const [vpHeight, setVpHeight] = useState<number>(() =>
-    typeof window !== 'undefined' ? (window.visualViewport?.height ?? window.innerHeight) : 600
-  );
-  const [vpTop, setVpTop] = useState<number>(0);
-  useEffect(() => {
-    const vp = window.visualViewport;
-    if (!vp) return;
-    const update = () => { setVpHeight(vp.height); setVpTop(vp.offsetTop); };
-    vp.addEventListener('resize', update);
-    vp.addEventListener('scroll', update);
-    update();
-    return () => { vp.removeEventListener('resize', update); vp.removeEventListener('scroll', update); };
-  }, []);
+  // Keeps the card centered in the *visible* area when the keyboard opens.
+  const { height: vpHeight, offsetTop: vpTop } = useVisibleViewport();
 
   // Semi-transparent background — required for backdrop-filter blur to be visible.
   // var(--tg-theme-secondary-bg-color) is fully opaque and would hide the blur.

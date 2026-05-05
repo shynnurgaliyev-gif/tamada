@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { OctiMark } from '@/components/OctiLogo';
+import { useVisibleViewport } from '@/lib/useVisibleViewport';
 import { MiniStyles } from '../components/MiniStyles';
 import type { TgUser, Provider } from '../types';
 import type { CreateProfileInput } from '../hooks/useMiniApp';
@@ -43,18 +44,7 @@ export function MiniFirstProfileGate({
   const canSubmit = displayName.trim().length >= 2 && !saving;
 
   // Shrink container to visible area when keyboard opens
-  const [vpHeight, setVpHeight] = useState<number>(() =>
-    typeof window !== 'undefined' ? (window.visualViewport?.height ?? window.innerHeight) : 600
-  );
-  useEffect(() => {
-    const vp = window.visualViewport;
-    if (!vp) return;
-    const update = () => setVpHeight(vp.height);
-    vp.addEventListener('resize', update);
-    vp.addEventListener('scroll', update);
-    update();
-    return () => { vp.removeEventListener('resize', update); vp.removeEventListener('scroll', update); };
-  }, []);
+  const { height: vpHeight } = useVisibleViewport();
 
   async function submit() {
     if (!canSubmit) return;

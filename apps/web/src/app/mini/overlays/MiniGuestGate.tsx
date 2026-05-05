@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { OctiMark } from '@/components/OctiLogo';
+import { useVisibleViewport } from '@/lib/useVisibleViewport';
 import { MiniStyles } from '../components/MiniStyles';
 import type { TgUser } from '../types';
 
@@ -15,18 +16,7 @@ export function MiniGuestGate({
   const defaultName = [tgUser?.first_name, tgUser?.last_name].filter(Boolean).join(' ');
 
   // Shrink container to visible area when keyboard opens
-  const [vpHeight, setVpHeight] = useState<number>(() =>
-    typeof window !== 'undefined' ? (window.visualViewport?.height ?? window.innerHeight) : 600
-  );
-  useEffect(() => {
-    const vp = window.visualViewport;
-    if (!vp) return;
-    const update = () => setVpHeight(vp.height);
-    vp.addEventListener('resize', update);
-    vp.addEventListener('scroll', update);
-    update();
-    return () => { vp.removeEventListener('resize', update); vp.removeEventListener('scroll', update); };
-  }, []);
+  const { height: vpHeight } = useVisibleViewport();
   const [formOpen, setFormOpen] = useState(false);
   const [fullName, setFullName] = useState(defaultName);
   const [confirmed, setConfirmed] = useState(false);
