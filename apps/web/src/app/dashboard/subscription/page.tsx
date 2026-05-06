@@ -2,15 +2,7 @@
 import { useEffect, useState } from 'react';
 
 import { API_URL as API } from '@/lib/env';
-
-type Subscription = {
-  id: string; status: string; plan_code: string;
-  starts_at: string; expires_at: string; trial_ends_at: string | null;
-};
-type Payment = {
-  id: string; amount: string; currency: string; status: string;
-  payment_provider: string; created_at: string; paid_at: string | null;
-};
+import type { Payment, Subscription } from '@octiqa/types';
 
 const statusColor: Record<string, string> = {
   trial: '#f59e0b', active: '#22c55e', expiring: '#f97316',

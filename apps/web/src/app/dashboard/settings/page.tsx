@@ -3,8 +3,7 @@ import { useEffect, useState } from 'react';
 import { OctiMark } from '@/components/OctiLogo';
 
 import { API_URL as API } from '@/lib/env';
-
-type Account = { id: string; username: string; phone: string };
+import type { Account } from '@octiqa/types';
 
 export default function SettingsPage() {
   const [account, setAccount]   = useState<Account | null>(null);

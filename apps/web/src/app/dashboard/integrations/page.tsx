@@ -2,13 +2,9 @@
 import { useEffect, useState } from 'react';
 
 import { API_URL as API } from '@/lib/env';
+import type { TelegramAccount } from '@octiqa/types';
 
 type Provider = { id: string; display_name: string; };
-type TelegramAccount = {
-  id: string; telegram_user_id: number; telegram_username: string | null;
-  telegram_first_name: string | null; telegram_role: string; status: string;
-  linked_at: string | null;
-};
 
 const roleLabel: Record<string, string> = {
   owner: 'Владелец', assistant: 'Помощник', spouse: 'Супруг/а',

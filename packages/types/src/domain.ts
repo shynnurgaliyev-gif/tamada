@@ -149,6 +149,7 @@ export type Account = {
   phone: string;
   full_name: string | null;
   show_related_profiles: boolean;
+  status?: string;
 };
 
 export type Subscription = {

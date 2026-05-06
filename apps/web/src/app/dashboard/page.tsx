@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react';
 import { OctiMark } from '@/components/OctiLogo';
 
 import { API_URL as API } from '@/lib/env';
+import type { Account } from '@octiqa/types';
 
-type Account = { id: string; username: string; phone: string; status: string };
 type ProviderInfo = { id: string; display_name: string; slug: string; provider_status: string };
 type OnboardingStatus = {
   status: string;
