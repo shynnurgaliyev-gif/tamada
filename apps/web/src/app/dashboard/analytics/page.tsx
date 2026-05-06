@@ -3,14 +3,9 @@ import { useEffect, useState } from 'react';
 import { OctiMark } from '@/components/OctiLogo';
 
 import { API_URL as API } from '@/lib/env';
+import type { AnalyticsSummary } from '@octiqa/types';
 
-type Summary = {
-  profile_views: number;
-  contact_reveals: number;
-  calendar_views: number;
-  conversion_pct: number;
-  top_days: { date: string; contact_reveals: number; profile_views: number }[];
-};
+type Summary = AnalyticsSummary;
 
 type DailyRow = {
   date: string;
