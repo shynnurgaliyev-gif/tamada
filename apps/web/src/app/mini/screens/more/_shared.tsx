@@ -1,72 +1,21 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import type {
+  ActivityLog,
+  TelegramAccount,
+  TransferRequest,
+} from '@octiqa/types';
 
-export type Account = { id: string; username: string; phone: string; full_name: string | null; show_related_profiles: boolean };
-export type Subscription = {
-  id: string;
-  status: string;
-  plan_code: string;
-  starts_at: string;
-  expires_at: string;
-  trial_ends_at: string | null;
-};
-export type PlanLimits = {
-  included_profile_count: number;
-  extra_profile_slots: number;
-  max_active_profiles: number;
-};
-export type Payment = {
-  id: string;
-  amount: string;
-  currency: string;
-  status: string;
-  payment_provider: string;
-  created_at: string;
-  paid_at: string | null;
-};
-export type TelegramAccount = {
-  id: string;
-  telegram_user_id: number;
-  telegram_username: string | null;
-  telegram_first_name: string | null;
-  telegram_last_name: string | null;
-  telegram_role: string;
-  is_primary: boolean;
-  status: string;
-  linked_at: string | null;
-  access_granted_at?: string | null;
-};
-export type TransferRequest = {
-  id: string;
-  provider_id: string;
-  from_account_id: string;
-  to_account_id: string | null;
-  to_phone: string | null;
-  status: string;
-  expires_at: string;
-  created_at: string;
-  accepted_at: string | null;
-  cancelled_at: string | null;
-  provider_display_name: string;
-  provider_slug: string;
-  from_username: string | null;
-  from_phone: string | null;
-  to_username: string | null;
-  to_phone_account: string | null;
-};
-export type ActivityLog = {
-  id: string;
-  action_type: string;
-  actor_type: string;
-  actor_name: string | null;
-  actor_role: string | null;
-  actor_telegram_username: string | null;
-  target_type: string | null;
-  target_id: string | null;
-  payload_json: Record<string, unknown> | null;
-  created_at: string;
-};
+export type {
+  Account,
+  ActivityLog,
+  Payment,
+  PlanLimits,
+  Subscription,
+  TelegramAccount,
+  TransferRequest,
+} from '@octiqa/types';
 
 export const statusLabel: Record<string, string> = {
   trial: 'Пробный период',

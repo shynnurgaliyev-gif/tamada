@@ -141,5 +141,6 @@ pnpm test         # run unit tests (vitest, currently apps/api only)
 - (A) `MiniMoreScreen.tsx` 1103→137 строк: 6 Tool-компонентов в `screens/more/{Subscription,Integrations,Team,Activity,Transfers,Settings}Tool.tsx`, общее (типы/labels/auth/8 tiny components) в `screens/more/_shared.tsx`.
 - (B) Vitest подключён к `@octiqa/web` (script `test`). Тесты: `profileHelpers.test.ts` (28 кейсов), `_shared.test.ts` для onboarding (10 кейсов на `toSlug` — вынесен в отдельный `slug.ts` чтобы не цеплять JSX). Всего 38 кейсов.
 - (C) Дублирующийся `visualViewport` listener вынесен в `@/lib/useVisibleViewport`. Применён во всех 4 местах: `MiniPicker`, `MiniFirstProfileGate`, `MiniGuestGate`, `MiniShell` (последний — через `useRef` для `initH` и derived `keyboardOpen`).
+- (D) UI wire-типы `Account`, `Subscription`, `PlanLimits`, `Payment`, `TelegramAccount`, `TransferRequest`, `ActivityLog` перенесены в `@octiqa/types` (SSOT). `mini/screens/more/_shared.tsx` теперь только реэкспортирует. API repositories содержат свои DB-типы (`Date` + внутренние поля) — они не пересекаются с wire-типами и трогать их не нужно.
 
 Typecheck `@octiqa/web` и `pnpm --filter @octiqa/web test` — clean.
