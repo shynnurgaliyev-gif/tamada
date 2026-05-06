@@ -101,10 +101,7 @@ pnpm test         # run unit tests (vitest, currently apps/api only)
 
 ## TODO / Замечания
 
-- `apps/web/src/app/mini/MiniShell.tsx:60-` — собственный `visualViewport` listener
-  с `keyboardOpen` boolean (через `initH` capture). При рефакторинге C мы вынесли
-  общий хук `@/lib/useVisibleViewport`, но MiniShell не мигрировали — у него
-  derived state, требует дополнительной аккуратности.
+(пусто — пополняется по правилу #6)
 
 ## Reference Data (Task 11)
 - GET /reference/countries, /regions?country_id=, /cities?region_id=
@@ -143,6 +140,6 @@ pnpm test         # run unit tests (vitest, currently apps/api only)
 **Текущая сессия (2026-05-05):**
 - (A) `MiniMoreScreen.tsx` 1103→137 строк: 6 Tool-компонентов в `screens/more/{Subscription,Integrations,Team,Activity,Transfers,Settings}Tool.tsx`, общее (типы/labels/auth/8 tiny components) в `screens/more/_shared.tsx`.
 - (B) Vitest подключён к `@octiqa/web` (script `test`). Тесты: `profileHelpers.test.ts` (28 кейсов), `_shared.test.ts` для onboarding (10 кейсов на `toSlug` — вынесен в отдельный `slug.ts` чтобы не цеплять JSX). Всего 38 кейсов.
-- (C) Дублирующийся `visualViewport` listener вынесен в `@/lib/useVisibleViewport`. Применён в `MiniPicker`, `MiniFirstProfileGate`, `MiniGuestGate`. `MiniShell` оставлен (см. TODO).
+- (C) Дублирующийся `visualViewport` listener вынесен в `@/lib/useVisibleViewport`. Применён во всех 4 местах: `MiniPicker`, `MiniFirstProfileGate`, `MiniGuestGate`, `MiniShell` (последний — через `useRef` для `initH` и derived `keyboardOpen`).
 
 Typecheck `@octiqa/web` и `pnpm --filter @octiqa/web test` — clean.

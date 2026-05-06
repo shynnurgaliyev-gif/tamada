@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect }         from 'react';
+import { useState, useEffect, useRef }  from 'react';
 import { useSearchParams }              from 'next/navigation';
 
 import { getTelegramWebApp }             from '@/lib/telegram';
+import { useVisibleViewport }            from '@/lib/useVisibleViewport';
 import { useMiniApp }                   from './hooks/useMiniApp';
 import { MiniStyles }                   from './components/MiniStyles';
 import { MiniTopBar }                   from './components/MiniTopBar';
@@ -56,46 +57,53 @@ export default function MiniShell() {
   }, []);
 
   // Hide bottom nav + scroll focused input when keyboard opens
+  const { height: vpHeight, offsetTop: vpTop } = useVisibleViewport();
+  const vpRef = useRef({ height: vpHeight, top: vpTop });
+  vpRef.current = { height: vpHeight, top: vpTop };
+  // Full height captured before any keyboard event — used to detect kb open via delta.
+  const initHRef = useRef<number | null>(null);
+  if (initHRef.current === null) initHRef.current = vpHeight;
+
   const [keyboardOpen, setKeyboardOpen] = useState(false);
-  useEffect(() => {
-    const vp = window.visualViewport;
-    if (!vp) return;
-    const viewport = vp; // non-null reference for closures
-    const initH = viewport.height; // full height captured before any keyboard event
 
-    function scrollFocused() {
-      const el = document.activeElement as HTMLElement | null;
-      if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) return;
-      const container = el.closest('.mini-content') as HTMLElement | null;
-      if (!container) return;
-      const elRect = el.getBoundingClientRect();
-      const visibleBottom = viewport.offsetTop + viewport.height;
-      // Center the input in the visible content area (below topbar ~56px, above keyboard)
-      const visibleCenter = viewport.offsetTop + 56 + (viewport.height - 56) * 0.5;
-      const elCenter = (elRect.top + elRect.bottom) / 2;
-      if (elRect.bottom > visibleBottom - 20) {
-        container.scrollTop += elCenter - visibleCenter;
-      }
+  function scrollFocused() {
+    const el = document.activeElement as HTMLElement | null;
+    if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) return;
+    const container = el.closest('.mini-content') as HTMLElement | null;
+    if (!container) return;
+    const elRect = el.getBoundingClientRect();
+    const { height, top } = vpRef.current;
+    const visibleBottom = top + height;
+    // Center the input in the visible content area (below topbar ~56px, above keyboard)
+    const visibleCenter = top + 56 + (height - 56) * 0.5;
+    const elCenter = (elRect.top + elRect.bottom) / 2;
+    if (elRect.bottom > visibleBottom - 20) {
+      container.scrollTop += elCenter - visibleCenter;
     }
+  }
 
-    // viewport resize = keyboard opens or closes
-    const onResize = () => {
-      const kbOpen = initH - viewport.height > 150;
-      setKeyboardOpen(kbOpen);
-      if (kbOpen) setTimeout(scrollFocused, 100); // wait for React re-render + keyboard anim
-    };
+  // viewport height delta = keyboard opens or closes
+  useEffect(() => {
+    const initH = initHRef.current;
+    if (initH === null) return;
+    const kbOpen = initH - vpHeight > 150;
+    setKeyboardOpen(kbOpen);
+    if (kbOpen) {
+      const t = setTimeout(scrollFocused, 100); // wait for React re-render + keyboard anim
+      return () => clearTimeout(t);
+    }
+  }, [vpHeight]);
 
-    // focusin = user taps another field while keyboard is already open
+  // focusin = user taps another field while keyboard is already open
+  useEffect(() => {
     const onFocusIn = () => {
-      if (initH - viewport.height > 150) setTimeout(scrollFocused, 50);
+      const initH = initHRef.current;
+      if (initH !== null && initH - vpRef.current.height > 150) {
+        setTimeout(scrollFocused, 50);
+      }
     };
-
-    viewport.addEventListener('resize', onResize);
     document.addEventListener('focusin', onFocusIn);
-    return () => {
-      viewport.removeEventListener('resize', onResize);
-      document.removeEventListener('focusin', onFocusIn);
-    };
+    return () => document.removeEventListener('focusin', onFocusIn);
   }, []);
 
   // ── Overlay state (UI-only, not owned by the hook) ──────
