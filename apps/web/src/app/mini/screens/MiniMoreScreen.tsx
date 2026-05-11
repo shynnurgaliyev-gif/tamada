@@ -15,11 +15,15 @@ export function MiniMoreScreen({
   tgUser,
   permissions,
   activeProvider,
+  subStatus,
+  subDaysLeft,
   onProvidersChanged,
 }: {
   tgUser: TgUser | null;
   permissions: MiniPermissions;
   activeProvider: Provider | null;
+  subStatus?: string | null;
+  subDaysLeft?: number | null;
   onProvidersChanged: () => Promise<void>;
 }) {
   const [view, setView] = useState<MoreView>('main');
@@ -53,7 +57,7 @@ export function MiniMoreScreen({
       bg: '#fffbeb',
       color: '#d97706',
       label: 'Подписка',
-      sub: 'Статус, оплата и история платежей',
+      sub: subscriptionSummary(subStatus, subDaysLeft) ?? 'Статус, оплата и история платежей',
     },
     permissions.can_manage_integrations && {
       id: 'integrations' as const,
@@ -140,4 +144,16 @@ export function MiniMoreScreen({
       <div style={{ height: 16 }} />
     </div>
   );
+}
+
+function subscriptionSummary(status?: string | null, daysLeft?: number | null): string | null {
+  if (!status) return null;
+  const d = Math.max(0, daysLeft ?? 0);
+  if (status === 'expired' || status === 'blocked' || status === 'cancelled') {
+    return 'Истекла — нужна оплата';
+  }
+  if (status === 'expiring') return `Истекает через ${d} дн — пора оплатить`;
+  if (status === 'trial')    return `Пробный период · ${d} дн осталось`;
+  if (status === 'active')   return `Активна · ${d} дн до продления`;
+  return null;
 }
