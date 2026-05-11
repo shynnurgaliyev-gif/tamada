@@ -24,6 +24,7 @@ export function SettingsTool({ tgUser, provider, canArchive, onProvidersChanged 
   const [showOwnerName, setShowOwnerName] = useState(() => provider?.show_owner_name ?? false);
   const [fullNameDraft, setFullNameDraft] = useState('');
   const [fullNameSaving, setFullNameSaving] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     fetch(`${API}/auth/me`, { headers: auth() })
@@ -249,7 +250,28 @@ export function SettingsTool({ tgUser, provider, canArchive, onProvidersChanged 
           />
         ))}
       </div>
-      {provider && canArchive && (
+      {provider && (
+        <button
+          className="mini-tap"
+          onClick={() => setShowAdvanced(v => !v)}
+          style={{
+            width: '100%',
+            border: '1px dashed rgba(0,0,0,.18)',
+            background: 'transparent',
+            borderRadius: 12,
+            padding: '10px 14px',
+            fontFamily: 'inherit',
+            fontSize: 13,
+            fontWeight: 700,
+            color: 'var(--tg-theme-hint-color, #6b7280)',
+            marginBottom: 12,
+            cursor: 'pointer',
+          }}
+        >
+          {showAdvanced ? 'Скрыть продвинутые настройки' : 'Показать продвинутые настройки'}
+        </button>
+      )}
+      {showAdvanced && provider && canArchive && (
         <div className="mini-card">
           <div style={{ fontWeight: 900, marginBottom: 8 }}>Архив профиля</div>
           <div style={{ fontSize: 13, color: 'var(--tg-theme-hint-color, #6b7280)', lineHeight: 1.45, marginBottom: 10 }}>
@@ -277,7 +299,7 @@ export function SettingsTool({ tgUser, provider, canArchive, onProvidersChanged 
           </button>
         </div>
       )}
-      {provider && (
+      {showAdvanced && provider && (
         <div className="mini-card">
           <div style={{ fontWeight: 900, marginBottom: 8 }}>Передача профиля</div>
           <div style={{ fontSize: 13, color: 'var(--tg-theme-hint-color, #6b7280)', lineHeight: 1.45, marginBottom: 10 }}>
@@ -289,7 +311,7 @@ export function SettingsTool({ tgUser, provider, canArchive, onProvidersChanged 
           </button>
         </div>
       )}
-      {provider && (
+      {showAdvanced && provider && (
         <div className="mini-card" style={{ border: '1px solid rgba(239,68,68,.24)' }}>
           <div style={{ fontWeight: 900, marginBottom: 8, color: '#dc2626' }}>Опасная зона</div>
           <div style={{ fontSize: 13, color: 'var(--tg-theme-hint-color, #6b7280)', lineHeight: 1.45, marginBottom: 10 }}>
