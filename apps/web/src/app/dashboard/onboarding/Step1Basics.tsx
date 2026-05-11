@@ -72,6 +72,10 @@ export function Step1Basics({ provider, onDone }: { provider: Provider | null; o
     if (!name.trim())     { setError('Введите имя'); return; }
     if (!slug.trim())     { setError('Укажите ссылку профиля'); return; }
     if (!cityName.trim()) { setError('Выберите город'); return; }
+    if (!catCode)         { setError('Выберите направление'); return; }
+    if (catCode === '__custom__' && !customCat.trim()) {
+      setError('Введите ваше направление'); return;
+    }
 
     setSaving(true); setError('');
     const token = getToken();
@@ -113,6 +117,20 @@ export function Step1Basics({ provider, onDone }: { provider: Provider | null; o
               title: (catCode !== '__custom__' ? subcatName : '') || categoryName || name,
             }),
           }).catch(() => null);
+        }
+      }
+
+      // Progressive publish — профиль становится виден клиентам сразу после Step1
+      // (не ждём фото/контакты/Telegram). Не трогаем, если юзер сам выставил 'hidden'.
+      if (p.publication_status === 'draft') {
+        const res2 = await fetch(`${API}/providers/${p.id}`, {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ publication_status: 'visible' }),
+        }).catch(() => null);
+        if (res2) {
+          const d2 = await res2.json().catch(() => null) as { ok?: boolean; provider?: Provider } | null;
+          if (d2?.ok && d2.provider) p = d2.provider;
         }
       }
 
@@ -183,8 +201,12 @@ export function Step1Basics({ provider, onDone }: { provider: Provider | null; o
 
         {error && <p style={{ color: 'var(--red)', fontSize: 13, margin: 0 }}>{error}</p>}
         <button onClick={() => void submit()} disabled={saving} className="btn btn-brand btn-lg btn-full" style={{ marginTop: 4 }}>
-          {saving ? 'Сохранение...' : 'Далее →'}
+          {saving ? 'Сохранение...' : 'Опубликовать профиль →'}
         </button>
+        <p style={{ fontSize: 12, color: 'var(--ink-3)', margin: '6px 2px 0', lineHeight: 1.4, textAlign: 'center' }}>
+          Сразу после сохранения профиль становится виден клиентам.<br />
+          Фото, контакты и календарь можно дополнить позже.
+        </p>
       </div>
     </div>
   );
