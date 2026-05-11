@@ -1,7 +1,10 @@
 ---
 tags: [analysis, complexity, octiqa]
 created: 2026-05-11
+updated: 2026-05-11
 ---
+
+> **Статус реализации (2026-05-11):** идеи 2, 4, 5, 6 + foundation идеи 1 — реализованы. См. секцию **«Что уже сделано»** в конце.
 
 # 🔍 Анализ сложности
 
@@ -209,3 +212,47 @@ Web dashboard сворачивается в read-only «зеркало» Mini Ap
 3. Один UI вместо трёх (идея 3).
 
 Остальное — улучшения второго порядка.
+
+## Что уже сделано
+
+> Прогресс реализации идей из этого документа. Обновлять при каждом этапе.
+
+### ✅ Идея 2 — Progressive publish
+- **Коммиты:** `6b97812`, `8052b77`
+- После Step1Basics онбординга профиль сразу переходит в `publication_status='visible'` (если был `draft`)
+- Категория стала обязательной в Step1 — без неё профиль не виден в category-фильтре поиска
+- Onboarding nav-кнопка «Пропустить» → «Закрыть» когда provider уже создан
+- Dashboard banner: «Профиль опубликован — дополните» + кнопка «Дополнить →» (раньше «Завершите настройку профиля» + «Продолжить»)
+- Steps 2–5 (фото/контакты/Telegram/календарь) теперь опциональные enhancements
+
+### ✅ Идея 4 — Подписка как заметная часть UI
+- **Коммиты:** `9ebe4ca`, `3c50edc`
+- Badge в `MiniTopBar`: «Trial: N дн» / «Истекает: N дн» / «Подписка истекла» (оранжевый при ≤7 дн)
+- Динамический подзаголовок в `MoreScreen` → row «Подписка»: «Пробный период · 23 дн осталось» и т.д.
+- Префетч `/account/subscription` в `useMiniApp` параллельно с `/auth/me`
+
+### ✅ Идея 5 — Multi-profile скрыт при одном профиле
+- Уже было в коде на момент анализа (`MiniTopBar.tsx:114` chevron + `MiniShell.tsx:263` MiniSwitchSheet — оба скрыты при `activeProviders.length <= 1`)
+
+### ✅ Идея 6 — Settings split на normal / advanced
+- **Коммит:** `3a2f80b`
+- В `SettingsTool`: Архив профиля, Передача профиля, Опасная зона (hard-delete) скрыты за toggle «Показать продвинутые настройки»
+- Снаружи остаются: Аккаунт + ФИО, Публичная страница, Telegram primary, Поддержка, Logout
+
+### 🟡 Идея 1 — Telegram-first onboarding (foundation готов, UX частично)
+- **Foundation:** коммиты `9c76142`, `8977a76`
+  - Создан `apps/web/src/lib/auth.ts` — полный SSOT для обоих токенов (`session_token` + `mini_auth_token`)
+  - Помощники: `getSessionToken`/`setSessionToken`/`clearSessionToken`/`authHeaders` + `getMiniAuthToken`/`setMiniAuthToken`/`clearMiniAuthToken`/`isMiniAuthTokenValid`/`miniAuthHeaders`/`combinedAuthHeaders`
+  - В коде больше нет ни одного inline `localStorage.getItem('session_token')` или `localStorage.*Item('mini_auth_*')` — будущая замена auth-механизма требует правок только в `@/lib/auth.ts`
+- **UX:** коммит `0493a30`
+  - `MiniGuestGate` рефакторинг: 2 шага → 1 экран, форма открыта сразу с предзаполненным именем из `tgUser`
+  - Тексты: «Добро пожаловать, Имя!» вместо «Octiqa для специалистов»; 3 Benefit-карточки (📅/🌐/🔔) вместо технических InfoRow (аккаунт/профиль/сайт)
+  - CTA «Начать в Octiqa» вместо «Создать аккаунт»
+- **Уже Telegram-first до этой сессии:** `/page.tsx` (главная), `/for-specialists/page.tsx` — все CTA через `TELEGRAM_DASHBOARD_LINK` / `TELEGRAM_ONBOARDING_LINK`, ссылок на `/signup` нет
+- **Осталось:** перенос фактического onboarding-flow в Mini App (сейчас он на web `/dashboard/onboarding`). Это большой проект — заранее не начат.
+
+### ⏳ Идея 3 — Один UI вместо трёх
+- Не начато. Big project: свернуть web dashboard в read-only / удалить, оставить только Mini App (управление) + бот (уведомления) + web `/p/<slug>` (публичная страница).
+
+### ⏳ Идея 7 — Возвратный цикл для клиента
+- Не начато. Требует новых endpoints + интеграции с Telegram-ботом (30-дневный ping). Trust-механика — отдельная инициатива.
