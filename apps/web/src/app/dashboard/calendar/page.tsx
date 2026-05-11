@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from 'react';
 
 import { API_URL as API } from '@/lib/env';
-import { getSessionToken as getToken, authHeaders as authH } from '@/lib/auth';
+import { getSessionToken as getToken, authHeaders as authH, redirectToLogin } from '@/lib/auth';
 
 type Provider = { id: string; display_name: string; timezone: string; };
 type DayInfo  = { date: string; status: string; count: number };
@@ -50,16 +50,16 @@ export default function CalendarPage() {
   const [loading, setLoading]         = useState(true);
 
   useEffect(() => {
-    if (!getToken()) { window.location.href = '/login'; return; }
+    if (!getToken()) { redirectToLogin(); return; }
     fetch(`${API}/providers/me`, { headers: authH() })
       .then(r => r.json())
       .then((d: { ok: boolean; providers?: Provider[] }) => {
-        if (!d.ok) { window.location.href = '/login'; return; }
+        if (!d.ok) { redirectToLogin(); return; }
         const list = d.providers ?? [];
         setProviders(list);
         if (list[0]) { setSelectedId(list[0].id); setTimezone(list[0].timezone); }
       })
-      .catch(() => { window.location.href = '/login'; })
+      .catch(() => { redirectToLogin(); })
       .finally(() => setLoading(false));
   }, []);
 

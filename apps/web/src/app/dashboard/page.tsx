@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { OctiMark } from '@/components/OctiLogo';
 
 import { API_URL as API } from '@/lib/env';
-import { clearSessionToken, getSessionToken } from '@/lib/auth';
+import { clearSessionToken, getSessionToken, redirectToLogin } from '@/lib/auth';
 import type { Account } from '@octiqa/types';
 
 type ProviderInfo = { id: string; display_name: string; slug: string; provider_status: string };
@@ -32,7 +32,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const token = getSessionToken();
-    if (!token) { window.location.href = '/login'; return; }
+    if (!token) { redirectToLogin(); return; }
 
     Promise.all([
       fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
@@ -40,14 +40,14 @@ export default function DashboardPage() {
       fetch(`${API}/providers/me`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => null),
     ])
       .then(([data, ob, prov]: [{ ok: boolean; account?: Account }, { ok: boolean; onboarding?: OnboardingStatus } | null, { ok: boolean; providers?: ProviderInfo[] } | null]) => {
-        if (!(data as { ok: boolean }).ok) { window.location.href = '/login'; return; }
+        if (!(data as { ok: boolean }).ok) { redirectToLogin(); return; }
         setAccount((data as { ok: boolean; account?: Account }).account ?? null);
         if (ob?.ok && ob.onboarding && ob.onboarding.status !== 'completed') {
           setOnboarding(ob.onboarding);
         }
         if (prov?.ok && prov.providers) setProviders(prov.providers);
       })
-      .catch(() => { window.location.href = '/login'; })
+      .catch(() => { redirectToLogin(); })
       .finally(() => setLoading(false));
   }, []);
 
@@ -61,7 +61,7 @@ export default function DashboardPage() {
       }).catch(() => null);
     }
     clearSessionToken();
-    window.location.href = '/login';
+    redirectToLogin();
   }
 
   if (loading) {

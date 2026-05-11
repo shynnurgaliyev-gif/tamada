@@ -19,7 +19,7 @@ const typeLabel: Record<string, string> = {
   calendar_stale_reminder: 'Неактивный календарь',
 };
 
-import { getSessionToken as getToken } from '@/lib/auth';
+import { getSessionToken as getToken, redirectToLogin } from '@/lib/auth';
 
 export default function NotificationsPage() {
   const [providers, setProviders] = useState<Provider[]>([]);
@@ -29,11 +29,11 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     const token = getToken();
-    if (!token) { window.location.href = '/login'; return; }
+    if (!token) { redirectToLogin(); return; }
     fetch(`${API}/providers/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then((d: { ok: boolean; providers?: Provider[] }) => {
-        if (!d.ok) { window.location.href = '/login'; return; }
+        if (!d.ok) { redirectToLogin(); return; }
         const list = d.providers ?? [];
         setProviders(list);
         if (list[0]) setSelectedId(list[0].id);

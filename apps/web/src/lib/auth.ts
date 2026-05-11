@@ -66,6 +66,28 @@ export function isMiniAuthTokenValid(): boolean {
   return new Date(exp).getTime() > Date.now() + 60_000;
 }
 
+/* ── Navigation helpers ──────────────────────────────────────────────────── */
+
+/** Hard-redirect to /login, optionally with a reason query for the message. */
+export function redirectToLogin(reason?: 'expired' | 'idle'): void {
+  if (typeof window === 'undefined') return;
+  const q = reason ? `?reason=${reason}` : '';
+  window.location.href = `/login${q}`;
+}
+
+/**
+ * Returns the session token, or `null` (and redirects to /login) if missing.
+ * Use in `useEffect` entry points so guarded pages bail early.
+ */
+export function requireSessionToken(): string | null {
+  const t = getSessionToken();
+  if (!t) {
+    redirectToLogin();
+    return null;
+  }
+  return t;
+}
+
 /* ── Header builders ─────────────────────────────────────────────────────── */
 
 /** Bearer auth header, or empty object if no session token. */

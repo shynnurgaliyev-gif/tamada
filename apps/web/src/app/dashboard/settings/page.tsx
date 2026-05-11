@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { OctiMark } from '@/components/OctiLogo';
 
 import { API_URL as API } from '@/lib/env';
-import { clearSessionToken, getSessionToken } from '@/lib/auth';
+import { clearSessionToken, getSessionToken, redirectToLogin } from '@/lib/auth';
 import type { Account } from '@octiqa/types';
 
 export default function SettingsPage() {
@@ -18,14 +18,14 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const token = getSessionToken();
-    if (!token) { window.location.href = '/login'; return; }
+    if (!token) { redirectToLogin(); return; }
     fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then((d: { ok: boolean; account?: Account }) => {
-        if (!d.ok) { window.location.href = '/login'; return; }
+        if (!d.ok) { redirectToLogin(); return; }
         setAccount(d.account ?? null);
       })
-      .catch(() => { window.location.href = '/login'; })
+      .catch(() => { redirectToLogin(); })
       .finally(() => setLoading(false));
   }, []);
 

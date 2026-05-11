@@ -1,6 +1,6 @@
 'use client';
 import { useEffect } from 'react';
-import { clearSessionToken, isSessionExpired } from '@/lib/auth';
+import { clearSessionToken, isSessionExpired, redirectToLogin } from '@/lib/auth';
 
 // 2 hours idle timeout — OWASP recommendation for standard web apps
 const IDLE_TIMEOUT_MS = 2 * 60 * 60 * 1000;
@@ -10,7 +10,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // 1. Check absolute session expiry stored at login time
     if (isSessionExpired()) {
       clearSessionToken();
-      window.location.href = '/login?reason=expired';
+      redirectToLogin('expired');
       return;
     }
 
@@ -21,7 +21,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       clearTimeout(timer);
       timer = setTimeout(() => {
         clearSessionToken();
-        window.location.href = '/login?reason=idle';
+        redirectToLogin('idle');
       }, IDLE_TIMEOUT_MS);
     }
 

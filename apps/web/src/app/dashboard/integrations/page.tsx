@@ -14,7 +14,7 @@ const statusColor: Record<string, string> = {
   linked: '#22c55e', pending: '#f59e0b', unlinked: '#6b7280', blocked: '#ef4444',
 };
 
-import { getSessionToken as getToken } from '@/lib/auth';
+import { getSessionToken as getToken, redirectToLogin } from '@/lib/auth';
 
 export default function IntegrationsPage() {
   const [providers, setProviders] = useState<Provider[]>([]);
@@ -27,11 +27,11 @@ export default function IntegrationsPage() {
 
   useEffect(() => {
     const token = getToken();
-    if (!token) { window.location.href = '/login'; return; }
+    if (!token) { redirectToLogin(); return; }
     fetch(`${API}/providers/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then((d: { ok: boolean; providers?: Provider[] }) => {
-        if (!d.ok) { window.location.href = '/login'; return; }
+        if (!d.ok) { redirectToLogin(); return; }
         const list = d.providers ?? [];
         setProviders(list);
         if (list[0]) setSelectedId(list[0].id);

@@ -15,7 +15,7 @@ const statusLabel: Record<string, string> = {
   visible: 'Виден', draft: 'Черновик', hidden: 'Скрыт', suspended: 'Заблокирован',
 };
 
-import { getSessionToken as getToken } from '@/lib/auth';
+import { getSessionToken as getToken, redirectToLogin } from '@/lib/auth';
 
 export default function MyProvidersPage() {
   const [providers, setProviders] = useState<Provider[]>([]);
@@ -24,14 +24,14 @@ export default function MyProvidersPage() {
 
   function loadProviders() {
     const token = getToken();
-    if (!token) { window.location.href = '/login'; return; }
+    if (!token) { redirectToLogin(); return; }
     fetch(`${API}/providers/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then((d: { ok: boolean; providers?: Provider[] }) => {
-        if (!d.ok) { window.location.href = '/login'; return; }
+        if (!d.ok) { redirectToLogin(); return; }
         setProviders(d.providers ?? []);
       })
-      .catch(() => { window.location.href = '/login'; })
+      .catch(() => { redirectToLogin(); })
       .finally(() => setLoading(false));
   }
 

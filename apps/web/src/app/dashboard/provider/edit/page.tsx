@@ -14,7 +14,7 @@ import type {
 type Provider = { id: string; display_name: string; slug: string; bio: string | null; city: string | null; region: string | null; timezone: string; publication_status: string; };
 type Service = { id: string; category: string; title: string; price_from: string | null; currency: string; };
 
-import { getSessionToken as getToken } from '@/lib/auth';
+import { getSessionToken as getToken, redirectToLogin } from '@/lib/auth';
 function authHeaders() { return { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' }; }
 
 // ── Hardcoded fallbacks (used when reference API is unavailable) ───────────
@@ -142,7 +142,7 @@ export default function EditProviderPage() {
 
   useEffect(() => {
     const token = getToken();
-    if (!token) { window.location.href = '/login'; return; }
+    if (!token) { redirectToLogin(); return; }
 
     const params = new URLSearchParams(window.location.search);
     const id = params.get('id');

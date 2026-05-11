@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { OctiMark } from '@/components/OctiLogo';
 import { API_URL as API } from '@/lib/env';
+import { redirectToLogin } from '@/lib/auth';
 import type { Provider } from '@octiqa/types';
 import { STEPS, TOTAL_STEPS as TOTAL, getToken } from './_shared';
 import { Step1Basics } from './Step1Basics';
@@ -21,7 +22,7 @@ export default function OnboardingPage() {
   // Load existing provider + resume step
   useEffect(() => {
     const token = getToken();
-    if (!token) { window.location.href = '/login'; return; }
+    if (!token) { redirectToLogin(); return; }
     Promise.all([
       fetch(`${API}/providers/me`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
       fetch(`${API}/dashboard/onboarding`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),

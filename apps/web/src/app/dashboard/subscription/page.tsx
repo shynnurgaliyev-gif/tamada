@@ -16,7 +16,7 @@ const paymentStatusLabel: Record<string, string> = {
   pending: 'Ожидание', paid: 'Оплачено', failed: 'Ошибка', expired: 'Истёк', cancelled: 'Отменён',
 };
 
-import { getSessionToken as getToken } from '@/lib/auth';
+import { getSessionToken as getToken, redirectToLogin } from '@/lib/auth';
 
 export default function SubscriptionPage() {
   const [sub, setSub] = useState<Subscription | null>(null);
@@ -30,7 +30,7 @@ export default function SubscriptionPage() {
 
   useEffect(() => {
     const token = getToken();
-    if (!token) { window.location.href = '/login'; return; }
+    if (!token) { redirectToLogin(); return; }
     loadSubscription();
   }, []);
 
