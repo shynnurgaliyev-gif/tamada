@@ -7,9 +7,10 @@
    only this file.
 ────────────────────────────────────────────────────────────────────────────── */
 
-const SESSION_KEY      = 'session_token';
-const MINI_KEY         = 'mini_auth_token';
-const MINI_EXPIRES_KEY = 'mini_auth_expires_at';
+const SESSION_KEY         = 'session_token';
+const SESSION_EXPIRES_KEY = 'session_expires_at';
+const MINI_KEY            = 'mini_auth_token';
+const MINI_EXPIRES_KEY    = 'mini_auth_expires_at';
 
 /* ── Session token (web) ─────────────────────────────────────────────────── */
 
@@ -18,14 +19,24 @@ export function getSessionToken(): string {
   return localStorage.getItem(SESSION_KEY) ?? '';
 }
 
-export function setSessionToken(token: string): void {
+export function setSessionToken(token: string, expiresAt?: string | null): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(SESSION_KEY, token);
+  if (expiresAt) localStorage.setItem(SESSION_EXPIRES_KEY, expiresAt);
 }
 
 export function clearSessionToken(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(SESSION_EXPIRES_KEY);
+}
+
+/** True when an absolute expiry was stored and is now in the past. */
+export function isSessionExpired(): boolean {
+  if (typeof window === 'undefined') return false;
+  const exp = localStorage.getItem(SESSION_EXPIRES_KEY);
+  if (!exp) return false;
+  return new Date(exp).getTime() <= Date.now();
 }
 
 /* ── Mini auth token (Telegram Mini App) ─────────────────────────────────── */

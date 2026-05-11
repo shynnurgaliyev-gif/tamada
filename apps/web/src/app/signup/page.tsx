@@ -72,8 +72,7 @@ export default function SignupPage() {
       const data = await res.json() as { ok: boolean; token?: string; expires_at?: string; error?: { message?: string } | string };
       if (!data.ok) { setError(typeof data.error === 'object' ? (data.error?.message ?? 'Ошибка') : (data.error ?? 'Ошибка')); return; }
       if (data.token) {
-        setSessionToken(data.token);
-        if (data.expires_at) localStorage.setItem('session_expires_at', data.expires_at);
+        setSessionToken(data.token, data.expires_at ?? null);
       }
       window.location.href = '/dashboard/onboarding';
     } catch { setError('Ошибка сети'); }

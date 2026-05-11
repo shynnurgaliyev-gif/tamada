@@ -7,6 +7,7 @@ import {
   getMiniAuthToken,
   getSessionToken,
   isMiniAuthTokenValid,
+  isSessionExpired,
   miniAuthHeaders,
   setMiniAuthToken,
   setSessionToken,
@@ -47,6 +48,34 @@ describe('session token', () => {
     setSessionToken('abc123');
     clearSessionToken();
     expect(getSessionToken()).toBe('');
+  });
+
+  it('setSessionToken stores expires_at when provided', () => {
+    const future = new Date(Date.now() + 60_000).toISOString();
+    setSessionToken('abc', future);
+    expect(isSessionExpired()).toBe(false);
+  });
+
+  it('clearSessionToken removes expires_at too', () => {
+    setSessionToken('abc', new Date(Date.now() + 60_000).toISOString());
+    clearSessionToken();
+    expect(isSessionExpired()).toBe(false); // no expiry → false
+  });
+});
+
+describe('isSessionExpired', () => {
+  it('false when no expires_at set', () => {
+    expect(isSessionExpired()).toBe(false);
+  });
+
+  it('true when expires_at is in the past', () => {
+    setSessionToken('t', new Date(Date.now() - 1000).toISOString());
+    expect(isSessionExpired()).toBe(true);
+  });
+
+  it('false when expires_at is in the future', () => {
+    setSessionToken('t', new Date(Date.now() + 60_000).toISOString());
+    expect(isSessionExpired()).toBe(false);
   });
 });
 

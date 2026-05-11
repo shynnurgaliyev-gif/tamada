@@ -35,8 +35,7 @@ export default function LoginPage() {
         return;
       }
       if (data.token) {
-        setSessionToken(data.token);
-        if (data.expires_at) localStorage.setItem('session_expires_at', data.expires_at);
+        setSessionToken(data.token, data.expires_at ?? null);
       }
       window.location.href = '/dashboard';
     } catch {
