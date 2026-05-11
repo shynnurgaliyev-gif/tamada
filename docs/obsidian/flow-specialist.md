@@ -1,7 +1,11 @@
 ---
-tags: [flow, specialist, octiqa]
+tags: [flow, specialist, octiqa, snapshot]
 created: 2026-05-11
 ---
+
+> ⚠️ **Описывает исходный дизайн на 2026-05-11.** С тех пор многое изменилось: Progressive publish (Step1 = публикация), Telegram-first MiniGuestGate, Settings split, lib/auth SSOT и др.
+>
+> **Текущая логика — [[CURRENT]].** Этот файл сохранён как исторический снимок.
 
 # 🧑‍🍳 Сценарий специалиста (исполнителя)
 
