@@ -144,5 +144,12 @@ pnpm test         # run unit tests (vitest, currently apps/api only)
 - (D) UI wire-типы `Account`, `Subscription`, `PlanLimits`, `Payment`, `TelegramAccount`, `TransferRequest`, `ActivityLog` перенесены в `@octiqa/types` (SSOT). `mini/screens/more/_shared.tsx` теперь только реэкспортирует. API repositories содержат свои DB-типы (`Date` + внутренние поля) — они не пересекаются с wire-типами и трогать их не нужно.
 - (E) Те же wire-типы применены в dashboard-страницах: `dashboard/page.tsx` (Account), `dashboard/settings/page.tsx` (Account), `dashboard/subscription/page.tsx` (Subscription, Payment), `dashboard/integrations/page.tsx` (TelegramAccount). В `Account` добавлено опциональное `status?: string` для совместимости с `dashboard/page.tsx`. Также в `dashboard/analytics/page.tsx` заalias-нут `AnalyticsSummary`.
 - (F) Тесты на `apps/web/src/lib/linkUrl.ts` (17 кейсов: `normalizeLinkUrl`, `cleanPastedUrl`, `safeLinkHref`). Всего тестов в `@octiqa/web`: 55.
+- (G) Создан Obsidian-vault `docs/obsidian/`: INDEX (MOC), `flow-specialist.md`, `flow-client.md`, `entities.md` (ER-диаграмма), `complexity-analysis.md` (8 точек трения + 7 идей упрощения), `future-features.md` (ЭЦП-верификация через eGov).
+- (H) Начата реализация идей из `complexity-analysis`:
+  - **Идея 6** (`3a2f80b`): в `SettingsTool` «Архив / Передача / Опасная зона» скрыты за toggle «Показать продвинутые настройки». Опасные действия требуют осознанного клика.
+  - **Идея 4** (`9ebe4ca` + `3c50edc`): подписка стала видимой. Badge в `MiniTopBar` (`Trial: N дн` / `Истекает: N дн` / `Подписка истекла`, оранжевый при ≤7 дн). Динамический подзаголовок в MoreScreen → row «Подписка». Префетч `/account/subscription` в `useMiniApp` параллельно с `/auth/me`.
+  - **Идея 5** уже реализована в коде на момент сессии (`MiniTopBar.tsx:114` chevron + `MiniShell.tsx:263` MiniSwitchSheet — оба скрыты при `activeProviders.length <= 1`).
+
+Остались крупные идеи: 1 (Telegram-first onboarding), 2 (progressive publish), 3 (один UI вместо трёх), 7 (возвратный цикл клиента). Многосеансные.
 
 Typecheck `@octiqa/web` и `pnpm --filter @octiqa/web test` — clean.
