@@ -57,6 +57,7 @@ export default function ProfileClient({ slug }: { slug: string }) {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
+  const [shareStatus, setShareStatus] = useState<'idle' | 'copied'>('idle');
 
   // Contact reveal state
   const [revealLinks, setRevealLinks] = useState<Link[]>([]);
@@ -319,6 +320,23 @@ export default function ProfileClient({ slug }: { slug: string }) {
   const initial    = provider.display_name[0]?.toUpperCase() ?? '?';
   const bgGradient = nameToGradient(provider.display_name);
 
+  const providerName = provider.display_name;
+
+  async function handleShare() {
+    const url = typeof window !== 'undefined' ? window.location.href : '';
+    const title = `${providerName} · Octiqa`;
+    if (typeof navigator !== 'undefined' && 'share' in navigator) {
+      try { await navigator.share({ title, url }); return; } catch { /* user cancelled */ }
+    }
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(url);
+        setShareStatus('copied');
+        setTimeout(() => setShareStatus('idle'), 2000);
+      } catch { /* clipboard denied */ }
+    }
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       {isPreview && (
@@ -330,10 +348,31 @@ export default function ProfileClient({ slug }: { slug: string }) {
 
       <nav className="nav-frosted">
         <button onClick={() => window.history.back()} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: 'var(--ink-2)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>← Назад</button>
-        <a href="/" className="logo-mark" style={{ fontSize: 16 }}>
-          <OctiMark size={26} />
-          <span className="hide-mobile">Octiqa</span>
-        </a>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <button
+            onClick={() => void handleShare()}
+            aria-label="Поделиться профилем"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 13,
+              fontWeight: 600,
+              color: shareStatus === 'copied' ? 'var(--green)' : 'var(--ink-2)',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0,
+              transition: 'color .2s',
+            }}
+          >
+            {shareStatus === 'copied' ? '✓ Скопировано' : '↗ Поделиться'}
+          </button>
+          <a href="/" className="logo-mark" style={{ fontSize: 16 }}>
+            <OctiMark size={26} />
+            <span className="hide-mobile">Octiqa</span>
+          </a>
+        </div>
       </nav>
 
       {/* ── Hero cover ─────────────────────────────────────────── */}
