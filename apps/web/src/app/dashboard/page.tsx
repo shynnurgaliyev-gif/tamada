@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { OctiMark } from '@/components/OctiLogo';
 
 import { API_URL as API } from '@/lib/env';
-import { clearSessionToken } from '@/lib/auth';
+import { clearSessionToken, getSessionToken } from '@/lib/auth';
 import type { Account } from '@octiqa/types';
 
 type ProviderInfo = { id: string; display_name: string; slug: string; provider_status: string };
@@ -31,7 +31,7 @@ export default function DashboardPage() {
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
 
   useEffect(() => {
-    const token = localStorage.getItem('session_token');
+    const token = getSessionToken();
     if (!token) { window.location.href = '/login'; return; }
 
     Promise.all([
@@ -53,7 +53,7 @@ export default function DashboardPage() {
 
   async function logout() {
     if (!window.confirm('Выйти из аккаунта?')) return;
-    const token = localStorage.getItem('session_token');
+    const token = getSessionToken();
     if (token) {
       await fetch(`${API}/auth/logout`, {
         method: 'POST',

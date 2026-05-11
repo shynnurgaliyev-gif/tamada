@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { OctiMark } from '@/components/OctiLogo';
 
 import { API_URL as API } from '@/lib/env';
+import { getSessionToken } from '@/lib/auth';
 import type { AnalyticsSummary } from '@octiqa/types';
 
 type Summary = AnalyticsSummary;
@@ -52,7 +53,7 @@ export default function AnalyticsPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const token = localStorage.getItem('session_token');
+    const token = getSessionToken();
     if (!token) { window.location.href = '/login'; return; }
 
     setLoading(true);

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState, useRef } from 'react';
 import { FaComments } from 'react-icons/fa';
 import { OctiMark } from '@/components/OctiLogo';
 import { safeLinkHref } from '@/lib/linkUrl';
+import { getSessionToken } from '@/lib/auth';
 
 import { API_URL as API } from '@/lib/env';
 
@@ -146,7 +147,7 @@ export default function ProfileClient({ slug }: { slug: string }) {
         void refreshCalendarMonth(yr, mo);
       } else {
         // Owner preview fallback
-        const token = localStorage.getItem('session_token');
+        const token = getSessionToken();
         if (token) {
           try {
             const meRes = await fetch(`${API}/providers/me`, { headers: { Authorization: `Bearer ${token}` } });

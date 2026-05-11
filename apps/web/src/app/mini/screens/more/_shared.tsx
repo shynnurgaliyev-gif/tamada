@@ -55,16 +55,7 @@ export const activityLabel: Record<string, string> = {
   primary_telegram_changed: 'Главный Telegram изменен',
 };
 
-export function token() { return localStorage.getItem('session_token') ?? ''; }
-export function miniToken() { return localStorage.getItem('mini_auth_token') ?? ''; }
-export function auth() {
-  const session = token();
-  const mini = miniToken();
-  return {
-    ...(session ? { Authorization: `Bearer ${session}` } : {}),
-    ...(mini ? { 'X-Mini-Auth': mini } : {}),
-  };
-}
+export { getSessionToken as token, getMiniAuthToken as miniToken, combinedAuthHeaders as auth } from '@/lib/auth';
 
 export function ToolTitle({ title, subtitle }: { title: string; subtitle: string }) {
   return (

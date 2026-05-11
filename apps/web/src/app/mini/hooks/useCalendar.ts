@@ -12,6 +12,7 @@ import type {
 } from '../types';
 
 import { API_URL as API } from '@/lib/env';
+import { combinedAuthHeaders as auth } from '@/lib/auth';
 
 /* ── Calendar month cache (localStorage) ─────────────────────────────────── */
 
@@ -38,15 +39,6 @@ function writeCalCache(pid: string, y: number, m: number, days: DayInfo[], timez
 
 function clearCalCache(pid: string, y: number, m: number): void {
   try { localStorage.removeItem(`${CAL_KEY}_${pid}_${y}_${m}`); } catch { /* non-fatal */ }
-}
-
-function auth() {
-  const token = localStorage.getItem('session_token') ?? '';
-  const miniAuthToken = localStorage.getItem('mini_auth_token') ?? '';
-  return {
-    Authorization: `Bearer ${token}`,
-    ...(miniAuthToken ? { 'X-Mini-Auth': miniAuthToken } : {}),
-  };
 }
 
 /* ── Return shape ─────────────────────────────────────────────────────────── */

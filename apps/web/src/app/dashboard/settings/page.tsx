@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { OctiMark } from '@/components/OctiLogo';
 
 import { API_URL as API } from '@/lib/env';
-import { clearSessionToken } from '@/lib/auth';
+import { clearSessionToken, getSessionToken } from '@/lib/auth';
 import type { Account } from '@octiqa/types';
 
 export default function SettingsPage() {
@@ -17,7 +17,7 @@ export default function SettingsPage() {
   const [error, setError]             = useState('');
 
   useEffect(() => {
-    const token = localStorage.getItem('session_token');
+    const token = getSessionToken();
     if (!token) { window.location.href = '/login'; return; }
     fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
@@ -32,7 +32,7 @@ export default function SettingsPage() {
   async function deleteAccount() {
     if (!password) { setError('Введите пароль'); return; }
     setDeleting(true); setError('');
-    const token = localStorage.getItem('session_token') ?? '';
+    const token = getSessionToken();
     try {
       const res = await fetch(`${API}/auth/account`, {
         method: 'DELETE',

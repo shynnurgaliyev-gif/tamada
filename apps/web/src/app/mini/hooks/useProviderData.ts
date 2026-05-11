@@ -14,15 +14,7 @@ import type {
 } from '../types';
 
 import { API_URL as API } from '@/lib/env';
-
-function miniHeaders(): Record<string, string> {
-  const sessionToken = localStorage.getItem('session_token') ?? '';
-  const miniToken    = localStorage.getItem('mini_auth_token') ?? '';
-  return {
-    ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
-    ...(miniToken    ? { 'X-Mini-Auth': miniToken }               : {}),
-  };
-}
+import { combinedAuthHeaders as miniHeaders } from '@/lib/auth';
 
 /* ── Return shape ─────────────────────────────────────────────────────────── */
 

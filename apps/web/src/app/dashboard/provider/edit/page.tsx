@@ -141,7 +141,7 @@ export default function EditProviderPage() {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem('session_token');
+    const token = getToken();
     if (!token) { window.location.href = '/login'; return; }
 
     const params = new URLSearchParams(window.location.search);

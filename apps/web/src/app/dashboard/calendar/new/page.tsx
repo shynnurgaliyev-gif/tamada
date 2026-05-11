@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 
 import { API_URL as API } from '@/lib/env';
+import { getSessionToken } from '@/lib/auth';
 
 function toLocalInputValue(date: Date) {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -37,7 +38,7 @@ function NewEntryForm() {
     e.preventDefault();
     setSaving(true);
     setError('');
-    const token = localStorage.getItem('session_token') ?? '';
+    const token = getSessionToken();
     try {
       const body: Record<string, unknown> = {
         starts_at: new Date(form.starts_at).toISOString(),

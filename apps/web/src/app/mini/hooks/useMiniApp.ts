@@ -20,6 +20,15 @@ import {
 } from '../types';
 
 import { API_URL as API } from '@/lib/env';
+import {
+  clearMiniAuthToken,
+  clearSessionToken,
+  combinedAuthHeaders as miniHeaders,
+  getMiniAuthToken,
+  getSessionToken,
+  isMiniAuthTokenValid as isMiniTokenValid,
+  setMiniAuthToken,
+} from '@/lib/auth';
 const MAX_PROFILES_PER_ACCOUNT = 3;
 
 /* ── Provider cache (localStorage) ───────────────────────────────────────── */
@@ -58,21 +67,6 @@ function writeAccountFullNameCache(userId: number, fullName: string | null): voi
     if (fullName) localStorage.setItem(`${ACACHE_KEY}_${userId}`, fullName);
     else localStorage.removeItem(`${ACACHE_KEY}_${userId}`);
   } catch { /* non-fatal */ }
-}
-
-function isMiniTokenValid(): boolean {
-  const exp = localStorage.getItem('mini_auth_expires_at');
-  if (!exp) return false;
-  return new Date(exp).getTime() > Date.now() + 60_000; // 1 min buffer
-}
-
-function miniHeaders(): Record<string, string> {
-  const token = localStorage.getItem('session_token') ?? '';
-  const miniToken = localStorage.getItem('mini_auth_token') ?? '';
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(miniToken ? { 'X-Mini-Auth': miniToken } : {}),
-  };
 }
 
 export type CreateProfileInput = {
@@ -146,7 +140,7 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
   const activeProfileCount = providers.filter(p => !p.archived_at && !p.pending_delete_at).length;
   const canManageProfiles = permissions.can_create_profile || permissions.can_archive_profile || permissions.can_edit_profile;
   const syncActiveProvider = useCallback((providerId: string) => {
-    const miniToken = localStorage.getItem('mini_auth_token');
+    const miniToken = getMiniAuthToken();
     if (!miniToken) return;
     fetch(`${API}/telegram/mini/active-provider`, {
       method: 'POST',
@@ -198,9 +192,8 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
         // Don't clear the still-valid token — auth will refresh it in background
       } else {
         // No valid cache → clear stale tokens, keep showing loader
-        localStorage.removeItem('session_token');
-        localStorage.removeItem('mini_auth_token');
-        localStorage.removeItem('mini_auth_expires_at');
+        clearSessionToken();
+        clearMiniAuthToken();
         setProviders([]);
         setActiveIdx(0);
       }
@@ -214,9 +207,8 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
         .then(r => r.json())
         .then((d: { ok: boolean; state?: 'guest' | 'authenticated'; providers?: Provider[]; role?: string | null; permissions?: MiniPermissions; mini_token?: string | null; expires_at?: string | null; error?: string }) => {
           if (d.ok && d.state === 'authenticated' && d.mini_token) {
-            localStorage.removeItem('session_token');
-            localStorage.setItem('mini_auth_token', d.mini_token);
-            if (d.expires_at) localStorage.setItem('mini_auth_expires_at', d.expires_at);
+            clearSessionToken();
+            setMiniAuthToken(d.mini_token, d.expires_at ?? null);
             const nextProviders = d.providers ?? [];
             const nextPerms = d.permissions ?? ASSISTANT_MINI_PERMISSIONS;
             setPermissions(nextPerms);
@@ -251,29 +243,26 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
               })
               .catch(() => null);
           } else if (d.ok && d.state === 'guest') {
-            localStorage.removeItem('mini_auth_token');
-            localStorage.removeItem('mini_auth_expires_at');
+            clearMiniAuthToken();
             setPermissions(ASSISTANT_MINI_PERMISSIONS);
             setProviders([]);
             setActiveIdx(0);
             setPhase('guest');
           } else {
-            localStorage.removeItem('mini_auth_token');
-            localStorage.removeItem('mini_auth_expires_at');
+            clearMiniAuthToken();
             if (d.error) setMiniAuthError(d.error);
             setPhase('guest');
           }
         })
         .catch(() => {
-          localStorage.removeItem('mini_auth_token');
-          localStorage.removeItem('mini_auth_expires_at');
+          clearMiniAuthToken();
           setMiniAuthError('Не удалось проверить вход через Telegram. Откройте Mini App заново из Telegram.');
           setPhase('guest');
         });
       return;
     }
 
-    const token = localStorage.getItem('session_token');
+    const token = getSessionToken();
 
     // No verified Telegram data and no web token → onboarding fallback
     if (!token) {
@@ -320,9 +309,8 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
       setMiniAuthError(data?.error ?? 'Не удалось создать аккаунт. Попробуйте еще раз.');
       return false;
     }
-    localStorage.removeItem('session_token');
-    localStorage.setItem('mini_auth_token', data.mini_token);
-    if (data.expires_at) localStorage.setItem('mini_auth_expires_at', data.expires_at);
+    clearSessionToken();
+    setMiniAuthToken(data.mini_token, data.expires_at ?? null);
     const nextProviders = data.providers ?? [];
     setPermissions(data.permissions ?? OWNER_MINI_PERMISSIONS);
     setProviders(nextProviders);
@@ -414,8 +402,8 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
   }, [activeIdx]);
 
   const createProfile = useCallback(async (input: CreateProfileInput): Promise<Provider | null> => {
-    const token = localStorage.getItem('session_token');
-    const miniToken = localStorage.getItem('mini_auth_token');
+    const token = getSessionToken();
+    const miniToken = getMiniAuthToken();
     if (!permissions.can_create_profile || (!token && !miniToken) || activeProfileCount >= MAX_PROFILES_PER_ACCOUNT) return null;
 
     const slugBase = input.display_name
@@ -467,8 +455,8 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
   }, [activeProfileCount, permissions.can_create_profile, syncActiveProvider]);
 
   const archiveProfile = useCallback(async (providerId: string): Promise<boolean> => {
-    const token = localStorage.getItem('session_token');
-    const miniToken = localStorage.getItem('mini_auth_token');
+    const token = getSessionToken();
+    const miniToken = getMiniAuthToken();
     if (!permissions.can_archive_profile || (!token && !miniToken)) return false;
     const res = await fetch(`${API}/providers/${providerId}/archive`, {
       method: 'POST',
@@ -492,8 +480,8 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
   }, [activeIdx, permissions.can_archive_profile, syncActiveProvider]);
 
   const unarchiveProfile = useCallback(async (providerId: string): Promise<boolean> => {
-    const token = localStorage.getItem('session_token');
-    const miniToken = localStorage.getItem('mini_auth_token');
+    const token = getSessionToken();
+    const miniToken = getMiniAuthToken();
     if (!permissions.can_archive_profile || (!token && !miniToken)) return false;
     const res = await fetch(`${API}/providers/${providerId}/unarchive`, {
       method: 'POST',

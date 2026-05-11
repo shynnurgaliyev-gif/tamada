@@ -4,6 +4,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 
 import { API_URL as API } from '@/lib/env';
+import { getSessionToken } from '@/lib/auth';
 
 type Entry = {
   id: string; starts_at: string; ends_at: string;
@@ -35,7 +36,7 @@ function EditEntryForm() {
   const [msg, setMsg] = useState('');
 
   useEffect(() => {
-    const token = localStorage.getItem('session_token') ?? '';
+    const token = getSessionToken();
     const from = new Date(0).toISOString();
     const to = new Date(Date.now() + 365 * 86400000).toISOString();
     fetch(`${API}/providers/${providerId}/calendar?from=${from}&to=${to}`, {
@@ -74,7 +75,7 @@ function EditEntryForm() {
     setSaving(true);
     setError('');
     setMsg('');
-    const token = localStorage.getItem('session_token') ?? '';
+    const token = getSessionToken();
     try {
       const body: Record<string, unknown> = {
         starts_at: new Date(form.starts_at).toISOString(),

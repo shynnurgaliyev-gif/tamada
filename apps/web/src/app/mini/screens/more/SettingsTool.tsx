@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { Provider, TgUser } from '../../types';
 import { API_URL as API } from '@/lib/env';
+import { clearMiniAuthToken, clearSessionToken } from '@/lib/auth';
 import {
   auth,
   Badge,
@@ -99,9 +100,8 @@ export function SettingsTool({ tgUser, provider, canArchive, onProvidersChanged 
     if (session) {
       await fetch(`${API}/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${session}` } }).catch(() => null);
     }
-    localStorage.removeItem('session_token');
-    localStorage.removeItem('mini_auth_token');
-    localStorage.removeItem('mini_auth_expires_at');
+    clearSessionToken();
+    clearMiniAuthToken();
     window.location.href = '/mini';
   }
 
