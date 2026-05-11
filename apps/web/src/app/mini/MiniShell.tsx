@@ -121,6 +121,7 @@ export default function MiniShell() {
     providers, activeIdx, setActiveIdx, activeProvider,
     updateActiveProvider, refreshProviders, canManageProfiles, maxProfiles, createProfile, unarchiveProfile,
     accountFullName,
+    subStatus, subDaysLeft,
     summary, sumLoading, analyticsDays, switchAnalyticsPeriod,
   } = useMiniApp(tgFlow);
 
@@ -213,6 +214,8 @@ export default function MiniShell() {
           provider={activeProvider}
           providers={providers}
           ownerName={accountFullName ?? (tgUser ? [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') || null : null)}
+          subStatus={subStatus}
+          subDaysLeft={subDaysLeft}
           onToggleSwitch={() => setShowSwitch(s => !s)}
           {...firstProfileProps}
         />

@@ -4,15 +4,20 @@ export function MiniTopBar({
   provider,
   providers,
   ownerName,
+  subStatus,
+  subDaysLeft,
   onToggleSwitch,
   onCreateFirstProfile,
 }: {
   provider: Provider | null;
   providers: Provider[];
   ownerName?: string | null;
+  subStatus?: string | null;
+  subDaysLeft?: number | null;
   onToggleSwitch: () => void;
   onCreateFirstProfile?: () => void;
 }) {
+  const subBadge = renderSubBadge(subStatus, subDaysLeft);
   const activeProviders = providers.filter(p => !p.archived_at && !p.pending_delete_at);
   const hasMultiple = activeProviders.length > 1;
   const isActive    = provider?.provider_status === 'active';
@@ -110,10 +115,44 @@ export function MiniTopBar({
         </span>
       </span>
 
+      {subBadge}
       {/* Switcher chevron */}
       {hasMultiple && (
         <span style={{ fontSize: 14, color: 'var(--tg-theme-hint-color, #9ca3af)', flexShrink: 0 }}>⌄</span>
       )}
     </button>
   );
+}
+
+function renderSubBadge(status?: string | null, daysLeft?: number | null) {
+  if (!status) return null;
+  const d = Math.max(0, daysLeft ?? 0);
+  const base = {
+    fontSize: 10,
+    fontWeight: 800,
+    padding: '3px 7px',
+    borderRadius: 6,
+    flexShrink: 0,
+    letterSpacing: '.02em',
+    whiteSpace: 'nowrap' as const,
+  };
+  if (status === 'expired' || status === 'blocked' || status === 'cancelled') {
+    return <span style={{ ...base, background: 'rgba(220,38,38,.12)', color: '#b91c1c' }}>Подписка истекла</span>;
+  }
+  if (status === 'expiring') {
+    return <span style={{ ...base, background: 'rgba(234,88,12,.12)', color: '#c2410c' }}>Истекает: {d} дн</span>;
+  }
+  if (status === 'trial') {
+    const urgent = d <= 7;
+    return (
+      <span style={{
+        ...base,
+        background: urgent ? 'rgba(234,88,12,.12)' : 'rgba(107,114,128,.12)',
+        color: urgent ? '#c2410c' : '#6b7280',
+      }}>
+        Trial: {d} дн
+      </span>
+    );
+  }
+  return null;
 }

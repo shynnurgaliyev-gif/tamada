@@ -110,6 +110,9 @@ export interface MiniAppState {
   unarchiveProfile: (providerId: string) => Promise<boolean>;
   /* Account */
   accountFullName: string | null;
+  /* Subscription (lightweight summary for the top-bar badge) */
+  subStatus: string | null;
+  subDaysLeft: number | null;
   /* Analytics */
   summary:              AnalyticsSummary | null;
   sumLoading:           boolean;
@@ -136,6 +139,8 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
     const userId = getTelegramWebApp()?.initDataUnsafe?.user?.id;
     return readAccountFullNameCache(userId);
   });
+  const [subStatus,   setSubStatus]   = useState<string | null>(null);
+  const [subDaysLeft, setSubDaysLeft] = useState<number | null>(null);
 
   const activeProvider = providers[activeIdx] ?? null;
   const activeProfileCount = providers.filter(p => !p.archived_at && !p.pending_delete_at).length;
@@ -232,6 +237,16 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
                   const fn = me.account?.full_name ?? null;
                   setAccountFullName(fn);
                   if (userId) writeAccountFullNameCache(userId, fn);
+                }
+              })
+              .catch(() => null);
+            // Lightweight subscription summary for the topbar badge
+            fetch(`${API}/account/subscription`, { headers: miniHeaders() })
+              .then(r => r.json())
+              .then((s: { ok: boolean; subscription?: { status: string } | null; days_left?: number }) => {
+                if (s.ok) {
+                  setSubStatus(s.subscription?.status ?? null);
+                  setSubDaysLeft(s.days_left ?? null);
                 }
               })
               .catch(() => null);
@@ -508,6 +523,7 @@ export function useMiniApp(urlTgFlow: string | null): MiniAppState {
     archiveProfile,
     unarchiveProfile,
     accountFullName,
+    subStatus, subDaysLeft,
     summary, sumLoading, analyticsDays, loadAnalytics, switchAnalyticsPeriod,
   };
 }
