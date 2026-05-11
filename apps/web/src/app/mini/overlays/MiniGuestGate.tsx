@@ -17,18 +17,16 @@ export function MiniGuestGate({
 
   // Shrink container to visible area when keyboard opens
   const { height: vpHeight } = useVisibleViewport();
-  const [formOpen, setFormOpen] = useState(false);
   const [fullName, setFullName] = useState(defaultName);
-  const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   async function submit() {
-    if (fullName.trim().length < 2 || !confirmed || busy) return;
+    if (fullName.trim().length < 2 || busy) return;
     setBusy(true);
     setMessage(null);
     const ok = await onCreateAccount({ full_name: fullName.trim() });
-    if (!ok) setMessage('Не удалось создать аккаунт. Проверьте данные и попробуйте еще раз.');
+    if (!ok) setMessage('Не удалось создать аккаунт. Попробуйте ещё раз.');
     setBusy(false);
   }
 
@@ -36,28 +34,28 @@ export function MiniGuestGate({
     <>
       <MiniStyles />
       <div className="mini-root" style={{ padding: '32px 20px 24px', overflowY: 'auto', height: vpHeight }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
           <OctiMark size={30} />
           <div style={{ fontWeight: 900, fontSize: 18 }}>Octiqa</div>
         </div>
 
-        <div style={{ fontSize: 28, marginBottom: 8 }}>👋</div>
-        <h1 style={{ margin: '0 0 10px', fontSize: 24, lineHeight: 1.15, letterSpacing: '-.03em' }}>
-          Octiqa для специалистов
+        <div style={{ fontSize: 32, marginBottom: 10 }}>👋</div>
+        <h1 style={{ margin: '0 0 10px', fontSize: 24, lineHeight: 1.2, letterSpacing: '-.03em' }}>
+          Добро пожаловать{tgUser?.first_name ? `, ${tgUser.first_name}` : ''}!
         </h1>
-        <p style={{ margin: '0 0 18px', fontSize: 15, lineHeight: 1.55, color: 'var(--tg-theme-hint-color, #6b7280)' }}>
-          Вы открыли Mini App через Telegram. Пока аккаунт не создан, мы не сохраняем данные и не показываем старые профили.
+        <p style={{ margin: '0 0 24px', fontSize: 15, lineHeight: 1.5, color: 'var(--tg-theme-hint-color, #6b7280)' }}>
+          Octiqa помогает специалистам управлять занятостью и связывать с клиентами. Подтвердите имя — и начнём.
         </p>
 
         <div style={{
           display: 'flex',
           flexDirection: 'column',
           gap: 10,
-          marginBottom: 22,
+          marginBottom: 24,
         }}>
-          <InfoRow title="Аккаунт" text="Сначала создается аккаунт владельца." />
-          <InfoRow title="Профиль" text="После создания аккаунта вы сможете добавить первый профиль." />
-          <InfoRow title="Сайт" text="Клиенты видят публичные профили на сайте, управление идет через Telegram Mini App." />
+          <Benefit icon="📅" text="Управляйте календарём занятости в Telegram" />
+          <Benefit icon="🌐" text="Клиенты найдут ваш профиль и увидят свободные дни" />
+          <Benefit icon="🔔" text="Уведомления о бронях и напоминаниях — сюда же в Telegram" />
         </div>
 
         {authError && (
@@ -75,57 +73,53 @@ export function MiniGuestGate({
           </div>
         )}
 
-        {!formOpen ? (
-          <button className="mini-btn mini-tap" onClick={() => setFormOpen(true)} style={{ width: '100%' }}>
-            Создать аккаунт
+        <div style={{
+          padding: 14,
+          background: 'var(--tg-theme-secondary-bg-color, #fff)',
+          border: '1px solid rgba(0,0,0,.08)',
+          borderRadius: 14,
+        }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 800, marginBottom: 6 }}>
+            Как вас зовут
+          </label>
+          <input
+            className="mini-input"
+            value={fullName}
+            onChange={e => setFullName(e.target.value)}
+            placeholder="Имя и фамилия"
+            style={{ marginBottom: 12 }}
+          />
+          {message && <div style={{ color: '#b91c1c', fontSize: 12, marginBottom: 10 }}>{message}</div>}
+          <button
+            className="mini-btn mini-tap"
+            disabled={busy || fullName.trim().length < 2}
+            onClick={() => void submit()}
+            style={{ width: '100%', opacity: busy || fullName.trim().length < 2 ? .55 : 1 }}
+          >
+            {busy ? 'Создаём...' : 'Начать в Octiqa'}
           </button>
-        ) : (
-          <div style={{
-            padding: 14,
-            background: 'var(--tg-theme-secondary-bg-color, #fff)',
-            border: '1px solid rgba(0,0,0,.08)',
-            borderRadius: 14,
-          }}>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 800, marginBottom: 6 }}>
-              ФИО владельца
-            </label>
-            <input
-              className="mini-input"
-              value={fullName}
-              onChange={e => setFullName(e.target.value)}
-              placeholder="Например, Асем Нурланова"
-              style={{ marginBottom: 12 }}
-            />
-            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13, lineHeight: 1.4, marginBottom: 12 }}>
-              <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} style={{ marginTop: 2 }} />
-              <span>Создать аккаунт владельца в Octiqa и связать его с этим Telegram.</span>
-            </label>
-            {message && <div style={{ color: '#b91c1c', fontSize: 12, marginBottom: 10 }}>{message}</div>}
-            <button
-              className="mini-btn mini-tap"
-              disabled={busy || fullName.trim().length < 2 || !confirmed}
-              onClick={() => void submit()}
-              style={{ width: '100%', opacity: busy || fullName.trim().length < 2 || !confirmed ? .55 : 1 }}
-            >
-              {busy ? 'Создаем...' : 'Создать аккаунт'}
-            </button>
-          </div>
-        )}
+          <p style={{ fontSize: 11, color: 'var(--tg-theme-hint-color, #6b7280)', lineHeight: 1.45, margin: '10px 0 0', textAlign: 'center' }}>
+            Создаст аккаунт, связанный с этим Telegram. Без пароля.
+          </p>
+        </div>
       </div>
     </>
   );
 }
 
-function InfoRow({ title, text }: { title: string; text: string }) {
+function Benefit({ icon, text }: { icon: string; text: string }) {
   return (
     <div style={{
-      padding: '12px 14px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '10px 14px',
       background: 'var(--tg-theme-secondary-bg-color, #fff)',
       border: '1px solid rgba(0,0,0,.07)',
       borderRadius: 12,
     }}>
-      <div style={{ fontWeight: 900, fontSize: 14, marginBottom: 3 }}>{title}</div>
-      <div style={{ fontSize: 12, color: 'var(--tg-theme-hint-color, #6b7280)', lineHeight: 1.45 }}>{text}</div>
+      <span style={{ fontSize: 22, flexShrink: 0 }}>{icon}</span>
+      <span style={{ fontSize: 13, lineHeight: 1.4, color: 'var(--tg-theme-text-color, #0a0a0f)' }}>{text}</span>
     </div>
   );
 }
