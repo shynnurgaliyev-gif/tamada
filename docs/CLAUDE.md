@@ -150,7 +150,8 @@ pnpm test         # run unit tests (vitest, currently apps/api only)
   - **Идея 4** (`9ebe4ca` + `3c50edc`): подписка стала видимой. Badge в `MiniTopBar` (`Trial: N дн` / `Истекает: N дн` / `Подписка истекла`, оранжевый при ≤7 дн). Динамический подзаголовок в MoreScreen → row «Подписка». Префетч `/account/subscription` в `useMiniApp` параллельно с `/auth/me`.
   - **Идея 5** уже реализована в коде на момент сессии (`MiniTopBar.tsx:114` chevron + `MiniShell.tsx:263` MiniSwitchSheet — оба скрыты при `activeProviders.length <= 1`).
   - **Идея 2** (`6b97812` + `8052b77`): **Progressive publish** — после Step1 онбординга профиль сразу переходит в `publication_status='visible'` (если был `draft`); категория стала обязательной для поиска. UX-полировка: nav-кнопка «Пропустить» → «Закрыть» когда provider уже создан; dashboard-баннер «Профиль опубликован — дополните» + «Дополнить →» вместо «Завершите настройку профиля» + «Продолжить». Steps 2–5 остаются как опциональные enhancements.
+  - **Foundation для Идеи 1** (`9c76142`): создан `apps/web/src/lib/auth.ts` (`getSessionToken`/`setSessionToken`/`clearSessionToken`/`authHeaders`). Удалено 6 локальных `function getToken()` дублей в dashboard-страницах; критические точки lifecycle (login, signup, layout, page logout, settings delete-account) переведены на хелперы. `onboarding/_shared.tsx` теперь реэкспортирует `getToken` из `@/lib/auth`. Mini app оставлен (у него отдельный `mini_auth_token` — отдельный рефакторинг). Single-point замены auth-механизма для будущего Telegram-first.
 
-Остались крупные идеи: 1 (Telegram-first onboarding), 3 (один UI вместо трёх), 7 (возвратный цикл клиента). Все требуют отдельных многосеансных проектов.
+Остались крупные идеи: 1 (Telegram-first onboarding — UX-часть, основа уже готова), 3 (один UI вместо трёх), 7 (возвратный цикл клиента). Все требуют отдельных многосеансных проектов.
 
 Typecheck `@octiqa/web` и `pnpm --filter @octiqa/web test` — clean.
