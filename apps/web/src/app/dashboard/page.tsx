@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { OctiMark } from '@/components/OctiLogo';
 
 import { API_URL as API } from '@/lib/env';
+import { clearSessionToken } from '@/lib/auth';
 import type { Account } from '@octiqa/types';
 
 type ProviderInfo = { id: string; display_name: string; slug: string; provider_status: string };
@@ -59,7 +60,7 @@ export default function DashboardPage() {
         headers: { Authorization: `Bearer ${token}` },
       }).catch(() => null);
     }
-    localStorage.removeItem('session_token');
+    clearSessionToken();
     window.location.href = '/login';
   }
 

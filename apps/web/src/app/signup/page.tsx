@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { OctiMark } from '@/components/OctiLogo';
 
 import { API_URL as API } from '@/lib/env';
+import { setSessionToken } from '@/lib/auth';
 
 // ── Password strength ─────────────────────────────────────────────────────────
 function passwordScore(p: string) {
@@ -71,7 +72,7 @@ export default function SignupPage() {
       const data = await res.json() as { ok: boolean; token?: string; expires_at?: string; error?: { message?: string } | string };
       if (!data.ok) { setError(typeof data.error === 'object' ? (data.error?.message ?? 'Ошибка') : (data.error ?? 'Ошибка')); return; }
       if (data.token) {
-        localStorage.setItem('session_token', data.token);
+        setSessionToken(data.token);
         if (data.expires_at) localStorage.setItem('session_expires_at', data.expires_at);
       }
       window.location.href = '/dashboard/onboarding';

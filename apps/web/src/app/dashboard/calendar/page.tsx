@@ -2,8 +2,7 @@
 import { useEffect, useState, useCallback } from 'react';
 
 import { API_URL as API } from '@/lib/env';
-function getToken() { return localStorage.getItem('session_token') ?? ''; }
-function authH() { return { Authorization: `Bearer ${getToken()}` }; }
+import { getSessionToken as getToken, authHeaders as authH } from '@/lib/auth';
 
 type Provider = { id: string; display_name: string; timezone: string; };
 type DayInfo  = { date: string; status: string; count: number };

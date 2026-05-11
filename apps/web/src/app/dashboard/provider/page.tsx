@@ -15,7 +15,7 @@ const statusLabel: Record<string, string> = {
   visible: 'Виден', draft: 'Черновик', hidden: 'Скрыт', suspended: 'Заблокирован',
 };
 
-function getToken() { return localStorage.getItem('session_token') ?? ''; }
+import { getSessionToken as getToken } from '@/lib/auth';
 
 export default function MyProvidersPage() {
   const [providers, setProviders] = useState<Provider[]>([]);

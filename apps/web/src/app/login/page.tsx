@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { OctiMark } from '@/components/OctiLogo';
 
 import { API_URL as API } from '@/lib/env';
+import { setSessionToken } from '@/lib/auth';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -34,7 +35,7 @@ export default function LoginPage() {
         return;
       }
       if (data.token) {
-        localStorage.setItem('session_token', data.token);
+        setSessionToken(data.token);
         if (data.expires_at) localStorage.setItem('session_expires_at', data.expires_at);
       }
       window.location.href = '/dashboard';

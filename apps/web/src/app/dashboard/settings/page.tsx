@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { OctiMark } from '@/components/OctiLogo';
 
 import { API_URL as API } from '@/lib/env';
+import { clearSessionToken } from '@/lib/auth';
 import type { Account } from '@octiqa/types';
 
 export default function SettingsPage() {
@@ -45,7 +46,7 @@ export default function SettingsPage() {
         return;
       }
       // Account deleted — clear local state and redirect
-      localStorage.removeItem('session_token');
+      clearSessionToken();
       window.location.href = '/?deleted=1';
     } catch { setError('Ошибка сети'); }
     finally { setDeleting(false); }

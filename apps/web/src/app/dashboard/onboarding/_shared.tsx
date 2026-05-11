@@ -8,9 +8,7 @@ import type { ReactNode } from 'react';
 import { FaWhatsapp, FaTelegram, FaInstagram, FaGlobe, FaPhone } from 'react-icons/fa';
 import type { RefCategory } from '@octiqa/types';
 
-export function getToken(): string {
-  return localStorage.getItem('session_token') ?? '';
-}
+export { getSessionToken as getToken } from '@/lib/auth';
 
 export const STEPS = [
   { n: 1, label: 'Основное',   icon: '👤' },

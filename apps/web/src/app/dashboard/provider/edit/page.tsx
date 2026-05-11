@@ -14,7 +14,7 @@ import type {
 type Provider = { id: string; display_name: string; slug: string; bio: string | null; city: string | null; region: string | null; timezone: string; publication_status: string; };
 type Service = { id: string; category: string; title: string; price_from: string | null; currency: string; };
 
-function getToken() { return localStorage.getItem('session_token') ?? ''; }
+import { getSessionToken as getToken } from '@/lib/auth';
 function authHeaders() { return { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' }; }
 
 // ── Hardcoded fallbacks (used when reference API is unavailable) ───────────

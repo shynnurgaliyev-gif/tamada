@@ -19,7 +19,7 @@ const typeLabel: Record<string, string> = {
   calendar_stale_reminder: 'Неактивный календарь',
 };
 
-function getToken() { return localStorage.getItem('session_token') ?? ''; }
+import { getSessionToken as getToken } from '@/lib/auth';
 
 export default function NotificationsPage() {
   const [providers, setProviders] = useState<Provider[]>([]);

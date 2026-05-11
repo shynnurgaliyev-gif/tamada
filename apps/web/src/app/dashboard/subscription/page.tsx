@@ -16,7 +16,7 @@ const paymentStatusLabel: Record<string, string> = {
   pending: 'Ожидание', paid: 'Оплачено', failed: 'Ошибка', expired: 'Истёк', cancelled: 'Отменён',
 };
 
-function getToken() { return localStorage.getItem('session_token') ?? ''; }
+import { getSessionToken as getToken } from '@/lib/auth';
 
 export default function SubscriptionPage() {
   const [sub, setSub] = useState<Subscription | null>(null);

@@ -14,7 +14,7 @@ const statusColor: Record<string, string> = {
   linked: '#22c55e', pending: '#f59e0b', unlinked: '#6b7280', blocked: '#ef4444',
 };
 
-function getToken() { return localStorage.getItem('session_token') ?? ''; }
+import { getSessionToken as getToken } from '@/lib/auth';
 
 export default function IntegrationsPage() {
   const [providers, setProviders] = useState<Provider[]>([]);
