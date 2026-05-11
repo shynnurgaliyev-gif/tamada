@@ -125,7 +125,9 @@ export default function DashboardPage() {
           <div className="card" style={{ padding: '18px 20px', marginBottom: 24, border: '2px solid var(--brand)', background: 'var(--brand-xlight)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
               <div>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 3 }}>Завершите настройку профиля</div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 3 }}>
+                  {onboarding.steps.basics ? 'Профиль опубликован — дополните' : 'Создайте профиль'}
+                </div>
                 <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>
                   {['Основное', 'Фото', 'Контакты', 'Telegram', 'Календарь']
                     .filter((_, i) => !Object.values(onboarding.steps)[i])
@@ -133,7 +135,7 @@ export default function DashboardPage() {
                 </div>
               </div>
               <a href="/dashboard/onboarding" className="btn btn-brand btn-sm" style={{ flexShrink: 0 }}>
-                Продолжить →
+                {onboarding.steps.basics ? 'Дополнить →' : 'Начать →'}
               </a>
             </div>
             <div style={{ height: 6, background: 'rgba(0,0,0,.1)', borderRadius: 3, overflow: 'hidden' }}>

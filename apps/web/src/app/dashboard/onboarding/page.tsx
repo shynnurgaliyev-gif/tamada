@@ -85,7 +85,9 @@ export default function OnboardingPage() {
           <OctiMark size={28} />
           Octiqa
         </a>
-        <a href="/dashboard" className="btn btn-ghost btn-sm">Пропустить</a>
+        <a href="/dashboard" className="btn btn-ghost btn-sm">
+          {provider ? 'Закрыть' : 'Пропустить'}
+        </a>
       </nav>
 
       <div style={{ maxWidth: 520, margin: '0 auto', padding: '24px 16px 64px' }}>
