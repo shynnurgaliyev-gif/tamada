@@ -1,7 +1,7 @@
 ---
 tags: [current, sot, octiqa]
 created: 2026-05-11
-updated: 2026-05-11
+updated: 2026-05-12
 ---
 
 # 📍 Octiqa — как работает сейчас
@@ -14,7 +14,7 @@ Octiqa помогает специалисту управлять занятос
 
 - **Регистрация:** Telegram Mini App (рекомендуемый путь) или web `/signup` (fallback)
 - **Профиль публикуется после Step 1** — не нужно проходить все 5 шагов
-- **Управление:** Mini App (Telegram) — основное. Web dashboard — параллельный, тоже работает
+- **Управление:** Mini App (Telegram) — основное. Web dashboard — параллельный с migration-banner-нудж'ом «Открыть в Telegram»
 - **Подписка:** account-level, trial 30 дней автоматом
 
 ---
@@ -66,7 +66,7 @@ flowchart TD
 | Где | Что доступно |
 | --- | --- |
 | **Mini App** (`/mini`) | Профили (multi-profile switch только если >1), календарь, аналитика, More (подписка / интеграции / команда / передачи / история / settings) |
-| **Web dashboard** (`/dashboard`) | Тот же набор + список профилей, edit, notifications. Параллельный канал |
+| **Web dashboard** (`/dashboard`) | Тот же набор + список профилей, edit, notifications. Параллельный канал. Сверху каждой страницы — `MoveToMiniBanner` с CTA в Mini App (Idea 3 Phase 1) |
 | **Telegram bot** | Уведомления о бронях, quick booking текстом/voice, deep-link на привязку профилей и помощников |
 
 **Подписка-индикатор:**
@@ -118,7 +118,8 @@ flowchart TD
 | Гейт нового пользователя | `apps/web/src/app/mini/overlays/MiniGuestGate.tsx` |
 | Гейт первого профиля | `apps/web/src/app/mini/overlays/MiniFirstProfileGate.tsx` |
 | Mini hooks | `apps/web/src/app/mini/hooks/{useMiniApp,useCalendar,useProviderData}.ts` |
-| Mini screens (декомпозированы) | `apps/web/src/app/mini/screens/{Profiles,Calendar,Analytics,More}Screen.tsx` + `more/*Tool.tsx` |
+| Mini screens (декомпозированы) | `apps/web/src/app/mini/screens/{Profiles,Calendar,Analytics,More}Screen.tsx` + `more/*Tool.tsx` (Subscription/Integrations/Team/Activity/Transfers/Settings/Notifications) |
+| Migration-баннер | `apps/web/src/components/MoveToMiniBanner.tsx` (показывается в `dashboard/layout.tsx`, скрыт на onboarding) |
 | Mini overlays | `apps/web/src/app/mini/overlays/{MiniAddSheet,MiniSwitchSheet,MiniPicker,MiniGuestGate,MiniFirstProfileGate}.tsx` |
 | Mini shared | `apps/web/src/app/mini/components/{MiniStyles,MiniTopBar,MiniBottomNav,MiniLoader,EmptyState,NavRow}.tsx` |
 | Web onboarding | `apps/web/src/app/dashboard/onboarding/{page,Step1Basics,Step2Photos,Step3Contacts,Step4Telegram,Step5Calendar,_shared,slug}.tsx` |
@@ -195,6 +196,8 @@ flowchart TD
 | 5 | `b15774a` | `session_expires_at` в `lib/auth` + `isSessionExpired` |
 | 5 | `f39d364` | `redirectToLogin` + `requireSessionToken`, 15+ дублей убраны |
 | 6 | `c47c22e` | Share-кнопка на `/p/<slug>` (Idea 7 первый шаг) |
+| 7 | `46ff204` | Создан `CURRENT.md` — single source of truth по текущей логике |
+| 7 | _эта сессия_ | **Idea 3 Phase 1**: `MoveToMiniBanner` на всех dashboard-страницах (кроме onboarding); `NotificationsTool` добавлен в Mini App More — закрыт последний gap между web и Mini |
 
 > До этих сессий были Tasks 12–48 — см. [[../tasks-archive|архив]].
 
@@ -209,7 +212,7 @@ flowchart TD
 | 🟡 Среднее | Скрыть multi-profile UI в `MiniProfilesScreen` когда `providers.length === 1` (chevron/SwitchSheet уже скрыты, остался экран) | UX |
 | 🟡 Среднее | Полировка `MiniFirstProfileGate` — после создания профиля прыгать сразу в shell, если success-экран не нужен | UX |
 | 🔴 Большое | **Idea 1 deep** — перенос фактического onboarding-flow в Mini App (сейчас на web `/dashboard/onboarding`) | Telegram-first до конца |
-| 🔴 Большое | **Idea 3** — свернуть web dashboard в read-only / удалить, оставить web только для `/p/<slug>` + landing | Один UI |
+| 🟡 Среднее | **Idea 3 Phase 2** — следить за тем, доля сессий через Mini App vs web. Когда Mini App доминирует — Phase 3: web dashboard → read-only / удалить | Один UI (Phase 1 done) |
 | 🔴 Большое | **Idea 7 deep** — bot ping клиента через 30 дней «Как прошло с N?» (нужен backend job) | Retention |
 | 🔴 Большое | **ЭЦП-верификация через eGov** ([[future-features]]) | Trust / защита от мошенников |
 

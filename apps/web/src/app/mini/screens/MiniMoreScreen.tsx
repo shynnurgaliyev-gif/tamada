@@ -4,12 +4,13 @@ import { useState } from 'react';
 import type { MiniPermissions, Provider, TgUser } from '../types';
 import { ActivityTool } from './more/ActivityTool';
 import { IntegrationsTool } from './more/IntegrationsTool';
+import { NotificationsTool } from './more/NotificationsTool';
 import { SettingsTool } from './more/SettingsTool';
 import { SubscriptionTool } from './more/SubscriptionTool';
 import { TeamTool } from './more/TeamTool';
 import { TransfersTool } from './more/TransfersTool';
 
-type MoreView = 'main' | 'subscription' | 'integrations' | 'team' | 'settings' | 'transfers' | 'activity';
+type MoreView = 'main' | 'subscription' | 'integrations' | 'team' | 'settings' | 'transfers' | 'activity' | 'notifications';
 
 export function MiniMoreScreen({
   tgUser,
@@ -42,6 +43,7 @@ export function MiniMoreScreen({
         {view === 'integrations' && permissions.can_manage_integrations && <IntegrationsTool provider={activeProvider} />}
         {view === 'team' && permissions.can_manage_team && <TeamTool provider={activeProvider} />}
         {view === 'activity' && permissions.can_manage_team && <ActivityTool provider={activeProvider} />}
+        {view === 'notifications' && <NotificationsTool provider={activeProvider} />}
         {view === 'transfers' && permissions.can_archive_profile && <TransfersTool provider={activeProvider} onProvidersChanged={onProvidersChanged} />}
         {view === 'settings' && (permissions.can_manage_subscription || permissions.can_manage_integrations || permissions.can_archive_profile) && (
           <SettingsTool tgUser={tgUser} provider={activeProvider} canArchive={permissions.can_archive_profile} onProvidersChanged={onProvidersChanged} />
@@ -90,6 +92,14 @@ export function MiniMoreScreen({
       color: '#059669',
       label: 'Команда',
       sub: 'Помощники этого профиля',
+    },
+    {
+      id: 'notifications' as const,
+      icon: '🔔',
+      bg: '#fef3c7',
+      color: '#d97706',
+      label: 'Напоминания',
+      sub: 'Лог отправленных Telegram-уведомлений',
     },
     (permissions.can_manage_subscription || permissions.can_manage_integrations || permissions.can_archive_profile) && {
       id: 'settings' as const,

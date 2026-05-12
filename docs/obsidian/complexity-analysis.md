@@ -251,8 +251,10 @@ Web dashboard сворачивается в read-only «зеркало» Mini Ap
 - **Уже Telegram-first до этой сессии:** `/page.tsx` (главная), `/for-specialists/page.tsx` — все CTA через `TELEGRAM_DASHBOARD_LINK` / `TELEGRAM_ONBOARDING_LINK`, ссылок на `/signup` нет
 - **Осталось:** перенос фактического onboarding-flow в Mini App (сейчас он на web `/dashboard/onboarding`). Это большой проект — заранее не начат.
 
-### ⏳ Идея 3 — Один UI вместо трёх
-- Не начато. Big project: свернуть web dashboard в read-only / удалить, оставить только Mini App (управление) + бот (уведомления) + web `/p/<slug>` (публичная страница).
+### 🟡 Идея 3 — Один UI вместо трёх (Phase 1 done)
+- **Phase 1 done (2026-05-12):** `MoveToMiniBanner` на всех dashboard-страницах (кроме onboarding) — мягко нудж'ит «Управление в Telegram Mini App», CTA «Открыть →» через `TELEGRAM_DASHBOARD_LINK`. Закрыт последний content-gap: `NotificationsTool` (лог Telegram-уведомлений) добавлен в Mini App More. Теперь функционал web dashboard и Mini App совпадает 1:1.
+- **Phase 2 (следующее):** наблюдать долю сессий Mini App vs web. Если Mini App доминирует — Phase 3.
+- **Phase 3 (отложено):** web dashboard → read-only или удалить. Останется только публичная `/p/<slug>` + landing.
 
 ### ⏳ Идея 7 — Возвратный цикл для клиента
 - Не начато. Требует новых endpoints + интеграции с Telegram-ботом (30-дневный ping). Trust-механика — отдельная инициатива.
