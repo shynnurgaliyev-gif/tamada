@@ -13,6 +13,7 @@ created: 2026-05-11
 - [[entities|🧩 Сущности]] — Account / Provider / TelegramAccount / Subscription и связи между ними
 - [[complexity-analysis|🔍 Анализ сложности]] — где трение + что уже сделано
 - [[future-features|🔮 Будущие функции]] — ЭЦП-верификация через eGov и другие планы
+- **[[proposal-single-profile|📋 Proposal: 1 специалист = 1 профиль]]** — обсуждаемое упрощение (multi-profile → multi-category)
 - [[flow-specialist|🧑‍🍳 Сценарий специалиста (snapshot 2026-05-11)]] — *исходный дизайн, до рефакторингов*
 - [[flow-client|🙋 Сценарий клиента (snapshot 2026-05-11)]] — *исходный дизайн, до рефакторингов*
 

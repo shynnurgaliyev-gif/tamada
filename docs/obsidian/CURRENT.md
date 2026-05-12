@@ -213,6 +213,7 @@ flowchart TD
 | 🟡 Среднее | Полировка `MiniFirstProfileGate` — после создания профиля прыгать сразу в shell, если success-экран не нужен | UX |
 | 🔴 Большое | **Idea 1 deep** — перенос фактического onboarding-flow в Mini App (сейчас на web `/dashboard/onboarding`) | Telegram-first до конца |
 | 🟡 Среднее | **Idea 3 Phase 2** — следить за тем, доля сессий через Mini App vs web. Когда Mini App доминирует — Phase 3: web dashboard → read-only / удалить | Один UI (Phase 1 done) |
+| 🔴 Большое | **Multi-profile → Single-profile multi-category** — см. [[proposal-single-profile]]. Снимает 30%+ сложности UI/data model. Окно открыто: пользователей нет, идеальный момент. | Упрощение архитектуры |
 | 🔴 Большое | **Idea 7 deep** — bot ping клиента через 30 дней «Как прошло с N?» (нужен backend job) | Retention |
 | 🔴 Большое | **ЭЦП-верификация через eGov** ([[future-features]]) | Trust / защита от мошенников |
 
