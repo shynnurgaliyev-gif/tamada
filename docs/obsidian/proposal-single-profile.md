@@ -11,7 +11,17 @@ status: discussion
 
 ## TL;DR
 
-Убираем multi-profile (1 Account → много Providers). Один человек = один Provider с массивом категорий и одним календарём. Помощники приглашаются один раз, видят всю работу специалиста.
+Большой архитектурный refactor. **Окно открыто — пользователей нет.**
+
+1. **Multi-profile → single profile multi-category** — убираем 1 Account → много Providers, заменяем на 1:1 + массив категорий
+2. **Помощники со scope** — помощник может быть привязан к подмножеству категорий (DJ-помощник vs Тамада-помощник)
+3. **Дублирование уведомлений** — каждое действие помощника копией в Telegram owner'у
+4. **Чистая отвязка** — revoke / leave удаляет данные `telegram_account` полностью (audit log остаётся анонимизированно)
+5. **Помощник может уйти сам** — `POST /telegram/mini/assistant/leave`, тот же DELETE
+6. **ФИО обязательно при регистрации** — `accounts.full_name NOT NULL`. После ЭЦП-верификации → immutable
+7. **ЭЦП-верификация на Account, не на Provider** — подтверждается человек, не бренд
+8. **Запись в БД только после явного «Сохранить»** — принцип фиксируется (уже работает)
+9. **Авто-спячка через 90 дней неактивности** — профиль скрывается из поиска, owner активирует одним кликом
 
 ```mermaid
 flowchart LR
@@ -104,10 +114,16 @@ erDiagram
 | Категория | `providers.primary_category` + `primary_subcategory` | Новая таблица `provider_categories(provider_id, category_code, subcategory_code, sort_order)` |
 | Календарная запись | `calendar_entries(...)` | Та же + опц. колонка `category_tag` (для scope и аналитики) |
 | **Scope помощника** | нет (помощник видит весь Provider) | Колонка `telegram_accounts.categories_scope text[]` (NULL = все категории, иначе массив `category_code`) |
+| **ФИО (account.full_name)** | nullable | **NOT NULL** — обязательно на регистрации |
+| **ЭЦП-верификация** | нет | На Account: `identity_verified_at`, `identity_locked_at`, `verified_iin_hash`, `verified_cert_serial` |
+| **`provider.is_verified`** | колонка на провайдере | Удалена — источник истины `accounts.identity_verified_at` |
+| **last_active_at** | нет | `accounts.last_active_at timestamptz` — обновляется на auth-pings |
+| **publication_status** | `draft / visible / hidden / suspended` | + `'hibernated'` (для автоспячки) |
 | Передача профиля | `transfer_requests` таблица + flow | **Удалена** |
 | Архив профиля | работает | работает (без изменений) |
 | Hard-delete профиля | работает | работает (без изменений) |
 | Revoke помощника | `telegram_accounts.status = 'unlinked'` | **DELETE row** + анонимизация `actor_telegram_account_id → NULL` в `activity_log` |
+| **Помощник сам уходит** | через owner revoke | Новый endpoint `POST /telegram/mini/assistant/leave` — то же поведение (DELETE + анонимизация), но инициатор помощник |
 
 ---
 
@@ -343,6 +359,187 @@ flowchart TD
 
 ---
 
+## 🚪 Помощник уходит сам
+
+Помощник может покинуть команду по собственному желанию (например, перестал работать с этим специалистом).
+
+```mermaid
+flowchart TD
+    Алия["Алия (помощник)"] -->|Mini App → More → Покинуть команду| Confirm{Подтверждение}
+    Confirm -->|Yes| Action[POST /telegram/mini/assistant/leave]
+    Action --> DB[(DELETE telegram_accounts row<br>где id = текущий tg_account)]
+    Action --> Log[(activity_log:<br>action: assistant_left<br>actor: «Алия» анонимизированно)]
+    Action --> Bot[Бот шлёт owner'у:<br>«Алия покинула вашу команду»]
+    Action --> Алия2[Алия: redirect → MiniGuestGate<br>теперь как новый юзер]
+```
+
+Поведение **идентичное** owner-revoke (DELETE row, анонимизация audit log) — отличается только инициатор и текст уведомления owner'у.
+
+После этого Алия может сама зарегистрироваться как специалист — никаких legacy-привязок в БД.
+
+---
+
+## 🪪 ФИО, регистрация, верификация личности
+
+> **Принцип:** Account — это **человек**. Provider — это **бренд/витрина**. Они независимы. Подтверждение личности (ЭЦП) — на Account.
+
+### Поля Account
+
+```sql
+ALTER TABLE accounts
+  ALTER COLUMN full_name SET NOT NULL,             -- было nullable, теперь обязательное
+  ADD COLUMN identity_verified_at  timestamptz,   -- момент успешной верификации
+  ADD COLUMN identity_locked_at    timestamptz,   -- момент блокировки full_name
+  ADD COLUMN verified_iin_hash     text,           -- хеш ИИН (не сам ИИН — PII)
+  ADD COLUMN verified_cert_serial  text;           -- серийный номер ЭЦП-сертификата
+```
+
+### ФИО vs display_name
+
+| Поле | На чём | Что хранит | Пример |
+| --- | --- | --- | --- |
+| `accounts.full_name` | Человек | Реальное ФИО (для ЭЦП-matches) | «Айдана Нурланова» |
+| `providers.display_name` | Бренд | Имя бренда / витрины | «Айдана DJ» или «DJ Spektr» |
+| `accounts.show_owner_name` | Toggle | Показывать ли ФИО на публичном профиле | true / false |
+
+### Регистрация (первая запись в БД)
+
+```mermaid
+sequenceDiagram
+    participant U as Пользователь
+    participant UI as MiniGuestGate
+    participant API
+    participant DB
+    U->>UI: Открывает Mini App
+    UI->>API: POST /telegram/mini/auth
+    Note over API: НЕТ записи в accounts<br>возвращает state=guest
+    API-->>UI: state=guest
+    UI->>U: Приветствие + форма ФИО<br>(предзаполнено из Telegram)
+    U->>UI: Корректирует ФИО → жмёт «Начать в Octiqa»
+    UI->>API: POST /telegram/mini/account<br>{ full_name: "Айдана Нурланова" }
+    API->>DB: INSERT accounts ← ВОТ ТУТ создаётся запись
+    API->>DB: INSERT telegram_accounts (связка)
+    API-->>UI: ok + mini_token
+```
+
+**Принцип:** запись в `accounts` создаётся **только после явного клика** «Сохранить» / «Начать в Octiqa». Никогда до. (Это уже работает в коде, фиксируем как инвариант.)
+
+**Валидация на регистрации:**
+- `full_name.length >= 2` — минимальная длина
+- Label явно говорит «ФИО — используется для подтверждения личности»
+- Helper text: «Можно изменить позже до подтверждения личности»
+- Строгой проверки на «настоящее имя» НЕТ — это проверяется на этапе ЭЦП
+
+### Жизненный цикл `full_name`
+
+```mermaid
+stateDiagram-v2
+    [*] --> Editable: Регистрация<br>(full_name введён)
+    Editable --> Editable: PATCH /auth/account/profile<br>(любое количество раз)
+    Editable --> Verifying: Click «Подтвердить через eGov»
+    Verifying --> Editable: ЭЦП не matches с full_name<br>(сначала обнови ФИО, потом верифицируй)
+    Verifying --> Locked: Успех<br>identity_verified_at = NOW<br>identity_locked_at = NOW
+    Locked --> Locked: Попытка PATCH full_name → 423 Locked
+    Locked --> Editable: Click «Снять подтверждение»<br>identity_verified_at = NULL<br>identity_locked_at = NULL<br>(verified_iin_hash / cert_serial остаются как история)
+```
+
+### ЭЦП-flow (детальный)
+
+```mermaid
+flowchart TD
+    Start[Settings → Advanced<br>«Подтвердить личность»] --> NCA[NCALayer / eGov Mobile<br>пользователь подписывает<br>nonce + ИИН]
+    NCA --> API1[POST /accounts/identity/verify<br>signed blob]
+    API1 --> Verify{Проверка подписи<br>+ цепочка сертификатов до НУЦ РК}
+    Verify -->|Не валидна| Err1[Ошибка: сертификат недействителен]
+    Verify -->|Валидна| Match{ФИО из сертификата<br>== account.full_name?}
+    Match -->|Нет| Hint["Покажи юзеру:<br>«В сертификате: Иванов И.И.<br>В аккаунте: Айдана Нурланова<br>Обновите ФИО или используйте свой сертификат»"]
+    Match -->|Да| Save[(UPDATE accounts<br>identity_verified_at = NOW<br>identity_locked_at = NOW<br>verified_iin_hash = hash<br>verified_cert_serial = serial)]
+    Save --> Pub[Публичный профиль:<br>✓ галочка появилась]
+```
+
+### «Снять подтверждение»
+
+- Кнопка в `Settings → Advanced → Подтверждение личности`
+- Двойное confirmation modal: «Это снимет ✓ с публичного профиля и разблокирует ФИО. Уверены?»
+- Эффект:
+  - `identity_verified_at = NULL`
+  - `identity_locked_at = NULL`
+  - `verified_iin_hash` — **остаётся** (история)
+  - `verified_cert_serial` — **остаётся** (история)
+  - Публичная страница: ✓ исчезает
+- После этого: full_name снова редактируем; можно повторно пройти верификацию (если будет matches с новым ФИО)
+
+### Что мы НЕ делаем
+
+- **Не следим за сроком действия сертификата.** Один раз подтвердил → подтверждён, пока сам не снимет. Это сознательное упрощение (см. ответы на open questions).
+- **Не запрещаем менять `display_name` бренда** — он отдельная сущность, не привязан к ФИО.
+- **Не делаем верификацию обязательной** — это опциональная trust-фича.
+
+### Каскад на удаление аккаунта
+
+При hard-delete account:
+- Удаляются accounts, providers, calendar_entries, telegram_accounts (связанные)
+- Хеш ИИН в `verified_iin_hash` уходит вместе с записью — privacy clean
+
+---
+
+## 🌙 Авто-спячка профиля при долгой неактивности
+
+> **Цель:** защитить клиентов от «мёртвых» профилей. Специалист пропал на 3 месяца — клиент не должен на него натыкаться в поиске.
+
+### Триггер спячки
+
+```mermaid
+flowchart TD
+    Cron[Cron job: ежедневно] --> Check{Для каждого Account:<br>last_active_at < NOW - 90 дней?}
+    Check -->|Нет| Skip[Пропустить]
+    Check -->|Да| Status{provider.publication_status<br>= 'visible'?}
+    Status -->|Нет| Skip
+    Status -->|Да| Hibernate[(UPDATE provider<br>publication_status = 'hibernated')]
+    Hibernate --> Notify[Бот шлёт owner'у:<br>«Не заходили 90 дней.<br>Профиль скрыт от клиентов.<br>Войдите и активируйте.»]
+```
+
+### Что обновляет `last_active_at`
+
+- Любой `POST /telegram/mini/auth` с валидным initData
+- Любой `GET /providers/me` с валидным session_token
+- Любой `POST/PATCH` от owner'а к своему профилю/календарю
+- **НЕ обновляет:** действия помощников (т.к. owner сам не появляется)
+
+### Что значит `publication_status = 'hibernated'`
+
+- Скрыт из `public_providers_search`
+- `/p/<slug>` показывает: «Специалист сейчас не активен. Загляните позже.» (или похожее мягкое сообщение, не 404)
+- Owner при следующем заходе видит баннер: **«Ваш профиль скрыт — клиенты вас не видят. Активировать?»**
+- Кнопка «Активировать» → `publication_status = 'visible'` + `last_active_at = NOW`
+
+### Активация = одно действие
+
+```mermaid
+flowchart LR
+    Owner[Owner логинится] --> Banner[Баннер:<br>«Профиль в спячке»]
+    Banner -->|Click «Активировать»| API[POST /providers/me/activate]
+    API --> Update[(publication_status = 'visible'<br>last_active_at = NOW)]
+    Update --> Done[Профиль снова виден клиентам]
+```
+
+### Edge cases
+
+| Сценарий | Поведение |
+| --- | --- |
+| Подписка trial и `last_active_at` старый — попадает под спячку? | **Нет.** Trial-период (первые 30 дней с регистрации) — освобождение от auto-hibernate. Даём время на setup. |
+| Подписка expired И inactive | Профиль скрыт через `public_providers_search` (subscription check). `'hibernated'` не нужен, он overlaps. Cron-job не трогает expired-subscriptions. |
+| Помощник активен, owner — нет | `last_active_at` обновляется только от owner'а. Помощник работает, профиль в спячку **уйдёт** через 90 дней. Это правильно: если owner не следит, профиль не «живой». |
+| Owner активирует → снова уходит на 90 дней | Снова спячка. Цикл нормальный. |
+
+### Что мы НЕ делаем
+
+- Не удаляем данные при спячке. Только скрываем профиль.
+- Не отменяем подписку. Юзер платит, но виден сам себе.
+- Не предупреждаем заранее (за 7 дней до спячки) — добавится потом, если будет жалоба.
+
+---
+
 ## 📊 Что упрощается в коде
 
 ### Удаляется
@@ -397,33 +594,79 @@ flowchart TD
 1. Создать таблицу `provider_categories(provider_id, category_code, subcategory_code, sort_order)`
 2. Для каждого Provider — мигрировать `primary_category` → одна строка в `provider_categories` с `sort_order=0`
 3. Добавить колонку `calendar_entries.category_tag text` (nullable)
-4. **Добавить колонку `telegram_accounts.categories_scope text[]`** (nullable; NULL = все категории)
+4. Добавить колонку `telegram_accounts.categories_scope text[]` (nullable; NULL = все категории)
 5. Удалить таблицу `transfer_requests` и связанные триггеры
 6. Удалить колонку `providers.primary_category` и `primary_subcategory` (после миграции данных)
 7. Добавить UNIQUE constraint на `providers.account_id` (через `provider_accounts` или прямой FK — решить)
-8. **Adjust activity_log:** разрешить `actor_telegram_account_id` быть NULL после revoke; `actor_name` остаётся текстовым полем (уже есть)
+8. Adjust activity_log: разрешить `actor_telegram_account_id` быть NULL после revoke; `actor_name` остаётся текстовым полем (уже есть)
+
+**Миграция `029_account_identity.sql` (ФИО + ЭЦП):**
+1. `ALTER COLUMN accounts.full_name SET NOT NULL` — backfill для существующих, потом NOT NULL
+2. Добавить колонки `accounts.identity_verified_at timestamptz`, `identity_locked_at timestamptz`, `verified_iin_hash text`, `verified_cert_serial text`
+3. Trigger или app-level проверка: при попытке update `accounts.full_name` если `identity_locked_at IS NOT NULL` → reject
+4. Удалить колонку `providers.is_verified` — публичный ✓ теперь берётся из `accounts.identity_verified_at`
+
+**Миграция `030_account_activity.sql` (last_active + hibernation):**
+1. Добавить колонку `accounts.last_active_at timestamptz NOT NULL DEFAULT NOW()`
+2. Добавить значение `'hibernated'` в enum `publication_status` (или check constraint, как сейчас)
+3. Index на `accounts(last_active_at)` для быстрого cron-запроса
+4. Обновить view `public_providers_search` — исключить `'hibernated'`
 
 ### Этап 2: Backend (отдельная сессия)
 
+**Provider/Account:**
 - Переписать `providers/repositories.ts`: `findProvidersByAccountId` → `findProviderByAccountId` (single)
 - Удалить endpoints: `/transfer-request`, `/transfers/*`
 - Обновить `providers/routes.ts`: `/providers/me` возвращает `provider` (не `providers[]`)
 - API эндпоинт для категорий: `PATCH /providers/{id}/categories` (массив)
-- **Calendar API**: фильтрация записей для assistant по `categories_scope`; busy/free статус — полный, детали — только в scope
-- **TeamTool API**: `POST /providers/{id}/assistant-invite` принимает `{ scope?: string[] }`
-- **Revoke endpoint** `/providers/{id}/team/{assistant_id}/revoke`: меняет поведение — DELETE telegram_accounts row + анонимизация activity_log
-- **Bot notification logic**: при write-операциях помощника — копия в owner telegram (расширить `notification_jobs` или inline в endpoint)
+- Endpoint активации после спячки: `POST /providers/me/activate`
+
+**Помощники:**
+- Calendar API: фильтрация записей для assistant по `categories_scope`; busy/free статус — полный, детали — только в scope
+- TeamTool API: `POST /providers/{id}/assistant-invite` принимает `{ scope?: string[] }`
+- Revoke endpoint: DELETE telegram_accounts row + анонимизация activity_log
+- Новый endpoint: `POST /telegram/mini/assistant/leave` (помощник сам уходит) — то же поведение
+- Bot notification logic: при write-операциях помощника — копия в owner telegram (расширить `notification_jobs` или inline в endpoint)
+
+**ФИО + ЭЦП:**
+- `auth/account/profile` PATCH: проверка locked состояния, ответ 423 Locked при попытке менять `full_name`
+- Новый endpoint: `POST /accounts/identity/verify` — валидация ЭЦП-подписи через bouncycastle/node-forge, цепочка до НУЦ РК, matches ФИО
+- Новый endpoint: `POST /accounts/identity/revoke` — снять подтверждение (clear identity_verified_at + identity_locked_at, keep iin_hash и cert_serial)
+- Update `auth/me` response: добавить `identity_verified_at`, `identity_locked_at`
+- Update публичный `GET /public/providers/<slug>`: вернуть `account.identity_verified_at` как `identity_verified` boolean
+
+**Активность + спячка:**
+- Middleware: на каждый authenticated request обновлять `accounts.last_active_at = NOW()` (но только если прошло >5 минут с предыдущего апдейта — throttling)
+- Cron job: `POST /internal/jobs/check-hibernation` — runs daily, marks providers as 'hibernated' если account.last_active_at < NOW - 90 дней AND provider.publication_status = 'visible' AND account.subscription.status != 'expired' AND account.created_at < NOW - 30 дней (защита trial)
+- При marking → создать `notification_jobs` запись на «profile_hibernated_reminder» для бота
+
+**Регистрация (фиксация принципа):**
+- `POST /telegram/mini/account` — единственное место, где создаётся `accounts` row. Проверить, что нет других точек создания.
 
 ### Этап 3: Mini App UI (отдельная сессия)
 
+**Multi-profile удаление:**
 - Удалить `MiniSwitchSheet.tsx`, `TransfersTool.tsx`
 - Упростить `MiniProfilesScreen.tsx` (только текущий профиль)
-- Упростить `useMiniApp` (state, return shape)
+- Упростить `useMiniApp` (state, return shape — Provider | null вместо []`)
 - Упростить `MiniTopBar` (убрать chevron/counter)
 - Обновить `MoreScreen` items: удалить «Передачи»
-- **TeamTool** в SettingsTool / отдельный экран — добавить выбор scope при invite (чипсы категорий), отображение текущего scope для каждого помощника, кнопка изменить scope
-- **CalendarMonthView / CalendarDayView**: для записей вне scope — показывать «занято · не вашего направления» без деталей
-- **MiniAnalyticsScreen**: для помощника — фильтр данных по `categories_scope`
+
+**Помощники:**
+- `TeamTool` — добавить выбор scope при invite (чипсы категорий), отображение текущего scope для каждого помощника, кнопка изменить scope
+- `CalendarMonthView / CalendarDayView`: для записей вне scope — показывать «занято · не вашего направления» без деталей
+- `MiniAnalyticsScreen`: для помощника — фильтр данных по `categories_scope`
+- Для помощников: новая кнопка «Покинуть команду» в `MoreScreen` (только для assistant-role)
+
+**ФИО + ЭЦП:**
+- `MiniGuestGate`: label ФИО + helper text про подтверждение
+- `SettingsTool` → Аккаунт → ФИО: disabled с tooltip при `identity_locked_at IS NOT NULL`
+- `SettingsTool` → Advanced → новый «Подтверждение личности» tool: статус + кнопка «Подтвердить через eGov» (NCALayer integration или ссылка на eGov Mobile для QR-подписи) / «Снять подтверждение» с confirm
+- Public `/p/<slug>`: badge «✓ Подтверждённый специалист» из API response поля `identity_verified`
+
+**Спячка:**
+- При логине: если `provider.publication_status === 'hibernated'` → большой баннер сверху всех экранов «Профиль скрыт от клиентов. Активировать?» + кнопка
+- В `MoreScreen` пункт «Статус профиля» подсвечивается красным/жёлтым при спячке
 
 ### Этап 4: Web onboarding + dashboard (отдельная сессия)
 

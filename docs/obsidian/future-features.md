@@ -49,20 +49,22 @@ flowchart TD
 
 ### Что меняется в данных
 
-Новые поля в таблице `providers` (миграция, скажем, `028_identity_verification.sql`):
+> ⚠️ **Обновление 2026-05-12:** ЭЦП-верификация перенесена с `providers` на `accounts` — подтверждается **человек**, а не **бренд**. Полная схема — в [[proposal-single-profile|proposal-single-profile.md]] раздел «🪪 ФИО, регистрация, верификация личности».
+
+Краткая итоговая схема (миграция `029_account_identity.sql`):
 
 ```sql
-ALTER TABLE providers
-  ADD COLUMN identity_verified boolean NOT NULL DEFAULT false,
-  ADD COLUMN verified_full_name text,
-  ADD COLUMN verified_iin_hash text,        -- хеш ИИН (не сам ИИН — PII)
-  ADD COLUMN verified_at timestamptz,
-  ADD COLUMN verified_certificate_serial text;
-
-CREATE INDEX idx_providers_verified ON providers(identity_verified) WHERE identity_verified;
+ALTER TABLE accounts
+  ALTER COLUMN full_name SET NOT NULL,
+  ADD COLUMN identity_verified_at  timestamptz,
+  ADD COLUMN identity_locked_at    timestamptz,
+  ADD COLUMN verified_iin_hash     text,
+  ADD COLUMN verified_cert_serial  text;
 ```
 
-Wire-тип `Provider` в `@octiqa/types`: добавить опциональные поля `identity_verified?: boolean`, `verified_full_name?: string | null`, `verified_at?: string | null`.
+Wire-тип `Account` в `@octiqa/types`: добавить опциональные `identity_verified_at?: string | null`, `identity_locked_at?: string | null`.
+
+Публичный `/p/<slug>` берёт ✓-flag из `accounts.identity_verified_at !== null`, не из providers.
 
 ### Технические нюансы
 
