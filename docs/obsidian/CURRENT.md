@@ -118,7 +118,7 @@ flowchart TD
 | Гейт нового пользователя | `apps/web/src/app/mini/overlays/MiniGuestGate.tsx` |
 | Гейт первого профиля | `apps/web/src/app/mini/overlays/MiniFirstProfileGate.tsx` |
 | Mini hooks | `apps/web/src/app/mini/hooks/{useMiniApp,useCalendar,useProviderData}.ts` |
-| Mini screens (декомпозированы) | `apps/web/src/app/mini/screens/{Profiles,Calendar,Analytics,More}Screen.tsx` + `more/*Tool.tsx` (Subscription/Integrations/Team/Activity/Transfers/Settings/Notifications) |
+| Mini screens (декомпозированы) | `apps/web/src/app/mini/screens/{Profiles,Calendar,Analytics,More}Screen.tsx` + `more/*Tool.tsx` (Subscription/Integrations/Team/Activity/Settings/Notifications) |
 | Migration-баннер | `apps/web/src/components/MoveToMiniBanner.tsx` (показывается в `dashboard/layout.tsx`, скрыт на onboarding) |
 | Mini overlays | `apps/web/src/app/mini/overlays/{MiniAddSheet,MiniSwitchSheet,MiniPicker,MiniGuestGate,MiniFirstProfileGate}.tsx` |
 | Mini shared | `apps/web/src/app/mini/components/{MiniStyles,MiniTopBar,MiniBottomNav,MiniLoader,EmptyState,NavRow}.tsx` |
@@ -201,6 +201,7 @@ flowchart TD
 | 7 | `0ce284f`, `a3f3adb`, `4f52626` | Proposal `proposal-single-profile.md` — план refactor'а multi→single + ФИО/ЭЦП + scoped-помощники + спячка + чистый revoke |
 | 8 (2026-05-13) | `8b79234` | Миграции БД: **028** (calendar_entries.category_tag + telegram_accounts.categories_scope), **029** (accounts.full_name NOT NULL + identity_*  + lock trigger), **030** (accounts.last_active_at + 'hibernated' enum) — все additive |
 | 8 | `89aefd8` | API additive endpoints: `touchAccountActivity` middleware, `POST /auth/account/identity/revoke`, `POST /providers/:id/activate`, `POST /telegram/mini/assistant/leave` |
+| 8 | `dde77e5` | **Удалена transfer-of-ownership механика целиком**: migration 031 (DROP `provider_ownership_transfer_requests` + DROP TYPE), 4 endpoints в telegram/routes, POST /providers/:id/transfer-request, 6 функций в telegram/repositories, `transferProviderToAccount`, `TransfersTool.tsx`, row «Передачи» в MoreScreen, секция «Передача профиля» в SettingsTool, `TransferRequest` wire-тип. Breaking, но test data only. |
 
 > До этих сессий были Tasks 12–48 — см. [[../tasks-archive|архив]].
 
@@ -216,7 +217,7 @@ flowchart TD
 | 🟡 Среднее | Полировка `MiniFirstProfileGate` — после создания профиля прыгать сразу в shell, если success-экран не нужен | UX |
 | 🔴 Большое | **Idea 1 deep** — перенос фактического onboarding-flow в Mini App (сейчас на web `/dashboard/onboarding`) | Telegram-first до конца |
 | 🟡 Среднее | **Idea 3 Phase 2** — следить за тем, доля сессий через Mini App vs web. Когда Mini App доминирует — Phase 3: web dashboard → read-only / удалить | Один UI (Phase 1 done) |
-| 🟡 Среднее | **Multi-profile → Single-profile multi-category** — см. [[proposal-single-profile]]. Сессия 1 done: миграции 028-030 + additive backend endpoints. Сессия 2 — breaking changes: single /providers/me, удаление transfer endpoints, scope в /assistant-invite. | Упрощение архитектуры |
+| 🟡 Среднее | **Multi-profile → Single-profile multi-category** — см. [[proposal-single-profile]]. Сессия 1 done: миграции 028-030 + additive backend endpoints. Сессия 2 (часть 1) done: transfer-of-ownership flow удалён целиком (migration 031). Остаётся: single /providers/me, упрощение useMiniApp, удаление MiniSwitchSheet, scope в /assistant-invite, удаление primary_category/subcategory из provider_services. | Упрощение архитектуры |
 | 🔴 Большое | **Idea 7 deep** — bot ping клиента через 30 дней «Как прошло с N?» (нужен backend job) | Retention |
 | 🔴 Большое | **ЭЦП-верификация через eGov** ([[future-features]]) | Trust / защита от мошенников |
 
