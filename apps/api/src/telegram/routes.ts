@@ -58,7 +58,16 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       if (!provider) return notFound(reply, 'Профиль не найден');
       if (provider.account_id !== accountId) return forbidden(reply);
 
-      const tokenRow = await repo.createLinkToken(db, id, 'assistant', accountId);
+      // Optional scope: invite assistant restricted to a subset of categories.
+      // NULL/empty = full access (legacy). Array = scoped helper. Stored in
+      // link token and copied to telegram_accounts.categories_scope on consume.
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const rawScope = body['scope'];
+      const scope = Array.isArray(rawScope)
+        ? rawScope.filter((s): s is string => typeof s === 'string' && s.trim().length > 0).map(s => s.trim())
+        : null;
+
+      const tokenRow = await repo.createLinkToken(db, id, 'assistant', accountId, scope);
       const rawToken = tokenRow.id;
       const botUsername = env.TELEGRAM_BOT_USERNAME ?? 'octiqa_mini_bot';
       const deepLink = `https://t.me/${botUsername}?start=link_${rawToken}`;
@@ -70,9 +79,9 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
         actionType: 'assistant_invited',
         targetType: 'telegram_link_token',
         targetId: tokenRow.token_hash,
-        payloadJson: { expires_at: tokenRow.expires_at.toISOString() },
+        payloadJson: { expires_at: tokenRow.expires_at.toISOString(), scope: scope ?? null },
       });
-      return reply.send({ ok: true, deep_link: deepLink, expires_in_minutes: 15 });
+      return reply.send({ ok: true, deep_link: deepLink, expires_in_minutes: 15, scope: scope ?? null });
     });
 
     // POST /telegram/mini/auth

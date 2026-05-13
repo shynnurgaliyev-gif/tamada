@@ -31,6 +31,7 @@ export type TelegramLinkToken = {
   created_by_account_id: string | null;
   expires_at: Date;
   used_at: Date | null;
+  categories_scope: string[] | null;
   created_at: Date;
 };
 
@@ -102,13 +103,15 @@ export async function createLinkToken(
   providerId: string,
   role: TelegramRole = 'owner',
   createdByAccountId?: string,
+  categoriesScope?: string[] | null,
 ): Promise<TelegramLinkToken> {
   const token = generateLinkToken();
   const tokenHash = hashToken(token);
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+  const scope = categoriesScope && categoriesScope.length > 0 ? categoriesScope : null;
   const rows = await db<TelegramLinkToken[]>`
-    INSERT INTO telegram_link_tokens (provider_id, token_hash, invite_role, created_by_account_id, expires_at)
-    VALUES (${providerId}, ${tokenHash}, ${role}, ${createdByAccountId ?? null}, ${expiresAt})
+    INSERT INTO telegram_link_tokens (provider_id, token_hash, invite_role, created_by_account_id, expires_at, categories_scope)
+    VALUES (${providerId}, ${tokenHash}, ${role}, ${createdByAccountId ?? null}, ${expiresAt}, ${scope})
     RETURNING *
   `;
   if (!rows[0]) throw new Error('Failed to create link token');
