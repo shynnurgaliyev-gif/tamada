@@ -51,7 +51,10 @@ export function MiniProfilesScreen({
 
   const activeProfiles   = providers.filter(p => !p.archived_at && !p.pending_delete_at);
   const archivedProfiles = providers.filter(p => p.archived_at || p.pending_delete_at);
-  const canCreate        = permissions.can_create_profile && activeProfiles.length < maxProfiles;
+  // Single-profile model: можно создать профиль только если ни одного активного ещё нет.
+  // maxProfiles удерживается для совместимости signature, но в условии не участвует.
+  const canCreate        = permissions.can_create_profile && activeProfiles.length === 0;
+  void maxProfiles; // historic limit, kept in props for compat
 
   const {
     photos, links, loading, saving, error, reload,
@@ -241,28 +244,18 @@ function ProfilesOverview(props: {
       {/* Header row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div>
-          <div style={{ fontWeight: 900, fontSize: 18 }}>Профили</div>
-          <div style={{ fontSize: 12, color: 'var(--tg-theme-hint-color, #6b7280)', marginTop: 2 }}>
-            {props.activeProfiles.length} из {props.maxProfiles} активных
-          </div>
+          <div style={{ fontWeight: 900, fontSize: 18 }}>Ваш профиль</div>
         </div>
-        {props.canManageProfiles && (
+        {props.canManageProfiles && props.canCreate && (
           <button
             className="mini-btn mini-btn-primary mini-tap"
             onClick={props.onCreate}
-            disabled={!props.canCreate}
-            style={{ width: 'auto', padding: '9px 14px', fontSize: 13, opacity: props.canCreate ? 1 : .55 }}
+            style={{ width: 'auto', padding: '9px 14px', fontSize: 13 }}
           >
-            + Новый
+            + Создать
           </button>
         )}
       </div>
-
-      {!props.canCreate && props.canManageProfiles && (
-        <div style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(245,158,11,.1)', color: '#92400e', fontSize: 12, fontWeight: 700, marginBottom: 10 }}>
-          Лимит: до {props.maxProfiles} профилей на аккаунт.
-        </div>
-      )}
 
       {/* Active profiles */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}>
