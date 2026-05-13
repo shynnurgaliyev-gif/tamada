@@ -1,7 +1,7 @@
 ---
 tags: [current, sot, octiqa]
 created: 2026-05-11
-updated: 2026-05-12
+updated: 2026-05-13
 ---
 
 # 📍 Octiqa — как работает сейчас
@@ -197,7 +197,10 @@ flowchart TD
 | 5 | `f39d364` | `redirectToLogin` + `requireSessionToken`, 15+ дублей убраны |
 | 6 | `c47c22e` | Share-кнопка на `/p/<slug>` (Idea 7 первый шаг) |
 | 7 | `46ff204` | Создан `CURRENT.md` — single source of truth по текущей логике |
-| 7 | _эта сессия_ | **Idea 3 Phase 1**: `MoveToMiniBanner` на всех dashboard-страницах (кроме onboarding); `NotificationsTool` добавлен в Mini App More — закрыт последний gap между web и Mini |
+| 7 | `a1611a3` | **Idea 3 Phase 1**: `MoveToMiniBanner` на всех dashboard-страницах (кроме onboarding); `NotificationsTool` добавлен в Mini App More — закрыт последний gap между web и Mini |
+| 7 | `0ce284f`, `a3f3adb`, `4f52626` | Proposal `proposal-single-profile.md` — план refactor'а multi→single + ФИО/ЭЦП + scoped-помощники + спячка + чистый revoke |
+| 8 (2026-05-13) | `8b79234` | Миграции БД: **028** (calendar_entries.category_tag + telegram_accounts.categories_scope), **029** (accounts.full_name NOT NULL + identity_*  + lock trigger), **030** (accounts.last_active_at + 'hibernated' enum) — все additive |
+| 8 | `89aefd8` | API additive endpoints: `touchAccountActivity` middleware, `POST /auth/account/identity/revoke`, `POST /providers/:id/activate`, `POST /telegram/mini/assistant/leave` |
 
 > До этих сессий были Tasks 12–48 — см. [[../tasks-archive|архив]].
 
@@ -213,7 +216,7 @@ flowchart TD
 | 🟡 Среднее | Полировка `MiniFirstProfileGate` — после создания профиля прыгать сразу в shell, если success-экран не нужен | UX |
 | 🔴 Большое | **Idea 1 deep** — перенос фактического onboarding-flow в Mini App (сейчас на web `/dashboard/onboarding`) | Telegram-first до конца |
 | 🟡 Среднее | **Idea 3 Phase 2** — следить за тем, доля сессий через Mini App vs web. Когда Mini App доминирует — Phase 3: web dashboard → read-only / удалить | Один UI (Phase 1 done) |
-| 🔴 Большое | **Multi-profile → Single-profile multi-category** — см. [[proposal-single-profile]]. Снимает 30%+ сложности UI/data model. Окно открыто: пользователей нет, идеальный момент. | Упрощение архитектуры |
+| 🟡 Среднее | **Multi-profile → Single-profile multi-category** — см. [[proposal-single-profile]]. Сессия 1 done: миграции 028-030 + additive backend endpoints. Сессия 2 — breaking changes: single /providers/me, удаление transfer endpoints, scope в /assistant-invite. | Упрощение архитектуры |
 | 🔴 Большое | **Idea 7 deep** — bot ping клиента через 30 дней «Как прошло с N?» (нужен backend job) | Retention |
 | 🔴 Большое | **ЭЦП-верификация через eGov** ([[future-features]]) | Trust / защита от мошенников |
 
