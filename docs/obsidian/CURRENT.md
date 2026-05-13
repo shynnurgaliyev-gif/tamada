@@ -203,6 +203,7 @@ flowchart TD
 | 8 | `89aefd8` | API additive endpoints: `touchAccountActivity` middleware, `POST /auth/account/identity/revoke`, `POST /providers/:id/activate`, `POST /telegram/mini/assistant/leave` |
 | 8 | `dde77e5` | **Удалена transfer-of-ownership механика целиком**: migration 031 (DROP `provider_ownership_transfer_requests` + DROP TYPE), 4 endpoints в telegram/routes, POST /providers/:id/transfer-request, 6 функций в telegram/repositories, `transferProviderToAccount`, `TransfersTool.tsx`, row «Передачи» в MoreScreen, секция «Передача профиля» в SettingsTool, `TransferRequest` wire-тип. Breaking, но test data only. |
 | 8 | `255a787` | **UI переключения профилей удалён**: `MiniSwitchSheet.tsx` удалён, `MiniShell` без `showSwitch` state и `onToggleSwitch`, `MiniTopBar` без chevron/counter (стал `<div>` без интерактива). useMiniApp state-shape сохранён (Provider[] + activeIdx) для callsite-consistency. |
+| 8 | `f3089d2` | **Single-profile constraint + UI**: migration 032 — partial UNIQUE на `providers.account_id` (active only). MiniProfilesScreen: `canCreate = activeProfiles.length === 0`, кнопка «+ Новый» скрыта когда уже есть профиль, заголовок «Ваш профиль» вместо «Профили N/M», убран лимит-баннер. DB и UI теперь оба enforce'ят один активный профиль на аккаунт. |
 
 > До этих сессий были Tasks 12–48 — см. [[../tasks-archive|архив]].
 
@@ -218,7 +219,7 @@ flowchart TD
 | 🟡 Среднее | Полировка `MiniFirstProfileGate` — после создания профиля прыгать сразу в shell, если success-экран не нужен | UX |
 | 🔴 Большое | **Idea 1 deep** — перенос фактического onboarding-flow в Mini App (сейчас на web `/dashboard/onboarding`) | Telegram-first до конца |
 | 🟡 Среднее | **Idea 3 Phase 2** — следить за тем, доля сессий через Mini App vs web. Когда Mini App доминирует — Phase 3: web dashboard → read-only / удалить | Один UI (Phase 1 done) |
-| 🟡 Среднее | **Multi-profile → Single-profile multi-category** — см. [[proposal-single-profile]]. Сессия 1 done: миграции 028-030 + additive backend endpoints. Сессия 2 (часть 1) done: transfer-of-ownership flow удалён целиком (migration 031). Остаётся: single /providers/me, упрощение useMiniApp, удаление MiniSwitchSheet, scope в /assistant-invite, удаление primary_category/subcategory из provider_services. | Упрощение архитектуры |
+| 🟡 Среднее | **Multi-profile → Single-profile multi-category** — см. [[proposal-single-profile]]. Сессии 1-2 done: миграции 028-032, transfer flow удалён, MiniSwitchSheet удалён, UI lock-down создания второго профиля. Остаётся: single /providers/me shape для web-dashboard (9 callers), упрощение useMiniApp state, scope в /assistant-invite, calendar-scope-фильтрация, добавление мульти-категорий в provider_services. | Упрощение архитектуры |
 | 🔴 Большое | **Idea 7 deep** — bot ping клиента через 30 дней «Как прошло с N?» (нужен backend job) | Retention |
 | 🔴 Большое | **ЭЦП-верификация через eGov** ([[future-features]]) | Trust / защита от мошенников |
 
