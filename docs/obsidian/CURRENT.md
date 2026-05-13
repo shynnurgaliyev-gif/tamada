@@ -202,6 +202,7 @@ flowchart TD
 | 8 (2026-05-13) | `8b79234` | Миграции БД: **028** (calendar_entries.category_tag + telegram_accounts.categories_scope), **029** (accounts.full_name NOT NULL + identity_*  + lock trigger), **030** (accounts.last_active_at + 'hibernated' enum) — все additive |
 | 8 | `89aefd8` | API additive endpoints: `touchAccountActivity` middleware, `POST /auth/account/identity/revoke`, `POST /providers/:id/activate`, `POST /telegram/mini/assistant/leave` |
 | 8 | `dde77e5` | **Удалена transfer-of-ownership механика целиком**: migration 031 (DROP `provider_ownership_transfer_requests` + DROP TYPE), 4 endpoints в telegram/routes, POST /providers/:id/transfer-request, 6 функций в telegram/repositories, `transferProviderToAccount`, `TransfersTool.tsx`, row «Передачи» в MoreScreen, секция «Передача профиля» в SettingsTool, `TransferRequest` wire-тип. Breaking, но test data only. |
+| 8 | `255a787` | **UI переключения профилей удалён**: `MiniSwitchSheet.tsx` удалён, `MiniShell` без `showSwitch` state и `onToggleSwitch`, `MiniTopBar` без chevron/counter (стал `<div>` без интерактива). useMiniApp state-shape сохранён (Provider[] + activeIdx) для callsite-consistency. |
 
 > До этих сессий были Tasks 12–48 — см. [[../tasks-archive|архив]].
 
