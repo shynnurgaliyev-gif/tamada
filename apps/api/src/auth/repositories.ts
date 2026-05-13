@@ -23,11 +23,16 @@ export type Account = {
   id: string;
   username: string;
   phone: string;
-  full_name: string | null;
+  full_name: string | null; // becomes non-null after migration 029 (NOT NULL enforced)
   phone_verified_at: Date | null;
   password_hash: string;
   status: AccountStatus;
   show_related_profiles: boolean;
+  identity_verified_at: Date | null;
+  identity_locked_at:   Date | null;
+  verified_iin_hash:    string | null;
+  verified_cert_serial: string | null;
+  last_active_at:       Date;
   created_at: Date;
   updated_at: Date;
 };
@@ -63,6 +68,41 @@ export async function createAccount(db: Db, data: {
 
 export async function updateAccountPassword(db: Db, id: string, passwordHash: string): Promise<void> {
   await db`UPDATE accounts SET password_hash = ${passwordHash} WHERE id = ${id}`;
+}
+
+/**
+ * Update `accounts.last_active_at` for owner-driven requests.
+ * Throttled to once per 5 minutes per account to avoid write amplification.
+ * Fire-and-forget — never throws; failure is silent (auth still succeeds).
+ */
+export async function touchAccountActivity(db: Db, id: string): Promise<void> {
+  try {
+    await db`
+      UPDATE accounts
+      SET last_active_at = NOW()
+      WHERE id = ${id}
+        AND last_active_at < NOW() - INTERVAL '5 minutes'
+    `;
+  } catch {
+    /* non-fatal — don't propagate */
+  }
+}
+
+/**
+ * Clear identity verification on the account. Keeps verified_iin_hash and
+ * verified_cert_serial as history per the design. After this, the user can
+ * change full_name again and re-verify if they wish.
+ */
+export async function revokeAccountIdentity(db: Db, id: string): Promise<Account | null> {
+  const rows = await db<Account[]>`
+    UPDATE accounts SET
+      identity_verified_at = NULL,
+      identity_locked_at   = NULL,
+      updated_at           = NOW()
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  return rows[0] ?? null;
 }
 
 export async function updateAccountPublicSettings(db: Db, id: string, data: {

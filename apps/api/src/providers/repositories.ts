@@ -218,6 +218,23 @@ export async function unarchiveProvider(db: Db, id: string): Promise<Provider | 
   return rows[0] ?? null;
 }
 
+/**
+ * Activate a provider that was put into hibernation by the inactivity cron.
+ * Only changes status when currently 'hibernated' — idempotent / safe to call
+ * even if profile is already visible.
+ */
+export async function activateProviderFromHibernation(db: Db, id: string): Promise<Provider | null> {
+  const rows = await db<Provider[]>`
+    UPDATE providers SET
+      publication_status = 'visible',
+      updated_at = NOW()
+    WHERE id = ${id}
+      AND publication_status = 'hibernated'
+    RETURNING *
+  `;
+  return rows[0] ?? null;
+}
+
 export async function markProviderPendingDelete(db: Db, id: string, accountId: string): Promise<Provider | null> {
   const rows = await db<Provider[]>`
     UPDATE providers SET

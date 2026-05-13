@@ -184,6 +184,36 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
       return reply.send({ ok: true, provider: restored });
     });
 
+    // POST /providers/:id/activate
+    // Reactivate a profile that the inactivity cron put into hibernation.
+    // Owner-only. Idempotent — no-op if not currently hibernated.
+    app.post('/providers/:id/activate', async (req, reply) => {
+      const { accountId, telegramAccountId } = await getOwnerContext(req, 'can_edit_profile');
+      if (!accountId) return unauthorized(reply);
+
+      const { id } = req.params as { id: string };
+      const provider = await repo.findProviderById(db, id);
+      if (!provider) return notFound(reply, 'Профиль не найден');
+      if (provider.account_id !== accountId) return forbidden(reply);
+
+      const activated = await repo.activateProviderFromHibernation(db, id);
+      // If not in hibernation, just return current state — idempotent.
+      const result = activated ?? provider;
+
+      if (activated) {
+        await telegramRepo.logActivity(db, {
+          providerId: id,
+          actorType: telegramAccountId ? 'telegram' : 'web',
+          actorAccountId: accountId,
+          telegramAccountId: telegramAccountId ?? undefined,
+          actionType: 'profile_reactivated',
+          targetType: 'provider',
+          targetId: id,
+        });
+      }
+      return reply.send({ ok: true, provider: result });
+    });
+
     // POST /providers/:id/hard-delete
     // Safety step: finalizes as hidden + pending_delete, revokes profile-scoped access/invites.
     app.post('/providers/:id/hard-delete', async (req, reply) => {

@@ -4,7 +4,7 @@ import type { WhatsAppProvider } from './whatsapp';
 import type { SupabaseClient } from '../supabase';
 import * as service from './service';
 import { hashToken } from './repositories';
-import { findAccountById, updateAccountPublicSettings, updateAccountProfile } from './repositories';
+import { findAccountById, updateAccountPublicSettings, updateAccountProfile, revokeAccountIdentity } from './repositories';
 import { getAuthAccount } from './middleware';
 import { getMiniSessionContext } from '../telegram/mini-session';
 import { badRequest, unauthorized, forbidden, notFound, conflict, serverError } from '../replies';
@@ -150,6 +150,21 @@ export function createAuthRoutes(db: Db, wa: WhatsAppProvider, supabase: Supabas
       }
 
       const updated = await updateAccountProfile(db, accountId, { fullName });
+      return reply.send({ ok: true, account: updated });
+    });
+
+    // POST /auth/account/identity/revoke
+    // Clears identity_verified_at + identity_locked_at. Keeps verified_iin_hash
+    // and verified_cert_serial as history. After this, full_name is editable
+    // again and user can re-verify with a new ECP signature if desired.
+    app.post('/auth/account/identity/revoke', async (req, reply) => {
+      const account = await getAuthAccount(db, req);
+      const mini = account ? null : await getMiniSessionContext(db, req, 'can_manage_subscription');
+      const accountId = account?.id ?? mini?.accountId;
+      if (!accountId) return unauthorized(reply);
+
+      const updated = await revokeAccountIdentity(db, accountId);
+      if (!updated) return notFound(reply, 'Аккаунт не найден');
       return reply.send({ ok: true, account: updated });
     });
 

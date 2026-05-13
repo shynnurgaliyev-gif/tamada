@@ -274,6 +274,45 @@ export function createTelegramRoutes(db: Db, env: AppEnv) {
       return reply.send({ ok: true, active_provider_id: providerId, pending_cancelled });
     });
 
+    // POST /telegram/mini/assistant/leave
+    // Initiated by an assistant who wants to leave the team. Same effect as
+    // owner-side revoke (revokeProfileAccess + revokeMiniSessions), but the
+    // helper triggers it themselves. Owner gets activity-log entry.
+    // NOTE: keeps current "unlinked" semantics for now. The DELETE-on-revoke
+    // model from the proposal lands in a later migration session.
+    app.post('/telegram/mini/assistant/leave', async (req, reply) => {
+      const header = req.headers['x-mini-auth'];
+      const rawToken = Array.isArray(header) ? header[0] : header;
+      if (!rawToken) return unauthorized(reply);
+
+      const session = await repo.findValidMiniSession(db, repo.hashToken(rawToken));
+      if (!session) return unauthorized(reply);
+
+      const tgAccount = await repo.findTelegramAccountById(db, session.telegram_account_id);
+      if (!tgAccount) return unauthorized(reply);
+      if (tgAccount.telegram_role === 'owner' || tgAccount.is_primary) {
+        return badRequest(reply, 'Владелец не может покинуть собственную команду');
+      }
+
+      const providerIds = await repo.findAccessibleProviderIdsForTelegramAccount(db, tgAccount);
+      for (const providerId of providerIds) {
+        await repo.revokeProfileAccess(db, tgAccount.id, providerId);
+        await repo.logActivity(db, {
+          providerId,
+          actorType: 'telegram',
+          actorAccountId: tgAccount.account_id ?? undefined,
+          telegramAccountId: tgAccount.id,
+          actionType: 'assistant_left',
+          targetType: 'telegram_account',
+          targetId: tgAccount.id,
+          payloadJson: { telegram_user_id: tgAccount.telegram_user_id },
+        });
+      }
+      await repo.revokeMiniSessionsForTelegramAccount(db, tgAccount.id);
+
+      return reply.send({ ok: true });
+    });
+
     // POST /telegram/mini/transfers/:requestId/accept
     app.post('/telegram/mini/transfers/:requestId/accept', async (req, reply) => {
       const mini = await getMiniSessionContext(db, req, 'can_create_profile');
