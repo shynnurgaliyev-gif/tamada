@@ -15,7 +15,6 @@ import { MiniCalendarScreen }           from './screens/MiniCalendarScreen';
 import { MiniAnalyticsScreen }          from './screens/MiniAnalyticsScreen';
 import { MiniMoreScreen }               from './screens/MiniMoreScreen';
 import { MiniAddSheet }                 from './overlays/MiniAddSheet';
-import { MiniSwitchSheet }              from './overlays/MiniSwitchSheet';
 import { MiniFirstProfileGate }         from './overlays/MiniFirstProfileGate';
 import { MiniGuestGate }                from './overlays/MiniGuestGate';
 
@@ -108,7 +107,6 @@ export default function MiniShell() {
 
   // ── Overlay state (UI-only, not owned by the hook) ──────
   const [showAdd,              setShowAdd]              = useState(false);
-  const [showSwitch,           setShowSwitch]           = useState(false);
   const [calendarNewEntry,     setCalendarNewEntry]     = useState(false);
   const [openPhotosOnLoad,     setOpenPhotosOnLoad]     = useState(false);
   const [showFirstProfileGate, setShowFirstProfileGate] = useState(false);
@@ -128,7 +126,6 @@ export default function MiniShell() {
   // ── Tab handler also closes overlays ────────────────────
   function onTab(next: Parameters<typeof handleTab>[0]) {
     setShowAdd(false);
-    setShowSwitch(false);
     handleTab(next);
   }
 
@@ -212,11 +209,9 @@ export default function MiniShell() {
 
         <MiniTopBar
           provider={activeProvider}
-          providers={providers}
           ownerName={accountFullName ?? (tgUser ? [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') || null : null)}
           subStatus={subStatus}
           subDaysLeft={subDaysLeft}
-          onToggleSwitch={() => setShowSwitch(s => !s)}
           {...firstProfileProps}
         />
 
@@ -260,15 +255,6 @@ export default function MiniShell() {
               setCalendarNewEntry(true);
             }}
             {...firstProfileProps}
-          />
-        )}
-
-        {showSwitch && providers.filter(p => !p.archived_at && !p.pending_delete_at).length > 1 && (
-          <MiniSwitchSheet
-            providers={providers}
-            activeIdx={activeIdx}
-            onSelect={i => { setActiveIdx(i); setShowSwitch(false); }}
-            onClose={() => setShowSwitch(false)}
           />
         )}
 

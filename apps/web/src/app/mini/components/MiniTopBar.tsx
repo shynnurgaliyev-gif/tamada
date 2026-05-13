@@ -2,24 +2,18 @@ import type { Provider } from '../types';
 
 export function MiniTopBar({
   provider,
-  providers,
   ownerName,
   subStatus,
   subDaysLeft,
-  onToggleSwitch,
   onCreateFirstProfile,
 }: {
   provider: Provider | null;
-  providers: Provider[];
   ownerName?: string | null;
   subStatus?: string | null;
   subDaysLeft?: number | null;
-  onToggleSwitch: () => void;
   onCreateFirstProfile?: () => void;
 }) {
   const subBadge = renderSubBadge(subStatus, subDaysLeft);
-  const activeProviders = providers.filter(p => !p.archived_at && !p.pending_delete_at);
-  const hasMultiple = activeProviders.length > 1;
   const isActive    = provider?.provider_status === 'active';
   const isVisible   = isActive && provider?.publication_status === 'visible';
 
@@ -63,14 +57,11 @@ export function MiniTopBar({
     : 'Скрыт · не виден';
 
   return (
-    <button
-      className="mini-topbar mini-tap"
-      onClick={hasMultiple ? onToggleSwitch : undefined}
+    <div
+      className="mini-topbar"
       style={{
-        border: 'none',
         width: '100%',
         textAlign: 'left',
-        cursor: hasMultiple ? 'pointer' : 'default',
         gap: 7,
         alignItems: 'center',
       }}
@@ -106,21 +97,12 @@ export function MiniTopBar({
           <span style={{ color: 'var(--tg-theme-text-color, #0a0a0f)', fontWeight: 600 }}>
             {provider.display_name}
           </span>
-          {hasMultiple && (
-            <span style={{ opacity: 0.5 }}>
-              {' '}({activeProviders.findIndex(p => p.id === provider.id) + 1}/{activeProviders.length})
-            </span>
-          )}
           <span style={{ opacity: 0.7 }}>{' · '}{statusText}</span>
         </span>
       </span>
 
       {subBadge}
-      {/* Switcher chevron */}
-      {hasMultiple && (
-        <span style={{ fontSize: 14, color: 'var(--tg-theme-hint-color, #9ca3af)', flexShrink: 0 }}>⌄</span>
-      )}
-    </button>
+    </div>
   );
 }
 
