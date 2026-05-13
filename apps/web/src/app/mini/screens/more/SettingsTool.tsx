@@ -18,7 +18,6 @@ import {
 export function SettingsTool({ tgUser, provider, canArchive, onProvidersChanged }: { tgUser: TgUser | null; provider: Provider | null; canArchive?: boolean; onProvidersChanged?: () => Promise<void> }) {
   const [account, setAccount] = useState<Account | null>(null);
   const [team, setTeam] = useState<TelegramAccount[]>([]);
-  const [transferPhone, setTransferPhone] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
@@ -61,22 +60,6 @@ export function SettingsTool({ tgUser, provider, canArchive, onProvidersChanged 
     setMessage(data?.ok ? 'Главный Telegram обновлен.' : data?.error ?? 'Не удалось сменить главный Telegram.');
     setBusy(false);
     loadTeam();
-  }
-
-  async function createTransferRequest() {
-    if (!provider || !transferPhone.trim()) return;
-    setBusy(true);
-    setMessage('');
-    const res = await fetch(`${API}/providers/${provider.id}/transfer-request`, {
-      method: 'POST',
-      headers: { ...auth(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to_phone: transferPhone.trim() }),
-    }).catch(() => null);
-    const data = res ? await res.json() as { ok: boolean; transfer_request?: { expires_at: string }; error?: string } : null;
-    setMessage(data?.ok
-      ? `Запрос на передачу создан. Действует до ${new Date(data.transfer_request!.expires_at).toLocaleString('ru-RU')}.`
-      : data?.error ?? 'Не удалось создать запрос на передачу.');
-    setBusy(false);
   }
 
   async function hardDeleteProfile() {
@@ -296,18 +279,6 @@ export function SettingsTool({ tgUser, provider, canArchive, onProvidersChanged 
             style={{ borderColor: 'rgba(239,68,68,.3)', color: '#dc2626' }}
           >
             Архивировать этот профиль
-          </button>
-        </div>
-      )}
-      {showAdvanced && provider && (
-        <div className="mini-card">
-          <div style={{ fontWeight: 900, marginBottom: 8 }}>Передача профиля</div>
-          <div style={{ fontSize: 13, color: 'var(--tg-theme-hint-color, #6b7280)', lineHeight: 1.45, marginBottom: 10 }}>
-            Создаст безопасный pending request. Передача не завершится без отдельного подтверждения.
-          </div>
-          <input className="mini-input" value={transferPhone} onChange={e => setTransferPhone(e.target.value)} placeholder="Телефон нового owner" style={{ marginBottom: 8 }} />
-          <button className="mini-btn mini-btn-outline mini-tap" disabled={busy || !transferPhone.trim()} onClick={() => void createTransferRequest()}>
-            Создать запрос передачи
           </button>
         </div>
       )}

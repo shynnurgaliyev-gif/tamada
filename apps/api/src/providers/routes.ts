@@ -246,42 +246,6 @@ export function createProviderRoutes(db: Db, supabase: SupabaseClient, env: AppE
       return reply.send({ ok: true, provider: deleted });
     });
 
-    // POST /providers/:id/transfer-request
-    app.post('/providers/:id/transfer-request', async (req, reply) => {
-      const { accountId, telegramAccountId } = await getOwnerContext(req, 'can_archive_profile');
-      if (!accountId) return unauthorized(reply);
-
-      const { id } = req.params as { id: string };
-      const provider = await repo.findProviderById(db, id);
-      if (!provider) return notFound(reply, 'Профиль не найден');
-      if (provider.account_id !== accountId) return forbidden(reply);
-
-      const body = req.body as Record<string, unknown>;
-      const toPhone = typeof body['to_phone'] === 'string' ? body['to_phone'].trim() : '';
-      const toAccountId = typeof body['to_account_id'] === 'string' ? body['to_account_id'] : undefined;
-      if (!toPhone && !toAccountId) return badRequest(reply, 'Необходимо указать to_phone или to_account_id');
-
-      const request = await telegramRepo.createOwnershipTransferRequest(db, {
-        providerId: id,
-        fromAccountId: accountId,
-        requestedByAccountId: accountId,
-        toAccountId,
-        toPhone: toPhone || undefined,
-      });
-      await telegramRepo.revokeLinkTokensForProvider(db, id);
-      await telegramRepo.logActivity(db, {
-        providerId: id,
-        actorType: telegramAccountId ? 'telegram' : 'web',
-        actorAccountId: accountId,
-        telegramAccountId: telegramAccountId ?? undefined,
-        actionType: 'ownership_transfer_created',
-        targetType: 'ownership_transfer_request',
-        targetId: request.id,
-        payloadJson: { to_account_id: toAccountId ?? null, to_phone: toPhone || null },
-      });
-      return reply.code(201).send({ ok: true, transfer_request: request });
-    });
-
     // DELETE /providers/:id
     app.delete('/providers/:id', async (req, reply) => {
       const account = await getAuthAccount(db, req);

@@ -4,7 +4,6 @@ import type { ReactNode } from 'react';
 import type {
   ActivityLog,
   TelegramAccount,
-  TransferRequest,
 } from '@octiqa/types';
 
 export type {
@@ -14,7 +13,6 @@ export type {
   PlanLimits,
   Subscription,
   TelegramAccount,
-  TransferRequest,
 } from '@octiqa/types';
 
 export const statusLabel: Record<string, string> = {
@@ -80,29 +78,6 @@ export function InfoRow({ label, value }: { label: string; value: string }) {
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '7px 0', fontSize: 13 }}>
       <span style={{ color: 'var(--tg-theme-hint-color, #6b7280)' }}>{label}</span>
       <span style={{ fontWeight: 800, textAlign: 'right' }}>{value}</span>
-    </div>
-  );
-}
-
-export function TransferRow({ request, mode, action }: { request: TransferRequest; mode: 'incoming' | 'outgoing'; action: ReactNode }) {
-  const isPending = request.status === 'pending';
-  const target = request.to_username || request.to_phone_account || request.to_phone || 'не указан';
-  const source = request.from_username || request.from_phone || 'владелец';
-  return (
-    <div style={{ padding: '12px 0', borderTop: '1px solid rgba(0,0,0,.06)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: 6 }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 900, fontSize: 14 }}>{request.provider_display_name}</div>
-          <div style={{ fontSize: 12, color: 'var(--tg-theme-hint-color, #6b7280)', marginTop: 2 }}>
-            {mode === 'incoming' ? `От: ${source}` : `Кому: ${target}`}
-          </div>
-        </div>
-        <Badge>{request.status}</Badge>
-      </div>
-      <div style={{ fontSize: 12, color: isPending ? '#92400e' : 'var(--tg-theme-hint-color, #6b7280)', lineHeight: 1.4, marginBottom: action ? 10 : 0 }}>
-        Действует до {new Date(request.expires_at).toLocaleString('ru-RU')}
-      </div>
-      {action}
     </div>
   );
 }

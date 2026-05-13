@@ -192,25 +192,6 @@ export type TelegramAccount = {
   access_granted_at?: string | null;
 };
 
-export type TransferRequest = {
-  id: string;
-  provider_id: string;
-  from_account_id: string;
-  to_account_id: string | null;
-  to_phone: string | null;
-  status: string;
-  expires_at: string;
-  created_at: string;
-  accepted_at: string | null;
-  cancelled_at: string | null;
-  provider_display_name: string;
-  provider_slug: string;
-  from_username: string | null;
-  from_phone: string | null;
-  to_username: string | null;
-  to_phone_account: string | null;
-};
-
 export type ActivityLog = {
   id: string;
   action_type: string;
