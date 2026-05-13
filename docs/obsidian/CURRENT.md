@@ -204,6 +204,7 @@ flowchart TD
 | 8 | `dde77e5` | **Удалена transfer-of-ownership механика целиком**: migration 031 (DROP `provider_ownership_transfer_requests` + DROP TYPE), 4 endpoints в telegram/routes, POST /providers/:id/transfer-request, 6 функций в telegram/repositories, `transferProviderToAccount`, `TransfersTool.tsx`, row «Передачи» в MoreScreen, секция «Передача профиля» в SettingsTool, `TransferRequest` wire-тип. Breaking, но test data only. |
 | 8 | `255a787` | **UI переключения профилей удалён**: `MiniSwitchSheet.tsx` удалён, `MiniShell` без `showSwitch` state и `onToggleSwitch`, `MiniTopBar` без chevron/counter (стал `<div>` без интерактива). useMiniApp state-shape сохранён (Provider[] + activeIdx) для callsite-consistency. |
 | 8 | `f3089d2` | **Single-profile constraint + UI**: migration 032 — partial UNIQUE на `providers.account_id` (active only). MiniProfilesScreen: `canCreate = activeProfiles.length === 0`, кнопка «+ Новый» скрыта когда уже есть профиль, заголовок «Ваш профиль» вместо «Профили N/M», убран лимит-баннер. DB и UI теперь оба enforce'ят один активный профиль на аккаунт. |
+| 8 | `668eb0e` | **Assistant-invite scope foundation**: migration 033 — `telegram_link_tokens.categories_scope text[]`. `createLinkToken` принимает scope. Endpoint `POST /providers/:id/assistant-invite` принимает `body.scope`. Consume-side (применение scope при привязке assistant'а к telegram_accounts.categories_scope) — следующая сессия. |
 
 > До этих сессий были Tasks 12–48 — см. [[../tasks-archive|архив]].
 
